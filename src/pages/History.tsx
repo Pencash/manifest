@@ -17,6 +17,7 @@ import {
 const History = () => {
   const [givings, setGivings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,15 +37,34 @@ const History = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      // Get user's profile to check their role
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      setUserRole(profile?.role || null);
+
+      // Finance and admin can see all givings, but with privacy protection
+      const isFinanceOrAdmin = profile?.role === 'finance' || profile?.role === 'admin';
+      
+      let query = supabase
         .from("givings")
         .select(`
           *,
           giving_types(name),
-          services(name, service_date)
+          services(name, service_date),
+          profiles(full_name, email)
         `)
-        .eq("profile_id", user.id)
         .order("created_at", { ascending: false });
+
+      // Regular members only see their own givings
+      if (!isFinanceOrAdmin) {
+        query = query.eq("profile_id", user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setGivings(data || []);
@@ -90,7 +110,11 @@ const History = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Giving History</CardTitle>
+            <CardTitle className="text-2xl">
+              {userRole === 'finance' || userRole === 'admin' 
+                ? 'All Givings (Finance View)' 
+                : 'Giving History'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {givings.length === 0 ? (
@@ -110,6 +134,9 @@ const History = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Service</TableHead>
+                      {(userRole === 'finance' || userRole === 'admin') && (
+                        <TableHead>Donor</TableHead>
+                      )}
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -120,7 +147,16 @@ const History = () => {
                         <TableCell>
                           {new Date(giving.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{giving.giving_types?.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {giving.giving_types?.name}
+                            {giving.is_anonymous && (
+                              <Badge variant="outline" className="text-xs">
+                                Anonymous
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {giving.services ? (
                             <>
@@ -134,6 +170,24 @@ const History = () => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
+                        {(userRole === 'finance' || userRole === 'admin') && (
+                          <TableCell>
+                            {giving.is_anonymous ? (
+                              <span className="text-muted-foreground italic">
+                                Anonymous Donor
+                              </span>
+                            ) : (
+                              <div>
+                                <div className="font-medium">
+                                  {giving.profiles?.full_name || 'Unknown'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {giving.profiles?.email}
+                                </div>
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="font-semibold">
                           {giving.currency} {parseFloat(giving.amount).toLocaleString()}
                         </TableCell>
