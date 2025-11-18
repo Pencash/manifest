@@ -2,16 +2,13 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HandHeart, Heart, MessageSquare, Shield } from "lucide-react";
-
 const Landing = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+  return <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Phaneroo Giving Platform
+                  Manifest Giving Platform
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             A secure and transparent way to give, share testimonies, and connect with your church
@@ -90,8 +87,6 @@ const Landing = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
