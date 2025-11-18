@@ -246,6 +246,10 @@ export type Database = {
           parsed_reference: string | null
           raw_ocr_text: string | null
           storage_path: string
+          verification_notes: string | null
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           created_at?: string
@@ -258,6 +262,10 @@ export type Database = {
           parsed_reference?: string | null
           raw_ocr_text?: string | null
           storage_path: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           created_at?: string
@@ -270,6 +278,10 @@ export type Database = {
           parsed_reference?: string | null
           raw_ocr_text?: string | null
           storage_path?: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {

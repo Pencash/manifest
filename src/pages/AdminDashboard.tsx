@@ -323,7 +323,10 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/admin/receipts")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Receipts</CardTitle>
               <FileCheck className="h-4 w-4 text-muted-foreground" />
@@ -331,6 +334,9 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold">{metrics.pendingReceipts || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Awaiting verification</p>
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm">
+                View All →
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import ReceiptVerification from "./pages/ReceiptVerification";
 import Give from "./pages/Give";
 import History from "./pages/History";
 import Testimony from "./pages/Testimony";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/receipts" element={<ReceiptVerification />} />
           <Route path="/give" element={<Give />} />
           <Route path="/history" element={<History />} />
           <Route path="/testimony" element={<Testimony />} />
