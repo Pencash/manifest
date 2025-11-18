@@ -20,7 +20,7 @@ const Dashboard = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/member/auth");
       }
     });
 
@@ -32,7 +32,7 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/member/auth");
         return;
       }
       
@@ -45,6 +45,13 @@ const Dashboard = () => {
         .single();
 
       if (error) throw error;
+      
+      // Redirect admin/finance users to their dashboard
+      if (profileData.role === 'admin' || profileData.role === 'finance' || profileData.role === 'pastor') {
+        navigate("/admin/dashboard");
+        return;
+      }
+      
       setProfile(profileData);
     } catch (error: any) {
       console.error("Error loading profile:", error);
@@ -57,7 +64,7 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
-    navigate("/auth");
+    navigate("/member/auth");
   };
 
   const exportToExcel = async () => {

@@ -28,7 +28,7 @@ const AdminDashboard = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/admin/auth");
       }
     });
 
@@ -40,7 +40,7 @@ const AdminDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/admin/auth");
         return;
       }
       
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
-    navigate("/auth");
+    navigate("/admin/auth");
   };
 
   const exportToExcel = async () => {
