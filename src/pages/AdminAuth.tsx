@@ -34,14 +34,14 @@ const AdminAuth = () => {
 
       if (error) throw error;
       
-      // Check if user has admin/finance role
-      const { data: profile } = await supabase
-        .from("profiles")
+      // Check if user has admin/finance role using user_roles table
+      const { data: roleData } = await supabase
+        .from("user_roles")
         .select("role")
-        .eq("id", data.user.id)
+        .eq("user_id", data.user.id)
         .single();
       
-      if (profile?.role !== 'admin' && profile?.role !== 'finance' && profile?.role !== 'pastor') {
+      if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance' && roleData.role !== 'pastor')) {
         await supabase.auth.signOut();
         toast.error("Access denied. This login is for admin and finance staff only.");
         return;

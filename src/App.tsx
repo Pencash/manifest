@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import EventsManagement from "./pages/EventsManagement";
 import AttendanceLog from "./pages/AttendanceLog";
+import UserManagement from "./pages/UserManagement";
 import ReceiptVerification from "./pages/ReceiptVerification";
 import Give from "./pages/Give";
 import History from "./pages/History";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/events" element={<EventsManagement />} />
           <Route path="/admin/attendance/:serviceId" element={<AttendanceLog />} />
+          <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/receipts" element={<ReceiptVerification />} />
           <Route path="/give" element={<Give />} />
           <Route path="/history" element={<History />} />

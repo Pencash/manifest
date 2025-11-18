@@ -46,8 +46,15 @@ const Dashboard = () => {
 
       if (error) throw error;
       
+      // Check user role from user_roles table
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      
       // Redirect admin/finance users to their dashboard
-      if (profileData.role === 'admin' || profileData.role === 'finance' || profileData.role === 'pastor') {
+      if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
         navigate("/admin/dashboard");
         return;
       }
