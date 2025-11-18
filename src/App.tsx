@@ -9,6 +9,8 @@ import AdminAuth from "./pages/AdminAuth";
 import MemberAuth from "./pages/MemberAuth";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import EventsManagement from "./pages/EventsManagement";
+import AttendanceLog from "./pages/AttendanceLog";
 import ReceiptVerification from "./pages/ReceiptVerification";
 import Give from "./pages/Give";
 import History from "./pages/History";
@@ -31,6 +33,8 @@ const App = () => (
           <Route path="/member/auth" element={<MemberAuth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/events" element={<EventsManagement />} />
+          <Route path="/admin/attendance/:serviceId" element={<AttendanceLog />} />
           <Route path="/admin/receipts" element={<ReceiptVerification />} />
           <Route path="/give" element={<Give />} />
           <Route path="/history" element={<History />} />

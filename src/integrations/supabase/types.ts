@@ -296,27 +296,39 @@ export type Database = {
       services: {
         Row: {
           created_at: string
+          description: string | null
           id: string
+          is_published: boolean | null
           location: string | null
           name: string
           service_date: string
+          service_type: Database["public"]["Enums"]["service_type"] | null
           start_time: string | null
+          total_attendance: number | null
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
+          is_published?: boolean | null
           location?: string | null
           name: string
           service_date: string
+          service_type?: Database["public"]["Enums"]["service_type"] | null
           start_time?: string | null
+          total_attendance?: number | null
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
+          is_published?: boolean | null
           location?: string | null
           name?: string
           service_date?: string
+          service_type?: Database["public"]["Enums"]["service_type"] | null
           start_time?: string | null
+          total_attendance?: number | null
         }
         Relationships: []
       }
@@ -377,6 +389,16 @@ export type Database = {
     }
     Enums: {
       app_role: "member" | "finance" | "pastor" | "admin"
+      service_type:
+        | "tuesday_fellowship"
+        | "thursday_livestream"
+        | "ltc"
+        | "sunday_service"
+        | "gic"
+        | "nop"
+        | "men_gather"
+        | "mgp"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -505,6 +527,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["member", "finance", "pastor", "admin"],
+      service_type: [
+        "tuesday_fellowship",
+        "thursday_livestream",
+        "ltc",
+        "sunday_service",
+        "gic",
+        "nop",
+        "men_gather",
+        "mgp",
+        "other",
+      ],
     },
   },
 } as const
