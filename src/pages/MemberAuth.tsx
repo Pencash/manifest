@@ -46,17 +46,17 @@ const MemberAuth = () => {
 
         if (error) throw error;
         
-        // Check user role and redirect accordingly
-        const { data: profile } = await supabase
-          .from("profiles")
+        // Check user role and redirect accordingly using user_roles table
+        const { data: roleData } = await supabase
+          .from("user_roles")
           .select("role")
-          .eq("id", data.user.id)
+          .eq("user_id", data.user.id)
           .single();
         
         toast.success("Welcome back!");
         
         // If accidentally an admin logs in here, redirect them properly
-        if (profile?.role === 'admin' || profile?.role === 'finance' || profile?.role === 'pastor') {
+        if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");

@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck } from "lucide-react";
+import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -54,7 +54,14 @@ const AdminDashboard = () => {
 
       if (error) throw error;
       
-      if (profileData.role !== 'admin' && profileData.role !== 'finance' && profileData.role !== 'pastor') {
+      // Check user role from user_roles table
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      
+      if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance' && roleData.role !== 'pastor')) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
@@ -281,6 +288,23 @@ const AdminDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">Manage calendar & attendance</p>
               <Button variant="link" className="p-0 h-auto mt-2 text-sm">
                 Manage Events →
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => navigate("/admin/users")}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">User Management</CardTitle>
+              <UserCog className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.activeMembers || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Manage roles & permissions</p>
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm">
+                Manage Users →
               </Button>
             </CardContent>
           </Card>
