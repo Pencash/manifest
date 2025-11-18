@@ -276,6 +276,13 @@ export type Database = {
             foreignKeyName: "receipts_giving_id_fkey"
             columns: ["giving_id"]
             isOneToOne: false
+            referencedRelation: "anonymized_givings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_giving_id_fkey"
+            columns: ["giving_id"]
+            isOneToOne: false
             referencedRelation: "givings"
             referencedColumns: ["id"]
           },
@@ -358,7 +365,66 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      anonymized_givings: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          currency: string | null
+          giving_type_id: string | null
+          id: string | null
+          is_anonymous: boolean | null
+          note: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          profile_id: string | null
+          service_id: string | null
+          status: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          giving_type_id?: string | null
+          id?: string | null
+          is_anonymous?: boolean | null
+          note?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          profile_id?: never
+          service_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          giving_type_id?: string | null
+          id?: string | null
+          is_anonymous?: boolean | null
+          note?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          profile_id?: never
+          service_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "givings_giving_type_id_fkey"
+            columns: ["giving_type_id"]
+            isOneToOne: false
+            referencedRelation: "giving_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "givings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
