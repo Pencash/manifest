@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog } from "lucide-react";
+import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -122,6 +122,23 @@ const AdminDashboard = () => {
     await supabase.auth.signOut();
     toast.success("Signed out successfully");
     navigate("/admin/auth");
+  };
+
+  const createTestUsers = async () => {
+    try {
+      toast.loading("Creating test users...");
+      const { data, error } = await supabase.functions.invoke('create-test-users');
+      
+      if (error) throw error;
+      
+      toast.dismiss();
+      toast.success("Test users created successfully!");
+      toast.info("Admin: admin@test.com / Admin123!");
+      toast.info("Finance: finance@test.com / Finance123!");
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message || "Failed to create test users");
+    }
   };
 
   const exportToExcel = async () => {
@@ -268,10 +285,16 @@ const AdminDashboard = () => {
               Overview of all church activities and contributions
             </p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={createTestUsers}>
+              <TestTube className="mr-2 h-4 w-4" />
+              Create Test Users
+            </Button>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
