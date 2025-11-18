@@ -10,6 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { z } from "zod";
+
+const givingSchema = z.object({
+  givingTypeId: z.string().min(1, "Please select a giving type"),
+  amount: z.string().min(1, "Amount is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num > 0;
+  }, "Amount must be a positive number"),
+  paymentMethod: z.string().min(1, "Please select a payment method"),
+});
 
 const Give = () => {
   const [givingTypes, setGivingTypes] = useState<any[]>([]);
@@ -53,9 +63,18 @@ const Give = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.givingTypeId || !formData.amount || !formData.paymentMethod) {
-      toast.error("Please fill in all required fields");
-      return;
+    // Validate form data
+    try {
+      givingSchema.parse({
+        givingTypeId: formData.givingTypeId,
+        amount: formData.amount,
+        paymentMethod: formData.paymentMethod,
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+        return;
+      }
     }
 
     try {
@@ -153,133 +172,159 @@ const Give = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="givingType">Giving Type *</Label>
-                <Select
-                  value={formData.givingTypeId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, givingTypeId: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select giving type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {givingTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Basic Information Section */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold text-lg">Basic Information</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="givingType">Giving Type *</Label>
+                  <Select
+                    value={formData.givingTypeId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, givingTypeId: value })
+                    }
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select giving type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {givingTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">Choose the type of contribution</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="service">Service/Event (Optional)</Label>
+                  <Select
+                    value={formData.serviceId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, serviceId: value })
+                    }
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name} - {new Date(service.service_date).toLocaleDateString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">Link to a specific service or event</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount (MWK) *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
+                    required
+                    className="bg-background"
+                  />
+                  <p className="text-sm text-muted-foreground">Enter the amount in Malawian Kwacha</p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="service">Service/Event (Optional)</Label>
-                <Select
-                  value={formData.serviceId}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, serviceId: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name} - {new Date(service.service_date).toLocaleDateString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Payment Details Section */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold text-lg">Payment Details</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Payment Method *</Label>
+                  <Select
+                    value={formData.paymentMethod}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, paymentMethod: value })
+                    }
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mobile Money">Mobile Money</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Check">Check</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">How did you make the payment?</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="paymentReference">Payment Reference/Transaction ID (Optional)</Label>
+                  <Input
+                    id="paymentReference"
+                    type="text"
+                    placeholder="e.g., TXN123456"
+                    value={formData.paymentReference}
+                    onChange={(e) =>
+                      setFormData({ ...formData, paymentReference: e.target.value })
+                    }
+                    className="bg-background"
+                  />
+                  <p className="text-sm text-muted-foreground">Transaction ID or reference number</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="receipt">Upload Receipt (Optional)</Label>
+                  <Input
+                    id="receipt"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                    className="bg-background"
+                  />
+                  <p className="text-sm text-muted-foreground">Upload proof of payment</p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (MWK) *</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.amount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, amount: e.target.value })
-                  }
-                  required
-                />
-              </div>
+              {/* Additional Information Section */}
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h3 className="font-semibold text-lg">Additional Information</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="note">Note (Optional)</Label>
+                  <Textarea
+                    id="note"
+                    placeholder="Add any additional notes or comments"
+                    value={formData.note}
+                    onChange={(e) =>
+                      setFormData({ ...formData, note: e.target.value })
+                    }
+                    className="bg-background min-h-[100px]"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="paymentMethod">Payment Method *</Label>
-                <Select
-                  value={formData.paymentMethod}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, paymentMethod: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="paymentReference">Payment Reference (Optional)</Label>
-                <Input
-                  id="paymentReference"
-                  type="text"
-                  placeholder="Transaction ID or reference number"
-                  value={formData.paymentReference}
-                  onChange={(e) =>
-                    setFormData({ ...formData, paymentReference: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="receipt">Receipt Upload (Optional)</Label>
-                <Input
-                  id="receipt"
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="note">Note (Optional)</Label>
-                <Textarea
-                  id="note"
-                  placeholder="Add any additional notes..."
-                  value={formData.note}
-                  onChange={(e) =>
-                    setFormData({ ...formData, note: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="anonymous"
-                  checked={formData.isAnonymous}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isAnonymous: checked as boolean })
-                  }
-                />
-                <Label htmlFor="anonymous" className="cursor-pointer">
-                  Make this giving anonymous
-                </Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="anonymous"
+                    checked={formData.isAnonymous}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, isAnonymous: checked === true })
+                    }
+                  />
+                  <Label htmlFor="anonymous" className="cursor-pointer">
+                    Make this contribution anonymous
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">Your identity will be hidden from public records</p>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Recording..." : "Record Giving"}
+                {loading ? "Recording..." : "Submit Giving"}
               </Button>
             </form>
           </CardContent>
