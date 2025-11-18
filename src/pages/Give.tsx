@@ -253,12 +253,12 @@ const Give = () => {
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Mobile Money">Mobile Money</SelectItem>
-                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="Check">Check</SelectItem>
-                    </SelectContent>
+                <SelectContent>
+                  <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">How did you make the payment?</p>
                 </div>
