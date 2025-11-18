@@ -86,6 +86,9 @@ const UserManagement = () => {
 
   const updateUserRole = async (userId: string, newRole: AppRole) => {
     try {
+      // Get user's email for notification
+      const profile = profiles.find(p => p.id === userId);
+      
       // First, delete existing roles for this user
       await supabase
         .from("user_roles")
@@ -103,7 +106,21 @@ const UserManagement = () => {
 
       if (error) throw error;
 
-      toast.success("User role updated successfully");
+      // Call edge function to send role change notification
+      try {
+        await supabase.functions.invoke('send-role-notification', {
+          body: {
+            email: profile?.email,
+            name: profile?.full_name,
+            newRole: newRole
+          }
+        });
+      } catch (emailError) {
+        console.error("Failed to send notification email:", emailError);
+        // Don't fail the role update if email fails
+      }
+
+      toast.success(`User role updated to ${newRole}. Notification sent.`);
       await loadProfiles();
     } catch (error: any) {
       console.error("Error updating role:", error);
