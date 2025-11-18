@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { HandHeart, MessageSquare, History, LogOut } from "lucide-react";
+import { HandHeart, MessageSquare, History, LogOut, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -59,6 +60,64 @@ const Dashboard = () => {
     navigate("/auth");
   };
 
+  const exportToExcel = async () => {
+    try {
+      toast.loading("Preparing export...");
+      
+      const { data: givingsData } = await supabase
+        .from("givings")
+        .select(`
+          *,
+          giving_types(name),
+          services(name, service_date)
+        `)
+        .eq('profile_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      const { data: attendanceData } = await supabase
+        .from("attendance")
+        .select(`
+          *,
+          services(name, service_date)
+        `)
+        .eq('profile_id', user?.id);
+
+      const givingsSheet = givingsData?.map(g => ({
+        'Date': new Date(g.created_at).toLocaleDateString(),
+        'Type': g.giving_types?.name || 'N/A',
+        'Amount': g.amount,
+        'Currency': g.currency,
+        'Payment Method': g.payment_method,
+        'Reference': g.payment_reference || 'N/A',
+        'Service': g.services?.name || 'N/A',
+        'Status': g.status,
+      })) || [];
+
+      const attendanceSheet = attendanceData?.map(a => ({
+        'Date': new Date(a.created_at).toLocaleDateString(),
+        'Service': a.services?.name || 'N/A',
+        'Status': a.status,
+        'Count': a.count || 1,
+      })) || [];
+
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.json_to_sheet(givingsSheet);
+      const ws2 = XLSX.utils.json_to_sheet(attendanceSheet);
+      
+      XLSX.utils.book_append_sheet(wb, ws1, "Giving History");
+      XLSX.utils.book_append_sheet(wb, ws2, "Attendance");
+      
+      XLSX.writeFile(wb, `my_records_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast.dismiss();
+      toast.success("Export completed successfully!");
+    } catch (error: any) {
+      toast.dismiss();
+      console.error("Error exporting data:", error);
+      toast.error("Failed to export data");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -79,10 +138,16 @@ const Dashboard = () => {
               Your giving dashboard for Phaneroo
             </p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportToExcel}>
+              <Download className="mr-2 h-4 w-4" />
+              Download Excel
+            </Button>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

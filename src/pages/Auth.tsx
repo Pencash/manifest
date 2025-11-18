@@ -45,8 +45,20 @@ const Auth = () => {
 
         if (error) throw error;
         
+        // Check user role and redirect accordingly
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+        
         toast.success("Welcome back!");
-        navigate("/dashboard");
+        
+        if (profile?.role === 'admin' || profile?.role === 'finance' || profile?.role === 'pastor') {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: validation.email,
