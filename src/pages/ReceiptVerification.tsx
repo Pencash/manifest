@@ -58,7 +58,7 @@ const ReceiptVerification = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/admin/auth");
       }
     });
 
@@ -70,7 +70,7 @@ const ReceiptVerification = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
-        navigate("/auth");
+        navigate("/admin/auth");
         return;
       }
       
