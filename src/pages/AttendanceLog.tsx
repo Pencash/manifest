@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, Save, Search, Users, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 
 interface Service {
@@ -43,6 +46,13 @@ const AttendanceLog = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isAddPersonDialogOpen, setIsAddPersonDialogOpen] = useState(false);
+  const [newPersonData, setNewPersonData] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    status: "visitor" // visitor or member
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -239,6 +249,67 @@ const AttendanceLog = () => {
     setAttendance(newAttendance);
   };
 
+  const handleAddPerson = async () => {
+    if (!newPersonData.full_name.trim()) {
+      toast.error("Please enter a name");
+      return;
+    }
+
+    if (!newPersonData.email.trim()) {
+      toast.error("Please enter an email");
+      return;
+    }
+
+    try {
+      // Generate member code if they're a new member
+      const memberCode = newPersonData.status === "member" 
+        ? `MEM-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+        : null;
+
+      // Create the profile with a generated UUID
+      const profileId = crypto.randomUUID();
+      const { data: newProfile, error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          id: profileId,
+          full_name: newPersonData.full_name,
+          email: newPersonData.email,
+          phone: newPersonData.phone || null,
+          member_code: memberCode,
+          is_active: true,
+          role: 'member'
+        })
+        .select()
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Add to members list
+      setMembers(prev => [...prev, newProfile]);
+
+      // Mark as present
+      setAttendance(prev => new Map(prev).set(newProfile.id, true));
+
+      // Close dialog and reset form
+      setIsAddPersonDialogOpen(false);
+      setNewPersonData({
+        full_name: "",
+        email: "",
+        phone: "",
+        status: "visitor"
+      });
+
+      toast.success(
+        newPersonData.status === "member" 
+          ? `New member added with code: ${memberCode}` 
+          : "First-time visitor added successfully"
+      );
+    } catch (error: any) {
+      console.error("Error adding person:", error);
+      toast.error("Failed to add person");
+    }
+  };
+
   const filteredMembers = members.filter(member =>
     member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     member.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -316,6 +387,14 @@ const AttendanceLog = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setIsAddPersonDialogOpen(true)}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Person
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={markAllPresent}
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -377,6 +456,76 @@ const AttendanceLog = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Person Dialog */}
+      <Dialog open={isAddPersonDialogOpen} onOpenChange={setIsAddPersonDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Person</DialogTitle>
+            <DialogDescription>
+              Add a first-time visitor or new member to the attendance log.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name *</Label>
+              <Input
+                id="full_name"
+                value={newPersonData.full_name}
+                onChange={(e) => setNewPersonData(prev => ({ ...prev, full_name: e.target.value }))}
+                placeholder="Enter full name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newPersonData.email}
+                onChange={(e) => setNewPersonData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone (Optional)</Label>
+              <Input
+                id="phone"
+                value={newPersonData.phone}
+                onChange={(e) => setNewPersonData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status *</Label>
+              <Select
+                value={newPersonData.status}
+                onValueChange={(value) => setNewPersonData(prev => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="visitor">First-time Visitor</SelectItem>
+                  <SelectItem value="member">New Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddPersonDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddPerson}>
+              Add & Mark Present
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
