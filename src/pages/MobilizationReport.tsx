@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,8 +24,6 @@ const MobilizationReport = () => {
   const navigate = useNavigate();
   const [memberStats, setMemberStats] = useState<MemberStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | undefined>();
-  const { role, loading: roleLoading } = useUserRole(userId);
 
   useEffect(() => {
     checkAuth();
@@ -38,20 +35,23 @@ const MobilizationReport = () => {
       navigate("/admin/auth");
       return;
     }
-    setUserId(session.user.id);
-  };
 
-  useEffect(() => {
-    if (!roleLoading && role !== "admin" && role !== "pastor") {
+    // Check role directly from user_roles table
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'pastor')) {
       toast.error("Access denied. Admin or Pastor role required.");
       navigate("/dashboard");
       return;
     }
 
-    if (!roleLoading && (role === "admin" || role === "pastor")) {
-      loadMobilizationData();
-    }
-  }, [role, roleLoading]);
+    // Role verified - load data
+    loadMobilizationData();
+  };
 
   const loadMobilizationData = async () => {
     setLoading(true);
@@ -156,7 +156,7 @@ const MobilizationReport = () => {
       : 0,
   };
 
-  if (loading || roleLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>

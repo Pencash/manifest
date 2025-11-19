@@ -361,7 +361,12 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold text-foreground">
               Admin Dashboard
             </h1>
-            <p className="text-muted-foreground mt-1">
+            {profile && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Welcome, {profile.full_name}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
               Overview of all church activities and contributions
             </p>
           </div>

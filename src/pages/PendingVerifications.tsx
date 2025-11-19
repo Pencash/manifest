@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,8 +36,6 @@ const PendingVerifications = () => {
   const navigate = useNavigate();
   const [pendingGivings, setPendingGivings] = useState<PendingGiving[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | undefined>();
-  const { role, loading: roleLoading } = useUserRole(userId);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
 
@@ -52,20 +49,23 @@ const PendingVerifications = () => {
       navigate("/admin/auth");
       return;
     }
-    setUserId(session.user.id);
-  };
 
-  useEffect(() => {
-    if (!roleLoading && role !== "admin" && role !== "finance") {
+    // Check role directly from user_roles table
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance')) {
       toast.error("Access denied. Finance or Admin role required.");
       navigate("/admin/dashboard");
       return;
     }
 
-    if (!roleLoading && (role === "admin" || role === "finance")) {
-      loadPendingVerifications();
-    }
-  }, [role, roleLoading]);
+    // Role verified - load data
+    loadPendingVerifications();
+  };
 
   const loadPendingVerifications = async () => {
     setLoading(true);
@@ -148,7 +148,7 @@ const PendingVerifications = () => {
     }
   };
 
-  if (loading || roleLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
