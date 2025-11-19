@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, CheckCircle, XCircle, Eye, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Eye, FileText, Filter } from "lucide-react";
 import { format } from "date-fns";
 
 interface Receipt {
