@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Download, TrendingUp, Users, Target, Award } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, Users, Target, Award, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface MemberStats {
@@ -24,6 +26,8 @@ const MobilizationReport = () => {
   const navigate = useNavigate();
   const [memberStats, setMemberStats] = useState<MemberStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [conversionFilter, setConversionFilter] = useState("all");
 
   useEffect(() => {
     checkAuth();
@@ -56,28 +60,56 @@ const MobilizationReport = () => {
   const loadMobilizationData = async () => {
     setLoading(true);
 
-    // Get all invitations with member info
+    // Step 1: Get all invitations (no join to profiles)
     const { data: invitations, error } = await supabase
       .from("member_invitations")
-      .select(`
-        id,
-        member_id,
-        status,
-        profiles!member_invitations_member_id_fkey(full_name)
-      `);
+      .select("id, member_id, status");
 
     if (error) {
+      console.error("Error loading invitations:", error);
       toast.error("Failed to load mobilization data");
       setLoading(false);
       return;
     }
 
-    // Group by member and calculate stats
+    if (!invitations || invitations.length === 0) {
+      setMemberStats([]);
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Collect unique member IDs
+    const memberIds = Array.from(
+      new Set(invitations.map((inv) => inv.member_id).filter(Boolean))
+    ) as string[];
+
+    // Step 3: Fetch profiles for those member IDs
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", memberIds);
+
+    if (profilesError) {
+      console.error("Error loading profiles:", profilesError);
+      toast.error("Failed to load mobilization data");
+      setLoading(false);
+      return;
+    }
+
+    // Step 4: Create profile map
+    const profileMap = new Map<string, string>();
+    profiles?.forEach((p) => {
+      profileMap.set(p.id, p.full_name ?? "Unknown");
+    });
+
+    // Step 5: Group by member and calculate stats
     const statsMap = new Map<string, MemberStats>();
 
-    invitations?.forEach((inv: any) => {
+    invitations.forEach((inv: any) => {
       const memberId = inv.member_id;
-      const memberName = inv.profiles?.full_name || "Unknown";
+      if (!memberId) return;
+
+      const memberName = profileMap.get(memberId) ?? "Unknown";
 
       if (!statsMap.has(memberId)) {
         statsMap.set(memberId, {
@@ -111,15 +143,15 @@ const MobilizationReport = () => {
       }
     });
 
-    // Calculate conversion rates
-    const statsArray = Array.from(statsMap.values()).map(stat => ({
+    // Step 6: Calculate conversion rates and sort
+    const statsArray = Array.from(statsMap.values()).map((stat) => ({
       ...stat,
-      conversion_rate: stat.total_invitations > 0
-        ? Math.round((stat.attended / stat.total_invitations) * 100)
-        : 0,
+      conversion_rate:
+        stat.total_invitations > 0
+          ? Math.round((stat.attended / stat.total_invitations) * 100)
+          : 0,
     }));
 
-    // Sort by attended (descending)
     statsArray.sort((a, b) => b.attended - a.attended);
 
     setMemberStats(statsArray);
@@ -144,6 +176,17 @@ const MobilizationReport = () => {
     XLSX.writeFile(workbook, `mobilization-report-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success("Report exported successfully!");
   };
+
+  // Filter member stats based on search and conversion filter
+  const filteredStats = memberStats.filter((stat) => {
+    const matchesSearch = stat.member_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesConversion =
+      conversionFilter === "all" ||
+      (conversionFilter === "high" && stat.conversion_rate >= 50) ||
+      (conversionFilter === "medium" && stat.conversion_rate >= 25 && stat.conversion_rate < 50) ||
+      (conversionFilter === "low" && stat.conversion_rate < 25);
+    return matchesSearch && matchesConversion;
+  });
 
   const totalStats = {
     total_invitations: memberStats.reduce((sum, s) => sum + s.total_invitations, 0),
@@ -268,10 +311,35 @@ const MobilizationReport = () => {
             <CardDescription>Detailed breakdown of all member mobilization activities</CardDescription>
           </CardHeader>
           <CardContent>
-            {memberStats.length === 0 ? (
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by member name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={conversionFilter} onValueChange={setConversionFilter}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Filter by success rate" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Success Rates</SelectItem>
+                  <SelectItem value="high">High (≥50%)</SelectItem>
+                  <SelectItem value="medium">Medium (25-49%)</SelectItem>
+                  <SelectItem value="low">Low (&lt;25%)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {filteredStats.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">No mobilization data yet</p>
+                <p className="text-muted-foreground">
+                  {memberStats.length === 0 ? "No mobilization data yet" : "No members match your filters"}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -288,7 +356,7 @@ const MobilizationReport = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {memberStats.map((stat) => (
+                    {filteredStats.map((stat) => (
                       <TableRow key={stat.member_id}>
                         <TableCell className="font-medium">{stat.member_name}</TableCell>
                         <TableCell className="text-center">{stat.total_invitations}</TableCell>
