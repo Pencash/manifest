@@ -27,29 +27,27 @@ const History = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        navigate("/member/auth");
+        return;
+      }
+      setUserId(session.user.id);
+    };
+    init();
+  }, [navigate]);
 
   useEffect(() => {
     // Only load givings after we know the user's role
     if (userId && !roleLoading) {
       loadGivings();
     }
-  }, [userId, roleLoading, userRole]);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/member/auth");
-    }
-  };
+  }, [userId, roleLoading]);
 
   const loadGivings = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      setUserId(user.id);
+      if (!userId) return;
 
       // Finance, admin, and pastor can see all givings, but with privacy protection
       const isFinanceOrAdmin = userRole === 'finance' || userRole === 'admin' || userRole === 'pastor';
@@ -67,7 +65,7 @@ const History = () => {
 
       // Regular members only see their own givings
       if (!isFinanceOrAdmin) {
-        query = query.eq("profile_id", user.id);
+        query = query.eq("profile_id", userId);
       }
 
       const { data, error } = await query;

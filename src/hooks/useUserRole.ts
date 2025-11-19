@@ -4,6 +4,9 @@ import { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
+// In-memory cache to avoid redundant RPC calls
+const roleCache = new Map<string, AppRole>();
+
 export const useUserRole = (userId: string | undefined) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
@@ -11,6 +14,14 @@ export const useUserRole = (userId: string | undefined) => {
   useEffect(() => {
     if (!userId) {
       setRole(null);
+      setLoading(false);
+      return;
+    }
+
+    // Check cache first
+    const cached = roleCache.get(userId);
+    if (cached) {
+      setRole(cached);
       setLoading(false);
       return;
     }
@@ -27,16 +38,28 @@ export const useUserRole = (userId: string | undefined) => {
         if (error) throw error;
 
         // get_user_role returns an app_role or null
-        if (data) {
-          setRole(data);
-        } else {
-          // Fallback to member if no role found (shouldn't happen with auto-assignment)
-          setRole("member");
-        }
+        const finalRole: AppRole = data ?? "member";
+        roleCache.set(userId, finalRole);
+        setRole(finalRole);
       } catch (error) {
-        console.error("Error fetching user role:", error);
-        // On error, set to null instead of silently downgrading to member
-        setRole(null);
+        console.error("Error fetching user role (RPC):", error);
+        // Fallback to direct table query if RPC fails
+        try {
+          const { data: fallbackData, error: tableError } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .single();
+
+          if (tableError) throw tableError;
+          
+          const fallbackRole: AppRole = fallbackData?.role ?? "member";
+          roleCache.set(userId, fallbackRole);
+          setRole(fallbackRole);
+        } catch (fallbackError) {
+          console.error("Error fetching user role (fallback):", fallbackError);
+          setRole(null);
+        }
       } finally {
         setLoading(false);
       }
