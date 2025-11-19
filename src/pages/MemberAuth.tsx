@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { z } from "zod";
 import { Heart } from "lucide-react";
+import { useRateLimiting } from "@/hooks/useRateLimiting";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -24,6 +25,7 @@ const MemberAuth = () => {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { checkRateLimit, logLoginAttempt } = useRateLimiting();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,15 @@ const MemberAuth = () => {
         phone: isLogin ? undefined : phone,
       });
 
+      if (isLogin) {
+        // Check rate limiting for login
+        const isLimited = await checkRateLimit(validation.email);
+        if (isLimited) {
+          toast.error("Too many failed attempts. Please try again in 15 minutes.");
+          return;
+        }
+      }
+      
       setLoading(true);
 
       if (isLogin) {
@@ -44,7 +55,12 @@ const MemberAuth = () => {
           password: validation.password,
         });
 
-        if (error) throw error;
+        if (error) {
+          await logLoginAttempt(validation.email, false);
+          throw error;
+        }
+        
+        await logLoginAttempt(validation.email, true);
         
         // Check user role and redirect accordingly using user_roles table
         const { data: roleData } = await supabase

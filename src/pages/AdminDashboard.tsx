@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube } from "lucide-react";
+import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube, Shield } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 
@@ -419,6 +419,26 @@ const AdminDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">Manage roles & permissions</p>
               <Button variant="link" className="p-0 h-auto mt-2 text-sm text-purple-600 hover:text-purple-700">
                 Manage Users →
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="group cursor-pointer hover:shadow-2xl hover:shadow-red-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-red-500/10 via-red-500/5 to-background border-red-500/20 overflow-hidden relative"
+            onClick={() => navigate("/admin/audit-logs")}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/5 to-red-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+              <CardTitle className="text-sm font-medium">Security Audit Logs</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors group-hover:scale-110 duration-300">
+                <Shield className="h-5 w-5 text-red-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">Admin Only</div>
+              <p className="text-xs text-muted-foreground mt-1">View security events & role changes</p>
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm text-red-600 hover:text-red-700">
+                View Audit Logs →
               </Button>
             </CardContent>
           </Card>
