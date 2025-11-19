@@ -306,8 +306,36 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <div className="flex justify-between items-center mb-8">
+            <div className="space-y-2">
+              <div className="h-8 w-64 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-96 bg-muted animate-pulse rounded" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-9 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-9 w-28 bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {[...Array(7)].map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardHeader className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-10 w-10 bg-muted animate-pulse rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="h-8 w-24 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-40 bg-muted animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -338,143 +366,203 @@ const AdminDashboard = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow"
+            className="group cursor-pointer hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-background border-blue-500/20 overflow-hidden relative"
             onClick={() => navigate("/admin/events")}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Events & Services</CardTitle>
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors group-hover:rotate-12 duration-300">
+                <CalendarIcon className="h-5 w-5 text-blue-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.activeMembers || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{metrics.activeMembers || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Manage calendar & attendance</p>
-              <Button variant="link" className="p-0 h-auto mt-2 text-sm">
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm text-blue-600 hover:text-blue-700">
                 Manage Events →
               </Button>
             </CardContent>
           </Card>
 
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow"
+            className="group cursor-pointer hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-background border-purple-500/20 overflow-hidden relative"
             onClick={() => navigate("/admin/users")}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">User Management</CardTitle>
-              <UserCog className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors group-hover:scale-110 duration-300">
+                <UserCog className="h-5 w-5 text-purple-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.activeMembers || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{metrics.activeMembers || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Manage roles & permissions</p>
-              <Button variant="link" className="p-0 h-auto mt-2 text-sm">
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm text-purple-600 hover:text-purple-700">
                 Manage Users →
               </Button>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="group hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-green-500/10 via-green-500/5 to-background border-green-500/20 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-500/0 via-green-500/5 to-green-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Total Contributions</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors group-hover:animate-bounce duration-300">
+                <DollarSign className="h-5 w-5 text-green-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">MWK {metrics.totalGivings?.toLocaleString() || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">MWK {metrics.totalGivings?.toLocaleString() || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">All time</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="group hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-background border-orange-500/20 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/5 to-orange-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Active Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors group-hover:rotate-12 duration-300">
+                <Users className="h-5 w-5 text-orange-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.activeMembers || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">{metrics.activeMembers || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Registered users</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Attendance</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalAttendance || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">All services</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="group hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-pink-500/10 via-pink-500/5 to-background border-pink-500/20 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/0 via-pink-500/5 to-pink-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Testimonies</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-pink-500/10 flex items-center justify-center group-hover:bg-pink-500/20 transition-colors group-hover:scale-110 duration-300">
+                <MessageSquare className="h-5 w-5 text-pink-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalTestimonies || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">{metrics.totalTestimonies || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Shared by members</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="group hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-background border-indigo-500/20 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Prayer Requests</CardTitle>
-              <HandHeart className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors group-hover:animate-pulse duration-300">
+                <HandHeart className="h-5 w-5 text-indigo-500" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalPrayers || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{metrics.totalPrayers || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Total requests</p>
             </CardContent>
           </Card>
 
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow"
+            className="group cursor-pointer hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-yellow-500/10 via-red-500/5 to-background border-yellow-500/20 overflow-hidden relative"
             onClick={() => navigate("/admin/receipts")}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/5 to-yellow-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
               <CardTitle className="text-sm font-medium">Pending Receipts</CardTitle>
-              <FileCheck className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors group-hover:rotate-12 duration-300">
+                <FileCheck className="h-5 w-5 text-yellow-600" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.pendingReceipts || 0}</div>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">{metrics.pendingReceipts || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Awaiting verification</p>
-              <Button variant="link" className="p-0 h-auto mt-2 text-sm">
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm text-yellow-600 hover:text-yellow-700">
                 View All →
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Quick Links</CardTitle>
-            <CardDescription>Navigate to key admin features</CardDescription>
+        <Card className="mb-8 overflow-hidden border-primary/10">
+          <CardHeader className="bg-gradient-to-r from-primary/5 via-secondary/5 to-primary/5">
+            <CardTitle className="text-xl">Quick Actions</CardTitle>
+            <CardDescription>Access key administrative features</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" onClick={() => navigate("/admin/events")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Events Calendar
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/admin/reports/attendance")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Attendance Reports
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/admin/reminders")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Event Reminders
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/admin/visitor-followup")}>
-                <UserCog className="mr-2 h-4 w-4" />
-                Visitor Follow-up
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/admin/users")}>
-                <UserCog className="mr-2 h-4 w-4" />
-                User Management
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/admin/receipts")}>
-                <FileCheck className="mr-2 h-4 w-4" />
-                Receipt Verification
-              </Button>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button
+                onClick={() => navigate("/admin/reports/attendance")}
+                className="group relative p-4 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 hover:from-blue-500/10 hover:to-cyan-500/10 border border-blue-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                    <CalendarIcon className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Attendance Reports</h3>
+                    <p className="text-xs text-muted-foreground">View detailed service attendance</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/reminders")}
+                className="group relative p-4 bg-gradient-to-br from-purple-500/5 to-pink-500/5 hover:from-purple-500/10 hover:to-pink-500/10 border border-purple-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                    <CalendarIcon className="h-6 w-6 text-purple-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Event Reminders</h3>
+                    <p className="text-xs text-muted-foreground">Schedule automated notifications</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/visitor-followup")}
+                className="group relative p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 hover:from-green-500/10 hover:to-emerald-500/10 border border-green-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-green-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                    <UserCog className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Visitor Follow-up</h3>
+                    <p className="text-xs text-muted-foreground">Manage first-time visitors</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/bulk-attendance")}
+                className="group relative p-4 bg-gradient-to-br from-orange-500/5 to-amber-500/5 hover:from-orange-500/10 hover:to-amber-500/10 border border-orange-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                    <Users className="h-6 w-6 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Bulk Import</h3>
+                    <p className="text-xs text-muted-foreground">Import attendance from Excel</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/history")}
+                className="group relative p-4 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 hover:from-indigo-500/10 hover:to-purple-500/10 border border-indigo-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                    <DollarSign className="h-6 w-6 text-indigo-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Giving History</h3>
+                    <p className="text-xs text-muted-foreground">View all contributions</p>
+                  </div>
+                </div>
+              </button>
             </div>
           </CardContent>
         </Card>

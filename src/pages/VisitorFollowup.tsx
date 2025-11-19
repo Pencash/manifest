@@ -39,12 +39,14 @@ interface Followup {
 const VisitorFollowup = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [followups, setFollowups] = useState<Followup[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<string>("");
   const [formData, setFormData] = useState({
     follow_up_type: "call",
     scheduled_date: undefined as Date | undefined,
-    notes: ""
+    notes: "",
+    assigned_to: ""
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const navigate = useNavigate();
@@ -64,6 +66,16 @@ const VisitorFollowup = () => {
 
       if (contactsError) throw contactsError;
       setContacts(contactsData || []);
+
+      // Load all active users for assignment
+      const { data: usersData, error: usersError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("is_active", true)
+        .order("full_name");
+
+      if (usersError) throw usersError;
+      setUsers(usersData || []);
 
       // Load follow-ups
       const { data: followupsData, error: followupsError } = await supabase
@@ -93,6 +105,7 @@ const VisitorFollowup = () => {
           follow_up_type: formData.follow_up_type,
           scheduled_date: formData.scheduled_date?.toISOString().split('T')[0],
           notes: formData.notes,
+          assigned_to: formData.assigned_to || null,
           status: "pending"
         });
 
@@ -104,7 +117,8 @@ const VisitorFollowup = () => {
       setFormData({
         follow_up_type: "call",
         scheduled_date: undefined,
-        notes: ""
+        notes: "",
+        assigned_to: ""
       });
       await loadData();
     } catch (error: any) {
@@ -373,6 +387,25 @@ const VisitorFollowup = () => {
                     />
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assigned_to">Assign To (Optional)</Label>
+                <Select
+                  value={formData.assigned_to}
+                  onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                >
+                  <SelectTrigger id="assigned_to">
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.full_name} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
