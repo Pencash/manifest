@@ -11,6 +11,10 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import EventsManagement from "./pages/EventsManagement";
 import AttendanceLog from "./pages/AttendanceLog";
+import BulkAttendanceImport from "./pages/BulkAttendanceImport";
+import AttendanceReport from "./pages/AttendanceReport";
+import EventReminders from "./pages/EventReminders";
+import VisitorFollowup from "./pages/VisitorFollowup";
 import UserManagement from "./pages/UserManagement";
 import ReceiptVerification from "./pages/ReceiptVerification";
 import Give from "./pages/Give";
@@ -36,6 +40,10 @@ const App = () => (
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/events" element={<EventsManagement />} />
           <Route path="/admin/attendance/:serviceId" element={<AttendanceLog />} />
+          <Route path="/admin/attendance/:serviceId/bulk-import" element={<BulkAttendanceImport />} />
+          <Route path="/admin/reports/attendance" element={<AttendanceReport />} />
+          <Route path="/admin/reminders" element={<EventReminders />} />
+          <Route path="/admin/visitor-followup" element={<VisitorFollowup />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/receipts" element={<ReceiptVerification />} />
           <Route path="/give" element={<Give />} />
