@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { HandHeart, MessageSquare, History, LogOut, Download } from "lucide-react";
+import { HandHeart, MessageSquare, History, LogOut, Download, Users } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const Dashboard = () => {
@@ -246,6 +246,27 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent className="relative z-10">
               <Button variant="outline" className="w-full border-green-600 text-green-600 hover:bg-green-600 hover:text-white">View History</Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="group relative overflow-hidden border-2 bg-gradient-to-br from-orange-500/10 to-amber-500/10 hover:from-orange-500/20 hover:to-amber-500/20 hover:scale-105 hover:shadow-xl hover:shadow-orange-500/20 hover:border-orange-500/50 transition-all duration-300 cursor-pointer"
+            onClick={() => navigate("/mobilization")}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+            <CardHeader className="relative z-10">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-orange-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <Users className="h-7 w-7 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl group-hover:text-orange-600 transition-colors">Invite Friends 🤝</CardTitle>
+                  <CardDescription className="mt-2">Track people you've invited to church</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <Button variant="outline" className="w-full border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white">Start Inviting</Button>
             </CardContent>
           </Card>
         </div>
