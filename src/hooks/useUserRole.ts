@@ -21,8 +21,6 @@ export const useUserRole = (userId: string | undefined) => {
           .from("user_roles")
           .select("role")
           .eq("user_id", userId)
-          .order("role", { ascending: true })
-          .limit(1)
           .single();
 
         if (error) throw error;
