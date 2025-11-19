@@ -495,7 +495,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="mt-8">
           <CardHeader>
             <CardTitle>Export Data</CardTitle>
             <CardDescription>Download all data for a specific date range</CardDescription>
@@ -517,7 +517,7 @@ const AdminDashboard = () => {
                       {startDate ? format(startDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
+                  <PopoverContent className="w-auto p-0 bg-background border shadow-lg" align="center" sideOffset={8}>
                     <Calendar
                       mode="single"
                       selected={startDate}
@@ -544,7 +544,7 @@ const AdminDashboard = () => {
                       {endDate ? format(endDate, "PPP") : "Pick a date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
+                  <PopoverContent className="w-auto p-0 bg-background border shadow-lg" align="center" sideOffset={8}>
                     <Calendar
                       mode="single"
                       selected={endDate}
