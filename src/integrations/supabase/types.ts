@@ -236,6 +236,103 @@ export type Database = {
           },
         ]
       }
+      member_invitations: {
+        Row: {
+          attended_at: string | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          invitation_method: string | null
+          invited_at: string | null
+          invitee_email: string | null
+          invitee_name: string
+          invitee_phone: string
+          member_id: string
+          notes: string | null
+          status: string
+          target_service_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attended_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          invitation_method?: string | null
+          invited_at?: string | null
+          invitee_email?: string | null
+          invitee_name: string
+          invitee_phone: string
+          member_id: string
+          notes?: string | null
+          status?: string
+          target_service_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attended_at?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          invitation_method?: string | null
+          invited_at?: string | null
+          invitee_email?: string | null
+          invitee_name?: string
+          invitee_phone?: string
+          member_id?: string
+          notes?: string | null
+          status?: string
+          target_service_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_invitations_target_service_id_fkey"
+            columns: ["target_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mobilization_targets: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          service_id: string
+          set_by: string | null
+          target_confirmations: number
+          target_invitations: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          service_id: string
+          set_by?: string | null
+          target_confirmations: number
+          target_invitations: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          service_id?: string
+          set_by?: string | null
+          target_confirmations?: number
+          target_invitations?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mobilization_targets_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prayer_requests: {
         Row: {
           answered: boolean
