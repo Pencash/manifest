@@ -17,17 +17,26 @@ export const useUserRole = (userId: string | undefined) => {
 
     const fetchRole = async () => {
       try {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .single();
+        // Use the secure RPC function instead of direct table query
+        const { data, error } = await supabase.rpc("get_user_role", { 
+          _user_id: userId 
+        });
+
+        console.log("useUserRole fetch:", { userId, role: data, error });
 
         if (error) throw error;
-        setRole(data?.role || "member");
+
+        // get_user_role returns an app_role or null
+        if (data) {
+          setRole(data);
+        } else {
+          // Fallback to member if no role found (shouldn't happen with auto-assignment)
+          setRole("member");
+        }
       } catch (error) {
         console.error("Error fetching user role:", error);
-        setRole("member");
+        // On error, set to null instead of silently downgrading to member
+        setRole(null);
       } finally {
         setLoading(false);
       }

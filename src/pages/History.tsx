@@ -23,13 +23,19 @@ const History = () => {
   const [givings, setGivings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | undefined>(undefined);
-  const { role: userRole } = useUserRole(userId);
+  const { role: userRole, loading: roleLoading } = useUserRole(userId);
   const navigate = useNavigate();
 
   useEffect(() => {
     checkAuth();
-    loadGivings();
   }, []);
+
+  useEffect(() => {
+    // Only load givings after we know the user's role
+    if (userId && !roleLoading) {
+      loadGivings();
+    }
+  }, [userId, roleLoading, userRole]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -45,8 +51,8 @@ const History = () => {
 
       setUserId(user.id);
 
-      // Finance and admin can see all givings, but with privacy protection
-      const isFinanceOrAdmin = userRole === 'finance' || userRole === 'admin';
+      // Finance, admin, and pastor can see all givings, but with privacy protection
+      const isFinanceOrAdmin = userRole === 'finance' || userRole === 'admin' || userRole === 'pastor';
       
       let query = supabase
         .from("givings")
@@ -88,7 +94,7 @@ const History = () => {
     }
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -111,7 +117,7 @@ const History = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">
-              {userRole === 'finance' || userRole === 'admin' 
+              {userRole === 'finance' || userRole === 'admin' || userRole === 'pastor'
                 ? 'All Givings (Finance View)' 
                 : 'Giving History'}
             </CardTitle>
@@ -134,7 +140,7 @@ const History = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Service</TableHead>
-                      {(userRole === 'finance' || userRole === 'admin') && (
+                      {(userRole === 'finance' || userRole === 'admin' || userRole === 'pastor') && (
                         <TableHead>Donor</TableHead>
                       )}
                       <TableHead>Amount</TableHead>
@@ -172,7 +178,7 @@ const History = () => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        {(userRole === 'finance' || userRole === 'admin') && (
+                        {(userRole === 'finance' || userRole === 'admin' || userRole === 'pastor') && (
                           <TableCell>
                             {giving.is_anonymous ? (
                               <span className="text-muted-foreground italic">
