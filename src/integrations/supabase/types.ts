@@ -16,39 +16,128 @@ export type Database = {
     Tables: {
       attendance: {
         Row: {
+          contact_id: string | null
           count: number | null
           created_at: string
           id: string
-          profile_id: string
+          profile_id: string | null
           service_id: string
           status: string
         }
         Insert: {
+          contact_id?: string | null
           count?: number | null
           created_at?: string
           id?: string
-          profile_id: string
+          profile_id?: string | null
           service_id: string
           status?: string
         }
         Update: {
+          contact_id?: string | null
           count?: number | null
           created_at?: string
           id?: string
-          profile_id?: string
+          profile_id?: string | null
           service_id?: string
           status?: string
         }
         Relationships: [
           {
-            foreignKeyName: "attendance_profile_id_fkey"
-            columns: ["profile_id"]
+            foreignKeyName: "attendance_contact_id_fkey"
+            columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "attendance_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          contact_type: string
+          created_at: string
+          email: string
+          first_visit_date: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          last_visit_date: string | null
+          member_code: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          visit_count: number | null
+        }
+        Insert: {
+          contact_type?: string
+          created_at?: string
+          email: string
+          first_visit_date?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          last_visit_date?: string | null
+          member_code?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          visit_count?: number | null
+        }
+        Update: {
+          contact_type?: string
+          created_at?: string
+          email?: string
+          first_visit_date?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          last_visit_date?: string | null
+          member_code?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          visit_count?: number | null
+        }
+        Relationships: []
+      }
+      event_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          reminder_type: string
+          send_before_hours: number
+          sent_at: string | null
+          service_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          reminder_type: string
+          send_before_hours: number
+          sent_at?: string | null
+          service_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          reminder_type?: string
+          send_before_hours?: number
+          sent_at?: string | null
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reminders_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
@@ -406,6 +495,63 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      visitor_followups: {
+        Row: {
+          assigned_to: string | null
+          completed_date: string | null
+          contact_id: string
+          created_at: string
+          follow_up_type: string
+          id: string
+          notes: string | null
+          scheduled_date: string | null
+          service_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          contact_id: string
+          created_at?: string
+          follow_up_type: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          contact_id?: string
+          created_at?: string
+          follow_up_type?: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string | null
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitor_followups_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitor_followups_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
