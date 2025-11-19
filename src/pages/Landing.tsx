@@ -4,13 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { HandHeart, Heart, MessageSquare, Shield } from "lucide-react";
 const Landing = () => {
   const navigate = useNavigate();
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Phaneroo Giving Platform
+            Manifest Malawi
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             A secure and transparent way to give, share testimonies, and connect with your church
@@ -38,9 +38,7 @@ const Landing = () => {
                 </div>
                 <CardTitle className="text-2xl">For Members</CardTitle>
               </div>
-              <CardDescription className="text-base">
-                Access your personal giving dashboard to:
-              </CardDescription>
+              <CardDescription className="text-base">Access your personal giving dashboard to:</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -61,11 +59,7 @@ const Landing = () => {
                   <span>Track your giving history</span>
                 </li>
               </ul>
-              <Button 
-                size="lg" 
-                onClick={() => navigate("/member/auth")} 
-                className="w-full mt-6"
-              >
+              <Button size="lg" onClick={() => navigate("/member/auth")} className="w-full mt-6">
                 Get Started
               </Button>
             </CardContent>
@@ -79,9 +73,7 @@ const Landing = () => {
                 </div>
                 <CardTitle className="text-2xl">For Admin & Finance</CardTitle>
               </div>
-              <CardDescription className="text-base">
-                Access administrative tools to:
-              </CardDescription>
+              <CardDescription className="text-base">Access administrative tools to:</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -102,12 +94,7 @@ const Landing = () => {
                   <span>Monitor member attendance overview</span>
                 </li>
               </ul>
-              <Button 
-                size="lg"
-                variant="outline" 
-                onClick={() => navigate("/admin/auth")} 
-                className="w-full mt-6"
-              >
+              <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")} className="w-full mt-6">
                 Admin Login
               </Button>
             </CardContent>
@@ -121,9 +108,7 @@ const Landing = () => {
                 <HandHeart className="w-6 h-6 text-primary" />
               </div>
               <CardTitle>Easy Giving</CardTitle>
-              <CardDescription>
-                Record tithes, offerings, and pledges with just a few clicks
-              </CardDescription>
+              <CardDescription>Record tithes, offerings, and pledges with just a few clicks</CardDescription>
             </CardHeader>
           </Card>
 
@@ -133,9 +118,7 @@ const Landing = () => {
                 <Shield className="w-6 h-6 text-secondary" />
               </div>
               <CardTitle>Secure & Private</CardTitle>
-              <CardDescription>
-                Your data is protected with enterprise-grade security
-              </CardDescription>
+              <CardDescription>Your data is protected with enterprise-grade security</CardDescription>
             </CardHeader>
           </Card>
 
@@ -145,9 +128,7 @@ const Landing = () => {
                 <MessageSquare className="w-6 h-6 text-accent" />
               </div>
               <CardTitle>Transparent</CardTitle>
-              <CardDescription>
-                Track your contributions and view detailed reports
-              </CardDescription>
+              <CardDescription>Track your contributions and view detailed reports</CardDescription>
             </CardHeader>
           </Card>
         </div>
