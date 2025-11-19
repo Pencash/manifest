@@ -14,11 +14,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
+import { useUserRole } from "@/hooks/useUserRole";
+import type { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 const History = () => {
   const [givings, setGivings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const { role: userRole } = useUserRole(userId);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,17 +43,10 @@ const History = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's profile to check their role
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      setUserRole(profile?.role || null);
+      setUserId(user.id);
 
       // Finance and admin can see all givings, but with privacy protection
-      const isFinanceOrAdmin = profile?.role === 'finance' || profile?.role === 'admin';
+      const isFinanceOrAdmin = userRole === 'finance' || userRole === 'admin';
       
       let query = supabase
         .from("givings")

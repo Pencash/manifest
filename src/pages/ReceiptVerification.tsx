@@ -12,6 +12,10 @@ import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { ArrowLeft, CheckCircle, XCircle, Eye, FileText, Filter } from "lucide-react";
 import { format } from "date-fns";
+import { useUserRole, hasRole } from "@/hooks/useUserRole";
+import type { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface Receipt {
   id: string;
@@ -45,6 +49,7 @@ interface Receipt {
 
 const ReceiptVerification = () => {
   const [user, setUser] = useState<User | null>(null);
+  const { role, loading: roleLoading } = useUserRole(user?.id);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
@@ -76,29 +81,23 @@ const ReceiptVerification = () => {
       }
       
       setUser(session.user);
-      
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      toast.error("Failed to load profile");
+    }
+  };
 
-      if (error) throw error;
-      
-      if (profileData.role !== 'admin' && profileData.role !== 'finance') {
+  useEffect(() => {
+    if (user && !roleLoading) {
+      if (!hasRole(role, 'finance')) {
         toast.error("Access denied. Finance or admin privileges required.");
         navigate("/dashboard");
         return;
       }
-      
-      await loadReceipts();
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
-    } finally {
-      setLoading(false);
+      setLoading(true);
+      loadReceipts().finally(() => setLoading(false));
     }
-  };
+  }, [user, role, roleLoading]);
 
   const loadReceipts = async () => {
     try {
