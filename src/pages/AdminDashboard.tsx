@@ -77,6 +77,18 @@ const AdminDashboard = () => {
 
   const loadMetrics = async () => {
     try {
+      // First get pending verifications count
+      const { data: pendingVerificationsData } = await supabase
+        .from("givings")
+        .select("id, payment_reference, payment_method, status, receipts(verification_status)")
+        .or("status.eq.pending,receipts.verification_status.eq.pending");
+
+      const pendingCount = pendingVerificationsData?.filter((giving: any) => {
+        const hasUploadedReceipt = giving.receipts?.some((r: any) => r.verification_status === "pending");
+        const hasPendingMobilePayment = giving.payment_method === "mobile_money" && giving.payment_reference && giving.status === "pending";
+        return hasUploadedReceipt || hasPendingMobilePayment;
+      }).length || 0;
+
       const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, receiptsRes, givingTypesRes] = await Promise.all([
         supabase.from("givings").select("amount, giving_type_id, created_at"),
         supabase.from("profiles").select("id, is_active"),
@@ -108,6 +120,7 @@ const AdminDashboard = () => {
         totalTestimonies,
         totalPrayers,
         pendingReceipts,
+        pendingVerifications: pendingCount,
         givingsByType,
       });
     } catch (error: any) {
@@ -560,6 +573,36 @@ const AdminDashboard = () => {
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground mb-1">Giving History</h3>
                     <p className="text-xs text-muted-foreground">View all contributions</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/verifications")}
+                className="group relative p-4 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 hover:from-yellow-500/10 hover:to-orange-500/10 border border-yellow-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors">
+                    <FileCheck className="h-6 w-6 text-yellow-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Pending Verifications</h3>
+                    <p className="text-xs text-muted-foreground">Review receipts & payments ({metrics.pendingVerifications || 0})</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/mobilization")}
+                className="group relative p-4 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 hover:from-teal-500/10 hover:to-cyan-500/10 border border-teal-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-teal-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-teal-500/10 flex items-center justify-center group-hover:bg-teal-500/20 transition-colors">
+                    <Users className="h-6 w-6 text-teal-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Mobilization Report</h3>
+                    <p className="text-xs text-muted-foreground">Track member invitations</p>
                   </div>
                 </div>
               </button>
