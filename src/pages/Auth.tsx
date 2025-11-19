@@ -8,6 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { z } from "zod";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
+import type { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -62,15 +65,18 @@ const Auth = () => {
         await logLoginAttempt(validation.email, true);
         
         // Check user role and redirect accordingly
-        const { data: profile } = await supabase
-          .from("profiles")
+        const { data: roleData } = await supabase
+          .from("user_roles")
           .select("role")
-          .eq("id", data.user.id)
+          .eq("user_id", data.user.id)
+          .order("role", { ascending: true })
+          .limit(1)
           .single();
         
         toast.success("Welcome back!");
         
-        if (profile?.role === 'admin' || profile?.role === 'finance' || profile?.role === 'pastor') {
+        const userRole = roleData?.role as AppRole | null;
+        if (userRole === 'admin' || userRole === 'finance' || userRole === 'pastor') {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");

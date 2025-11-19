@@ -13,6 +13,10 @@ import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus, Upload } from "lucide-react";
 import { format } from "date-fns";
+import { useUserRole, hasRole } from "@/hooks/useUserRole";
+import type { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface Service {
   id: string;
@@ -39,6 +43,7 @@ interface AttendanceRecord {
 const AttendanceLog = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const [user, setUser] = useState<User | null>(null);
+  const { role, loading: roleLoading } = useUserRole(user?.id);
   const [service, setService] = useState<Service | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
   const [attendance, setAttendance] = useState<Map<string, boolean>>(new Map());
@@ -78,29 +83,23 @@ const AttendanceLog = () => {
       }
       
       setUser(session.user);
-      
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      toast.error("Failed to load profile");
+    }
+  };
 
-      if (error) throw error;
-      
-      if (profileData.role !== 'admin' && profileData.role !== 'finance' && profileData.role !== 'pastor') {
+  useEffect(() => {
+    if (user && !roleLoading) {
+      if (!hasRole(role, 'finance')) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
-      
-      await loadData();
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
-    } finally {
-      setLoading(false);
+      setLoading(true);
+      loadData().finally(() => setLoading(false));
     }
-  };
+  }, [user, role, roleLoading]);
 
   const loadData = async () => {
     if (!serviceId) return;
