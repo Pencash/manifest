@@ -3,14 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
 const AdminDashboard = () => {
@@ -18,8 +16,8 @@ const AdminDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<any>({});
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -150,6 +148,9 @@ const AdminDashboard = () => {
     try {
       toast.loading("Preparing export...");
       
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
       let givingsQuery = supabase
         .from("givings")
         .select(`
@@ -158,16 +159,16 @@ const AdminDashboard = () => {
           giving_types(name),
           services(name, service_date)
         `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
         .order('created_at', { ascending: false });
 
       // Fetch attendance with explicit handling for profiles and contacts
       const { data: rawAttendance } = await supabase
         .from("attendance")
         .select("*, services(name, service_date)")
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
 
       // Get unique profile IDs and contact IDs
       const profileIds = rawAttendance?.filter(a => a.profile_id).map(a => a.profile_id) || [];
@@ -199,8 +200,8 @@ const AdminDashboard = () => {
           profiles(full_name, email),
           services(name, service_date)
         `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
 
       let prayersQuery = supabase
         .from("prayer_requests")
@@ -209,8 +210,8 @@ const AdminDashboard = () => {
           profiles(full_name, email),
           services(name, service_date)
         `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString());
 
       const [givingsRes, testimoniesRes, prayersRes] = await Promise.all([
         givingsQuery,
@@ -292,7 +293,7 @@ const AdminDashboard = () => {
       XLSX.utils.book_append_sheet(wb, testimoniesWs, "Testimonies");
       XLSX.utils.book_append_sheet(wb, prayersWs, "Prayer Requests");
       
-      XLSX.writeFile(wb, `admin_export_${format(startDate, 'yyyy-MM-dd')}_to_${format(endDate, 'yyyy-MM-dd')}.xlsx`);
+      XLSX.writeFile(wb, `admin_export_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.xlsx`);
       
       toast.dismiss();
       toast.success("Export completed successfully!");
@@ -451,15 +452,15 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Button variant="outline" onClick={() => navigate("/admin/events")}>
-                <Calendar className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-4 w-4" />
                 Events Calendar
               </Button>
               <Button variant="outline" onClick={() => navigate("/admin/reports/attendance")}>
-                <Calendar className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-4 w-4" />
                 Attendance Reports
               </Button>
               <Button variant="outline" onClick={() => navigate("/admin/reminders")}>
-                <Calendar className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-4 w-4" />
                 Event Reminders
               </Button>
               <Button variant="outline" onClick={() => navigate("/admin/visitor-followup")}>
@@ -504,26 +505,22 @@ const AdminDashboard = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="start-date">Start Date</Label>
-                <div className="rounded-md border bg-background p-2">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    className="p-3 pointer-events-auto"
-                  />
-                </div>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="end-date">End Date</Label>
-                <div className="rounded-md border bg-background p-2">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    className="p-3 pointer-events-auto"
-                  />
-                </div>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
             </div>
 
