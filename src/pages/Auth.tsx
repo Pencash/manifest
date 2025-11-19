@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useRateLimiting } from "@/hooks/useRateLimiting";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,6 +24,7 @@ const Auth = () => {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { checkRateLimit, logLoginAttempt } = useRateLimiting();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +37,15 @@ const Auth = () => {
         phone: isLogin ? undefined : phone,
       });
 
+      if (isLogin) {
+        // Check rate limiting for login
+        const isLimited = await checkRateLimit(validation.email);
+        if (isLimited) {
+          toast.error("Too many failed attempts. Please try again in 15 minutes.");
+          return;
+        }
+      }
+      
       setLoading(true);
 
       if (isLogin) {
@@ -43,7 +54,12 @@ const Auth = () => {
           password: validation.password,
         });
 
-        if (error) throw error;
+        if (error) {
+          await logLoginAttempt(validation.email, false);
+          throw error;
+        }
+        
+        await logLoginAttempt(validation.email, true);
         
         // Check user role and redirect accordingly
         const { data: profile } = await supabase

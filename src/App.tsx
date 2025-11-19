@@ -24,6 +24,7 @@ import Prayer from "./pages/Prayer";
 import MemberMobilization from "./pages/MemberMobilization";
 import MobilizationReport from "./pages/MobilizationReport";
 import PendingVerifications from "./pages/PendingVerifications";
+import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
           <Route path="/mobilization" element={<MemberMobilization />} />
           <Route path="/admin/mobilization" element={<MobilizationReport />} />
           <Route path="/admin/verifications" element={<PendingVerifications />} />
+          <Route path="/admin/audit-logs" element={<AuditLogs />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

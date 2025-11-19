@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { z } from "zod";
 import { Shield } from "lucide-react";
+import { useRateLimiting } from "@/hooks/useRateLimiting";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -22,12 +23,21 @@ const AdminAuth = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
+  const { checkRateLimit, logLoginAttempt } = useRateLimiting();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       const validation = authSchema.parse({ email, password });
+      
+      // Check rate limiting
+      const isLimited = await checkRateLimit(validation.email);
+      if (isLimited) {
+        toast.error("Too many failed attempts. Please try again in 15 minutes.");
+        return;
+      }
+      
       setLoading(true);
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -35,7 +45,12 @@ const AdminAuth = () => {
         password: validation.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        await logLoginAttempt(validation.email, false);
+        throw error;
+      }
+      
+      await logLoginAttempt(validation.email, true);
       
       // Check if user has admin/finance role using user_roles table
       const { data: roleData } = await supabase

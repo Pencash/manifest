@@ -112,7 +112,9 @@ const UserManagement = () => {
           body: {
             email: profile?.email,
             name: profile?.full_name,
-            newRole: newRole
+            newRole: newRole,
+            userId: userId,
+            assignedBy: user?.id
           }
         });
       } catch (emailError) {
