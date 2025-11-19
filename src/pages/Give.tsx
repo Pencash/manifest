@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
+import { ServiceSelector } from "@/components/ServiceSelector";
 
 const givingSchema = z.object({
   givingTypeId: z.string().min(1, "Please select a giving type"),
@@ -19,13 +20,24 @@ const givingSchema = z.object({
     return !isNaN(num) && num > 0;
   }, "Amount must be a positive number"),
   paymentMethod: z.string().min(1, "Please select a payment method"),
+  paymentReference: z.string().optional(),
+}).refine((data) => {
+  // If payment method is mobile_money, payment reference is required
+  if (data.paymentMethod === "mobile_money" && (!data.paymentReference || data.paymentReference.length < 6)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Payment reference is required for mobile money payments (minimum 6 characters)",
+  path: ["paymentReference"],
 });
 
 const Give = () => {
   const [givingTypes, setGivingTypes] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedServiceName, setSelectedServiceName] = useState("");
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -51,13 +63,12 @@ const Give = () => {
   };
 
   const loadData = async () => {
-    const [typesRes, servicesRes] = await Promise.all([
-      supabase.from("giving_types").select("*").eq("is_active", true),
-      supabase.from("services").select("*").order("service_date", { ascending: false }).limit(10),
-    ]);
+    const { data: typesRes } = await supabase
+      .from("giving_types")
+      .select("*")
+      .eq("is_active", true);
 
-    if (typesRes.data) setGivingTypes(typesRes.data);
-    if (servicesRes.data) setServices(servicesRes.data);
+    if (typesRes) setGivingTypes(typesRes);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +80,7 @@ const Give = () => {
         givingTypeId: formData.givingTypeId,
         amount: formData.amount,
         paymentMethod: formData.paymentMethod,
+        paymentReference: formData.paymentReference,
       });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -96,7 +108,7 @@ const Give = () => {
         .insert({
           profile_id: profile.id,
           giving_type_id: formData.givingTypeId,
-          service_id: formData.serviceId || null,
+          service_id: selectedServiceId || null,
           amount: parseFloat(formData.amount),
           payment_method: formData.paymentMethod,
           payment_reference: formData.paymentReference || null,
@@ -198,26 +210,20 @@ const Give = () => {
                   <p className="text-sm text-muted-foreground">Choose the type of contribution</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="service">Service/Event (Optional)</Label>
-                  <Select
-                    value={formData.serviceId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, serviceId: value })
-                    }
-                  >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select service" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {services.map((service) => (
-                        <SelectItem key={service.id} value={service.id}>
-                          {service.name} - {new Date(service.service_date).toLocaleDateString()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">Link to a specific service or event</p>
+                <div className="space-y-4">
+                  <ServiceSelector
+                    onServiceSelect={(serviceId, serviceName) => {
+                      setSelectedServiceId(serviceId);
+                      setSelectedServiceName(serviceName);
+                      setFormData({ ...formData, serviceId });
+                    }}
+                    selectedServiceId={selectedServiceId}
+                  />
+                  {selectedServiceName && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {selectedServiceName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -264,18 +270,25 @@ const Give = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="paymentReference">Payment Reference/Transaction ID (Optional)</Label>
+                  <Label htmlFor="paymentReference">
+                    Payment Reference/Transaction ID {formData.paymentMethod === "mobile_money" && (<span className="text-destructive">*</span>)}
+                  </Label>
                   <Input
                     id="paymentReference"
-                    type="text"
-                    placeholder="e.g., TXN123456"
+                    placeholder="e.g., ABC123XYZ"
                     value={formData.paymentReference}
                     onChange={(e) =>
                       setFormData({ ...formData, paymentReference: e.target.value })
                     }
-                    className="bg-background"
+                    required={formData.paymentMethod === "mobile_money"}
+                    minLength={formData.paymentMethod === "mobile_money" ? 6 : undefined}
+                    className="bg-background font-mono"
                   />
-                  <p className="text-sm text-muted-foreground">Transaction ID or reference number</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formData.paymentMethod === "mobile_money" 
+                      ? "Required: Enter your mobile money transaction reference (minimum 6 characters)"
+                      : "Optional: Transaction reference or code"}
+                  </p>
                 </div>
 
                 <div className="space-y-2">
