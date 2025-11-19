@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileCheck, FileX } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ReceiptUpload } from "@/components/ReceiptUpload";
 
 const History = () => {
   const [givings, setGivings] = useState<any[]>([]);
@@ -55,7 +56,8 @@ const History = () => {
           *,
           giving_types(name),
           services(name, service_date),
-          profiles(full_name, email)
+          profiles(full_name, email),
+          receipts(id, verification_status)
         `)
         .order("created_at", { ascending: false });
 
@@ -139,6 +141,8 @@ const History = () => {
                       )}
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Receipt</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -191,12 +195,39 @@ const History = () => {
                         <TableCell className="font-semibold">
                           {giving.currency} {parseFloat(giving.amount).toLocaleString()}
                         </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(giving.status)}>
-                            {giving.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+                  <TableCell>
+                    <Badge className={getStatusColor(giving.status)}>
+                      {giving.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {giving.receipts && giving.receipts.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <FileCheck className="h-4 w-4 text-green-600" />
+                        <Badge variant={
+                          giving.receipts[0].verification_status === 'approved' ? 'default' :
+                          giving.receipts[0].verification_status === 'rejected' ? 'destructive' :
+                          'secondary'
+                        }>
+                          {giving.receipts[0].verification_status}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <FileX className="h-4 w-4" />
+                        <span className="text-sm">No receipt</span>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(!giving.receipts || giving.receipts.length === 0) && (
+                      <ReceiptUpload 
+                        givingId={giving.id} 
+                        onSuccess={loadGivings}
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
                     ))}
                   </TableBody>
                 </Table>

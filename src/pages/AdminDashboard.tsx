@@ -83,16 +83,16 @@ const AdminDashboard = () => {
         supabase.from("attendance").select("id"),
         supabase.from("testimonies").select("id"),
         supabase.from("prayer_requests").select("id"),
-        supabase.from("receipts").select("id, parse_status"),
+        supabase.from("receipts").select("id, verification_status"),
         supabase.from("giving_types").select("id, name"),
       ]);
 
-      const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-      const activeMembers = profilesRes.data?.filter(p => p.is_active).length || 0;
-      const totalAttendance = attendanceRes.data?.length || 0;
-      const totalTestimonies = testimoniesRes.data?.length || 0;
-      const totalPrayers = prayerRes.data?.length || 0;
-      const pendingReceipts = receiptsRes.data?.filter(r => r.parse_status === 'pending').length || 0;
+              const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
+              const activeMembers = profilesRes.data?.filter(p => p.is_active).length || 0;
+              const totalAttendance = attendanceRes.data?.length || 0;
+              const totalTestimonies = testimoniesRes.data?.length || 0;
+              const totalPrayers = prayerRes.data?.length || 0;
+              const pendingReceipts = receiptsRes.data?.filter(r => r.verification_status === 'pending').length || 0;
 
       const givingsByType: any = {};
       givingsRes.data?.forEach(g => {

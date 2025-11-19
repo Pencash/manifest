@@ -164,76 +164,88 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow border-primary/20 hover:border-primary"
+            className="group relative overflow-hidden border-2 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/20 hover:border-blue-500/50 transition-all duration-300 cursor-pointer"
             onClick={() => navigate("/give")}
           >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <HandHeart className="w-6 h-6 text-primary" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+            <CardHeader className="relative z-10">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-blue-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <HandHeart className="h-7 w-7 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">Record a Giving</CardTitle>
+                  <CardDescription className="mt-2">Submit your tithes and offerings</CardDescription>
+                </div>
               </div>
-              <CardTitle>Record a Giving</CardTitle>
-              <CardDescription>
-                Record your tithes, offerings, and pledges
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button className="w-full">Give Now</Button>
+            <CardContent className="relative z-10">
+              <Button className="w-full bg-blue-600 hover:bg-blue-700">Give Now</Button>
             </CardContent>
           </Card>
 
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow border-secondary/20 hover:border-secondary"
+            className="group relative overflow-hidden border-2 bg-gradient-to-br from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 hover:border-purple-500/50 transition-all duration-300 cursor-pointer"
             onClick={() => navigate("/testimony")}
           >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
-                <MessageSquare className="w-6 h-6 text-secondary" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+            <CardHeader className="relative z-10">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-purple-500/20 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
+                  <MessageSquare className="h-7 w-7 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl group-hover:text-purple-600 transition-colors">Share a Testimony</CardTitle>
+                  <CardDescription className="mt-2">Share your faith journey</CardDescription>
+                </div>
               </div>
-              <CardTitle>Share a Testimony</CardTitle>
-              <CardDescription>
-                Share how God has blessed you
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button variant="secondary" className="w-full">Share</Button>
+            <CardContent className="relative z-10">
+              <Button className="w-full bg-purple-600 hover:bg-purple-700">Share</Button>
             </CardContent>
           </Card>
 
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow border-accent/20 hover:border-accent"
+            className="group relative overflow-hidden border-2 bg-gradient-to-br from-indigo-500/10 to-blue-500/10 hover:from-indigo-500/20 hover:to-blue-500/20 hover:scale-105 hover:shadow-xl hover:shadow-indigo-500/20 hover:border-indigo-500/50 transition-all duration-300 cursor-pointer"
             onClick={() => navigate("/prayer")}
           >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
-                <MessageSquare className="w-6 h-6 text-accent" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+            <CardHeader className="relative z-10">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-indigo-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <HandHeart className="h-7 w-7 text-indigo-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl group-hover:text-indigo-600 transition-colors">Prayer Request</CardTitle>
+                  <CardDescription className="mt-2">Submit your prayer needs</CardDescription>
+                </div>
               </div>
-              <CardTitle>Prayer Request</CardTitle>
-              <CardDescription>
-                Submit a prayer request to our team
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button variant="outline" className="w-full">Submit Request</Button>
+            <CardContent className="relative z-10">
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700">Request Prayer</Button>
             </CardContent>
           </Card>
 
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-shadow md:col-span-2 lg:col-span-3"
+            className="group relative overflow-hidden border-2 bg-gradient-to-br from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 hover:scale-105 hover:shadow-xl hover:shadow-green-500/20 hover:border-green-500/50 transition-all duration-300 cursor-pointer"
             onClick={() => navigate("/history")}
           >
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                <History className="w-6 h-6 text-muted-foreground" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
+            <CardHeader className="relative z-10">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-green-500/20 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
+                  <History className="h-7 w-7 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-xl group-hover:text-green-600 transition-colors">Giving History</CardTitle>
+                  <CardDescription className="mt-2">View your contribution records</CardDescription>
+                </div>
               </div>
-              <CardTitle>Giving History</CardTitle>
-              <CardDescription>
-                View all your past contributions and receipts
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button variant="outline" className="w-full">View History</Button>
+            <CardContent className="relative z-10">
+              <Button variant="outline" className="w-full border-green-600 text-green-600 hover:bg-green-600 hover:text-white">View History</Button>
             </CardContent>
           </Card>
         </div>
