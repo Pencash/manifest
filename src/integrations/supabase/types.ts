@@ -459,7 +459,6 @@ export type Database = {
           is_active: boolean
           member_code: string | null
           phone: string | null
-          role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
           created_at?: string
@@ -469,7 +468,6 @@ export type Database = {
           is_active?: boolean
           member_code?: string | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
         }
         Update: {
           created_at?: string
@@ -479,7 +477,6 @@ export type Database = {
           is_active?: boolean
           member_code?: string | null
           phone?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
       }
