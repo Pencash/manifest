@@ -49,6 +49,10 @@ const EventsManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // all, upcoming, past, archived
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
+  const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -112,6 +116,7 @@ const EventsManagement = () => {
       const { data, error } = await supabase
         .from("services")
         .select("*")
+        .eq("is_archived", false) // Only load non-archived by default
         .order('service_date', { ascending: false });
 
       if (error) throw error;
@@ -231,9 +236,76 @@ const EventsManagement = () => {
     );
   };
 
-  const filteredServices = filterType === 'all' 
-    ? services 
-    : services.filter(s => s.service_type === filterType);
+  const getEventStatus = (serviceDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDate = new Date(serviceDate);
+    eventDate.setHours(0, 0, 0, 0);
+    
+    if (eventDate.getTime() === today.getTime()) return 'today';
+    if (eventDate > today) return 'upcoming';
+    return 'past';
+  };
+
+  const getStatusBadge = (serviceDate: string) => {
+    const status = getEventStatus(serviceDate);
+    
+    if (status === 'today') {
+      return <Badge className="bg-blue-500">Today</Badge>;
+    } else if (status === 'upcoming') {
+      return <Badge className="bg-green-500">Upcoming</Badge>;
+    } else {
+      return <Badge className="bg-red-500">Expired</Badge>;
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleServiceId) return;
+
+    try {
+      const { error } = await supabase
+        .from("services")
+        .update({ service_date: format(rescheduleDate, 'yyyy-MM-dd') })
+        .eq('id', rescheduleServiceId);
+
+      if (error) throw error;
+      toast.success("Event rescheduled successfully!");
+      setIsRescheduleDialogOpen(false);
+      setRescheduleServiceId(null);
+      await loadServices();
+    } catch (error: any) {
+      console.error("Error rescheduling service:", error);
+      toast.error("Failed to reschedule event");
+    }
+  };
+
+  const handleArchive = async (serviceId: string, archive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("services")
+        .update({ is_archived: archive })
+        .eq('id', serviceId);
+
+      if (error) throw error;
+      toast.success(archive ? "Event archived successfully!" : "Event restored successfully!");
+      await loadServices();
+    } catch (error: any) {
+      console.error("Error archiving service:", error);
+      toast.error("Failed to archive event");
+    }
+  };
+
+  const filteredServices = services.filter(s => {
+    // Filter by service type
+    if (filterType !== 'all' && s.service_type !== filterType) return false;
+    
+    // Filter by status
+    if (statusFilter === 'upcoming') return getEventStatus(s.service_date) === 'upcoming';
+    if (statusFilter === 'past') return getEventStatus(s.service_date) === 'past';
+    if (statusFilter === 'today') return getEventStatus(s.service_date) === 'today';
+    
+    return true;
+  });
 
   if (loading) {
     return (
@@ -274,30 +346,67 @@ const EventsManagement = () => {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Filter by Service Type</CardTitle>
+            <CardTitle>Filters</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={filterType === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilterType('all')}
-                size="sm"
-              >
-                All ({services.length})
-              </Button>
-              {serviceTypes.map(type => {
-                const count = services.filter(s => s.service_type === type.value).length;
-                return (
-                  <Button
-                    key={type.value}
-                    variant={filterType === type.value ? 'default' : 'outline'}
-                    onClick={() => setFilterType(type.value)}
-                    size="sm"
-                  >
-                    {type.label} ({count})
-                  </Button>
-                );
-              })}
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium mb-2">Event Status</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('all')}
+                  size="sm"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={statusFilter === 'upcoming' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('upcoming')}
+                  size="sm"
+                >
+                  Upcoming
+                </Button>
+                <Button
+                  variant={statusFilter === 'today' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('today')}
+                  size="sm"
+                >
+                  Today
+                </Button>
+                <Button
+                  variant={statusFilter === 'past' ? 'default' : 'outline'}
+                  onClick={() => setStatusFilter('past')}
+                  size="sm"
+                >
+                  Past
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Service Type</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={filterType === 'all' ? 'default' : 'outline'}
+                  onClick={() => setFilterType('all')}
+                  size="sm"
+                >
+                  All ({services.length})
+                </Button>
+                {serviceTypes.map(type => {
+                  const count = services.filter(s => s.service_type === type.value).length;
+                  return (
+                    <Button
+                      key={type.value}
+                      variant={filterType === type.value ? 'default' : 'outline'}
+                      onClick={() => setFilterType(type.value)}
+                      size="sm"
+                    >
+                      {type.label} ({count})
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -308,8 +417,9 @@ const EventsManagement = () => {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {getServiceTypeBadge(service.service_type)}
+                      {getStatusBadge(service.service_date)}
                       {!service.is_published && (
                         <Badge variant="outline">Draft</Badge>
                       )}
@@ -346,29 +456,63 @@ const EventsManagement = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => navigate(`/admin/attendance/${service.id}`)}
-                  >
-                    <Users className="h-4 w-4 mr-1" />
-                    Log Attendance
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(service)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(service.id)}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
+                  {getEventStatus(service.service_date) !== 'past' ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" />
+                        Log Attendance
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(service)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(service.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setRescheduleServiceId(service.id);
+                          setRescheduleDate(new Date(service.service_date));
+                          setIsRescheduleDialogOpen(true);
+                        }}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleArchive(service.id, true)}
+                      >
+                        Archive
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(service.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -504,6 +648,53 @@ const EventsManagement = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Event</DialogTitle>
+            <DialogDescription>
+              Select a new date for this event
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Label>New Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal mt-2",
+                    !rescheduleDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {rescheduleDate ? format(rescheduleDate, 'PPP') : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={rescheduleDate}
+                  onSelect={(date) => date && setRescheduleDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRescheduleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReschedule}>
+              Reschedule Event
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
