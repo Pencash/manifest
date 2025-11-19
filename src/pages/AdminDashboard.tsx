@@ -162,15 +162,35 @@ const AdminDashboard = () => {
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
-      let attendanceQuery = supabase
+      // Fetch attendance with explicit handling for profiles and contacts
+      const { data: rawAttendance } = await supabase
         .from("attendance")
-        .select(`
-          *,
-          profiles(full_name, email),
-          services(name, service_date)
-        `)
+        .select("*, services(name, service_date)")
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
+
+      // Get unique profile IDs and contact IDs
+      const profileIds = rawAttendance?.filter(a => a.profile_id).map(a => a.profile_id) || [];
+      const contactIds = rawAttendance?.filter(a => a.contact_id).map(a => a.contact_id) || [];
+
+      // Fetch profiles and contacts separately
+      const [profilesData, contactsData] = await Promise.all([
+        profileIds.length > 0
+          ? supabase.from("profiles").select("id, full_name, email").in("id", profileIds)
+          : Promise.resolve({ data: [] }),
+        contactIds.length > 0
+          ? supabase.from("contacts").select("id, full_name, email").in("id", contactIds)
+          : Promise.resolve({ data: [] })
+      ]);
+
+      // Create lookup maps with proper typing
+      const profilesMap = new Map<string, any>();
+      profilesData.data?.forEach(p => profilesMap.set(p.id, p));
+      
+      const contactsMap = new Map<string, any>();
+      contactsData.data?.forEach(c => contactsMap.set(c.id, c));
+
+      let attendanceQuery = rawAttendance;
 
       let testimoniesQuery = supabase
         .from("testimonies")
@@ -192,9 +212,8 @@ const AdminDashboard = () => {
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
-      const [givingsRes, attendanceRes, testimoniesRes, prayersRes] = await Promise.all([
+      const [givingsRes, testimoniesRes, prayersRes] = await Promise.all([
         givingsQuery,
-        attendanceQuery,
         testimoniesQuery,
         prayersQuery,
       ]);
@@ -212,14 +231,33 @@ const AdminDashboard = () => {
         'Status': g.status,
       })) || [];
 
-      const attendanceData = attendanceRes.data?.map(a => ({
-        'Date': new Date(a.created_at).toLocaleDateString(),
-        'Member': a.profiles?.full_name || 'N/A',
-        'Email': a.profiles?.email || 'N/A',
-        'Service': a.services?.name || 'N/A',
-        'Status': a.status,
-        'Count': a.count || 1,
-      })) || [];
+      const attendanceData = attendanceQuery?.map(a => {
+        let name = 'N/A';
+        let email = 'N/A';
+        
+        if (a.profile_id) {
+          const profile = profilesMap.get(a.profile_id);
+          if (profile) {
+            name = profile.full_name;
+            email = profile.email || 'N/A';
+          }
+        } else if (a.contact_id) {
+          const contact = contactsMap.get(a.contact_id);
+          if (contact) {
+            name = contact.full_name;
+            email = contact.email;
+          }
+        }
+
+        return {
+          'Date': new Date(a.created_at).toLocaleDateString(),
+          'Member': name,
+          'Email': email,
+          'Service': a.services?.name || 'N/A',
+          'Status': a.status,
+          'Count': a.count || 1,
+        };
+      }) || [];
 
       const testimoniesData = testimoniesRes.data?.map(t => ({
         'Date': new Date(t.created_at).toLocaleDateString(),
@@ -404,6 +442,41 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Quick Links</CardTitle>
+            <CardDescription>Navigate to key admin features</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button variant="outline" onClick={() => navigate("/admin/events")}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Events Calendar
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/admin/reports/attendance")}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Attendance Reports
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/admin/reminders")}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Event Reminders
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/admin/visitor-followup")}>
+                <UserCog className="mr-2 h-4 w-4" />
+                Visitor Follow-up
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/admin/users")}>
+                <UserCog className="mr-2 h-4 w-4" />
+                User Management
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/admin/receipts")}>
+                <FileCheck className="mr-2 h-4 w-4" />
+                Receipt Verification
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="mb-8">
           <CardHeader>

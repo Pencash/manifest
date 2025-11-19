@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus, Upload } from "lucide-react";
 import { format } from "date-fns";
 
 interface Service {
@@ -266,29 +266,40 @@ const AttendanceLog = () => {
         ? `MEM-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
         : null;
 
-      // Create the profile with a generated UUID
-      const profileId = crypto.randomUUID();
-      const { data: newProfile, error: profileError } = await supabase
-        .from("profiles")
+      // Create contact in contacts table
+      const { data: newContact, error: contactError } = await supabase
+        .from("contacts")
         .insert({
-          id: profileId,
           full_name: newPersonData.full_name,
           email: newPersonData.email,
           phone: newPersonData.phone || null,
           member_code: memberCode,
+          contact_type: newPersonData.status,
           is_active: true,
-          role: 'member'
+          first_visit_date: new Date().toISOString().split('T')[0],
+          last_visit_date: new Date().toISOString().split('T')[0],
+          visit_count: 1
         })
         .select()
         .single();
 
-      if (profileError) throw profileError;
+      if (contactError) throw contactError;
 
-      // Add to members list
-      setMembers(prev => [...prev, newProfile]);
+      // Add to attendance as contact
+      if (serviceId) {
+        const { error: attendanceError } = await supabase
+          .from("attendance")
+          .insert({
+            contact_id: newContact.id,
+            service_id: serviceId,
+            status: 'present'
+          });
 
-      // Mark as present
-      setAttendance(prev => new Map(prev).set(newProfile.id, true));
+        if (attendanceError) throw attendanceError;
+      }
+
+      // Reload data to refresh the list
+      await loadData();
 
       // Close dialog and reset form
       setIsAddPersonDialogOpen(false);
@@ -306,7 +317,7 @@ const AttendanceLog = () => {
       );
     } catch (error: any) {
       console.error("Error adding person:", error);
-      toast.error("Failed to add person");
+      toast.error("Failed to add person: " + error.message);
     }
   };
 
@@ -383,7 +394,7 @@ const AttendanceLog = () => {
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -391,6 +402,14 @@ const AttendanceLog = () => {
                 >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add Person
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/admin/attendance/${serviceId}/bulk-import`)}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Bulk Import
                 </Button>
                 <Button
                   variant="outline"
