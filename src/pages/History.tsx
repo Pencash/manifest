@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileCheck, FileX } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { useUserRole } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -49,26 +48,18 @@ const History = () => {
     try {
       if (!userId) return;
 
-      // Finance, admin, and pastor can see all givings, but with privacy protection
-      const isFinanceOrAdmin = userRole === 'finance' || userRole === 'admin' || userRole === 'pastor';
-      
-      let query = supabase
+      // Always show only the current user's givings on this page
+      // Admins use /admin/givings to view all records
+      const { data, error } = await supabase
         .from("givings")
         .select(`
           *,
           giving_types(name),
           services(name, service_date),
-          profiles(full_name, email),
-          receipts(id, verification_status)
+          profiles(full_name, email)
         `)
+        .eq("profile_id", userId)
         .order("created_at", { ascending: false });
-
-      // Regular members only see their own givings
-      if (!isFinanceOrAdmin) {
-        query = query.eq("profile_id", userId);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       setGivings(data || []);
@@ -114,11 +105,10 @@ const History = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">
-              {userRole === 'finance' || userRole === 'admin' || userRole === 'pastor'
-                ? 'All Givings (Finance View)' 
-                : 'Giving History'}
-            </CardTitle>
+            <CardTitle className="text-2xl">My Giving History</CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              This is your personal giving history. Track your contributions and payment verification status.
+            </p>
           </CardHeader>
           <CardContent>
             {givings.length === 0 ? (
@@ -138,13 +128,9 @@ const History = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Service</TableHead>
-                      {(userRole === 'finance' || userRole === 'admin' || userRole === 'pastor') && (
-                        <TableHead>Donor</TableHead>
-                      )}
                       <TableHead>Amount</TableHead>
+                      <TableHead>Payment Method</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Receipt</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -176,60 +162,30 @@ const History = () => {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        {(userRole === 'finance' || userRole === 'admin' || userRole === 'pastor') && (
-                          <TableCell>
-                            {giving.is_anonymous ? (
-                              <span className="text-muted-foreground italic">
-                                Anonymous Donor
-                              </span>
-                            ) : (
-                              <div>
-                                <div className="font-medium">
-                                  {giving.profiles?.full_name || 'Unknown'}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {giving.profiles?.email}
-                                </div>
-                              </div>
-                            )}
-                          </TableCell>
-                        )}
                         <TableCell className="font-semibold">
                           {giving.currency} {parseFloat(giving.amount).toLocaleString()}
                         </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(giving.status)}>
-                      {giving.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {giving.receipts && giving.receipts.length > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="h-4 w-4 text-green-600" />
-                        <Badge variant={
-                          giving.receipts[0].verification_status === 'approved' ? 'default' :
-                          giving.receipts[0].verification_status === 'rejected' ? 'destructive' :
-                          'secondary'
-                        }>
-                          {giving.receipts[0].verification_status}
-                        </Badge>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <FileX className="h-4 w-4" />
-                        <span className="text-sm">No receipt</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {(!giving.receipts || giving.receipts.length === 0) && (
-                      <ReceiptUpload 
-                        givingId={giving.id} 
-                        onSuccess={loadGivings}
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span className="capitalize">{giving.payment_method?.replace('_', ' ')}</span>
+                            {giving.payment_reference && (
+                              <span className="text-xs text-muted-foreground">
+                                Ref: {giving.payment_reference}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(giving.status)}>
+                            {giving.status}
+                          </Badge>
+                          {giving.status === 'rejected' && giving.rejection_reason && (
+                            <div className="text-xs text-destructive mt-1">
+                              {giving.rejection_reason}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
                     ))}
                   </TableBody>
                 </Table>

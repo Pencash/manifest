@@ -98,13 +98,12 @@ const AdminDashboard = () => {
         return hasUploadedReceipt || hasPendingMobilePayment;
       }).length || 0;
 
-      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, receiptsRes, givingTypesRes] = await Promise.all([
+      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, givingTypesRes] = await Promise.all([
         supabase.from("givings").select("amount, giving_type_id, created_at"),
         supabase.from("profiles").select("id, is_active"),
         supabase.from("attendance").select("id"),
         supabase.from("testimonies").select("id"),
         supabase.from("prayer_requests").select("id"),
-        supabase.from("receipts").select("id, verification_status"),
         supabase.from("giving_types").select("id, name"),
       ]);
 
@@ -113,7 +112,6 @@ const AdminDashboard = () => {
               const totalAttendance = attendanceRes.data?.length || 0;
               const totalTestimonies = testimoniesRes.data?.length || 0;
               const totalPrayers = prayerRes.data?.length || 0;
-              const pendingReceipts = receiptsRes.data?.filter(r => r.verification_status === 'pending').length || 0;
 
       const givingsByType: any = {};
       givingsRes.data?.forEach(g => {
@@ -128,8 +126,7 @@ const AdminDashboard = () => {
         totalAttendance,
         totalTestimonies,
         totalPrayers,
-        pendingReceipts,
-        pendingVerifications: pendingCount,
+        pendingPayments: pendingCount,
         givingsByType,
       });
     } catch (error: any) {
@@ -464,20 +461,20 @@ const AdminDashboard = () => {
 
           <Card 
             className="group cursor-pointer hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-yellow-500/10 via-red-500/5 to-background border-yellow-500/20 overflow-hidden relative"
-            onClick={() => navigate("/admin/receipts")}
+            onClick={() => navigate("/admin/givings")}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/5 to-yellow-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-              <CardTitle className="text-sm font-medium">Pending Receipts</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
               <div className="h-10 w-10 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors group-hover:rotate-12 duration-300">
                 <FileCheck className="h-5 w-5 text-yellow-600" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">{metrics.pendingReceipts || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Awaiting verification</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">{metrics.pendingPayments || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Awaiting payment verification</p>
               <Button variant="link" className="p-0 h-auto mt-2 text-sm text-yellow-600 hover:text-yellow-700">
-                View All →
+                Verify Payments →
               </Button>
             </CardContent>
           </Card>
@@ -566,7 +563,7 @@ const AdminDashboard = () => {
               </button>
 
               <button
-                onClick={() => navigate("/admin/verifications")}
+                onClick={() => navigate("/admin/givings")}
                 className="group relative p-4 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 hover:from-yellow-500/10 hover:to-orange-500/10 border border-yellow-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/20 text-left"
               >
                 <div className="flex items-start gap-3">
@@ -574,8 +571,8 @@ const AdminDashboard = () => {
                     <FileCheck className="h-6 w-6 text-yellow-500" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">Pending Verifications</h3>
-                    <p className="text-xs text-muted-foreground">Review receipts & payments ({metrics.pendingVerifications || 0})</p>
+                    <h3 className="font-semibold text-foreground mb-1">Payment Verification</h3>
+                    <p className="text-xs text-muted-foreground">Verify mobile money & bank payments ({metrics.pendingPayments || 0})</p>
                   </div>
                 </div>
               </button>

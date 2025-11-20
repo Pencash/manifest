@@ -18,7 +18,6 @@ import AttendanceReport from "./pages/AttendanceReport";
 import EventReminders from "./pages/EventReminders";
 import VisitorFollowup from "./pages/VisitorFollowup";
 import UserManagement from "./pages/UserManagement";
-import ReceiptVerification from "./pages/ReceiptVerification";
 import FinancialReports from "./pages/FinancialReports";
 import ExpenseCategories from "./pages/ExpenseCategories";
 import ExpenseRequest from "./pages/ExpenseRequest";
@@ -31,7 +30,6 @@ import Testimony from "./pages/Testimony";
 import Prayer from "./pages/Prayer";
 import MemberMobilization from "./pages/MemberMobilization";
 import MobilizationReport from "./pages/MobilizationReport";
-import PendingVerifications from "./pages/PendingVerifications";
 import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 
@@ -72,9 +70,7 @@ const App = () => (
           <Route path="/admin/reminders" element={<AdminLayout><EventReminders /></AdminLayout>} />
           <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
           <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
-          <Route path="/admin/receipts" element={<AdminLayout><ReceiptVerification /></AdminLayout>} />
           <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
-          <Route path="/admin/verifications" element={<AdminLayout><PendingVerifications /></AdminLayout>} />
           <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

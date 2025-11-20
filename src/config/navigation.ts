@@ -19,15 +19,22 @@ export const memberNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { label: "Dashboard", path: "/admin/dashboard", icon: Home },
+  
+  // Financial Management
+  { label: "Payment Verification", path: "/admin/givings", icon: DollarSign },
+  { label: "Financial Reports", path: "/admin/reports/financial", icon: TrendingUp },
+  
+  // Expense Management
+  { label: "New Expense", path: "/admin/expenses/request", icon: FileText },
+  { label: "All Expenses", path: "/admin/expenses/all", icon: Receipt },
+  { label: "Expense Approvals", path: "/admin/expenses/pending", icon: FileCheck },
+  { label: "Expense Categories", path: "/admin/expenses/categories", icon: FolderOpen },
+  
+  // Events & Attendance
   { label: "Events", path: "/admin/events", icon: Calendar },
   { label: "Attendance", path: "/admin/reports/attendance", icon: Users },
-  { label: "Givings", path: "/admin/givings", icon: DollarSign },
-  { label: "Expense Requests", path: "/admin/expenses/request", icon: FileText },
-  { label: "All Requests", path: "/admin/expenses/all", icon: Receipt },
-  { label: "Categories", path: "/admin/expenses/categories", icon: FolderOpen },
-  { label: "Pending Approvals", path: "/admin/expenses/pending", icon: FileCheck },
-  { label: "Verifications", path: "/admin/verifications", icon: Shield },
-  { label: "Reports", path: "/admin/reports/financial", icon: TrendingUp },
+  
+  // Administration
   { label: "Users", path: "/admin/users", icon: UserCog },
   { label: "Mobilization", path: "/admin/mobilization", icon: Users },
 ];

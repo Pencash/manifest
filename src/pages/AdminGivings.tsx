@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess } from "@/lib/roles";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { DollarSign, Download } from "lucide-react";
+import { Download, Check, X, Copy, Smartphone, Banknote, Wallet, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
@@ -19,11 +22,11 @@ interface Giving {
   payment_method: string;
   payment_reference: string | null;
   status: string;
+  rejection_reason: string | null;
   created_at: string;
   profiles: { full_name: string; email: string };
   giving_types: { name: string };
   services: { name: string; service_date: string } | null;
-  receipts: Array<{ verification_status: string }>;
 }
 
 const statusColors = {
@@ -32,28 +35,42 @@ const statusColors = {
   rejected: "destructive",
 } as const;
 
-const verificationColors = {
-  pending: "secondary",
-  verified: "default",
-  rejected: "destructive",
-  none: "outline",
-} as const;
+const REJECTION_REASONS = [
+  "Invalid transaction code",
+  "Transaction not found",
+  "Amount mismatch",
+  "Duplicate payment",
+  "Insufficient verification details",
+  "Other",
+];
 
 export default function AdminGivings() {
   const navigate = useNavigate();
   const [givings, setGivings] = useState<Giving[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("all");
+  const [selectedGivings, setSelectedGivings] = useState<string[]>([]);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectGivingId, setRejectGivingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
   const [stats, setStats] = useState({
-    total: 0,
     verified: 0,
     pending: 0,
     rejected: 0,
+    totalReceived: 0,
   });
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      loadGivings();
+    }
+  }, [filterStatus, filterPaymentMethod]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -84,8 +101,7 @@ export default function AdminGivings() {
         .select(`
           *,
           giving_types(name),
-          services(name, service_date),
-          receipts(verification_status)
+          services(name, service_date)
         `)
         .order("created_at", { ascending: false });
 
@@ -93,11 +109,14 @@ export default function AdminGivings() {
         query = query.eq("status", filterStatus);
       }
 
+      if (filterPaymentMethod !== "all") {
+        query = query.eq("payment_method", filterPaymentMethod);
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
 
-      // Fetch profile data separately for each giving
       if (data) {
         const givingsWithProfiles = await Promise.all(
           data.map(async (giving) => {
@@ -116,13 +135,11 @@ export default function AdminGivings() {
         setGivings(givingsWithProfiles as any);
       }
 
-      // Calculate stats
       const allData = await supabase
         .from("givings")
         .select("amount, status");
 
       if (allData.data) {
-        const total = allData.data.reduce((sum, g) => sum + Number(g.amount), 0);
         const verified = allData.data
           .filter(g => g.status === "verified")
           .reduce((sum, g) => sum + Number(g.amount), 0);
@@ -133,106 +150,180 @@ export default function AdminGivings() {
           .filter(g => g.status === "rejected")
           .reduce((sum, g) => sum + Number(g.amount), 0);
 
-        setStats({ total, verified, pending, rejected });
+        setStats({
+          verified,
+          pending,
+          rejected,
+          totalReceived: verified + pending,
+        });
       }
     } catch (error: any) {
+      console.error("Error loading givings:", error);
       toast.error("Failed to load givings");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (!loading) loadGivings();
-  }, [filterStatus]);
+  const handleVerifyPayment = async (givingIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from("givings")
+        .update({ status: "verified" })
+        .in("id", givingIds);
+
+      if (error) throw error;
+
+      toast.success(`${givingIds.length} payment(s) verified successfully`);
+      setSelectedGivings([]);
+      loadGivings();
+    } catch (error: any) {
+      console.error("Error verifying payment:", error);
+      toast.error("Failed to verify payment");
+    }
+  };
+
+  const openRejectDialog = (givingId: string) => {
+    setRejectGivingId(givingId);
+    setRejectionReason("");
+    setCustomReason("");
+    setShowRejectDialog(true);
+  };
+
+  const handleRejectPayment = async () => {
+    if (!rejectGivingId) return;
+
+    const finalReason = rejectionReason === "Other" ? customReason : rejectionReason;
+
+    if (!finalReason) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("givings")
+        .update({ 
+          status: "rejected",
+          rejection_reason: finalReason
+        })
+        .eq("id", rejectGivingId);
+
+      if (error) throw error;
+
+      toast.success("Payment rejected");
+      setShowRejectDialog(false);
+      setRejectGivingId(null);
+      loadGivings();
+    } catch (error: any) {
+      console.error("Error rejecting payment:", error);
+      toast.error("Failed to reject payment");
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const toggleSelectGiving = (givingId: string) => {
+    setSelectedGivings(prev =>
+      prev.includes(givingId)
+        ? prev.filter(id => id !== givingId)
+        : [...prev, givingId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const pendingGivings = givings.filter(g => g.status === "pending");
+    if (selectedGivings.length === pendingGivings.length) {
+      setSelectedGivings([]);
+    } else {
+      setSelectedGivings(pendingGivings.map(g => g.id));
+    }
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method) {
+      case "mobile_money":
+        return <Smartphone className="h-4 w-4" />;
+      case "bank_transfer":
+        return <Banknote className="h-4 w-4" />;
+      case "cash":
+        return <Wallet className="h-4 w-4" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRowClass = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-50 dark:bg-yellow-950/10";
+      case "verified":
+        return "bg-green-50 dark:bg-green-950/10";
+      case "rejected":
+        return "bg-red-50 dark:bg-red-950/10";
+      default:
+        return "";
+    }
+  };
 
   const exportToExcel = () => {
-    const exportData = givings.map(giving => ({
-      "Date": format(new Date(giving.created_at), "dd MMM yyyy HH:mm"),
-      "Giver": giving.profiles.full_name,
-      "Email": giving.profiles.email,
-      "Type": giving.giving_types.name,
-      "Service": giving.services?.name || "N/A",
-      "Amount": `${giving.currency} ${giving.amount}`,
-      "Payment Method": giving.payment_method.replace("_", " ").toUpperCase(),
-      "Reference": giving.payment_reference || "N/A",
-      "Status": giving.status.toUpperCase(),
-      "Receipt Status": giving.receipts[0]?.verification_status.toUpperCase() || "NONE",
+    const exportData = givings.map(g => ({
+      Date: format(new Date(g.created_at), "yyyy-MM-dd HH:mm"),
+      Giver: g.profiles.full_name,
+      Type: g.giving_types.name,
+      Amount: g.amount,
+      "Payment Method": g.payment_method?.replace("_", " "),
+      "Transaction Code": g.payment_reference || "N/A",
+      Status: g.status,
+      "Rejection Reason": g.rejection_reason || "N/A",
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Givings");
-    XLSX.writeFile(wb, `givings-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-    toast.success("Exported to Excel");
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variant = statusColors[status as keyof typeof statusColors] || "secondary";
-    return (
-      <Badge variant={variant}>
-        {status.toUpperCase()}
-      </Badge>
-    );
-  };
-
-  const getReceiptBadge = (receipts: Array<{ verification_status: string }>) => {
-    if (!receipts || receipts.length === 0) {
-      return <Badge variant="outline">NO RECEIPT</Badge>;
-    }
-    const status = receipts[0].verification_status;
-    const variant = verificationColors[status as keyof typeof verificationColors] || "secondary";
-    return (
-      <Badge variant={variant}>
-        {status.toUpperCase()}
-      </Badge>
-    );
+    XLSX.writeFile(wb, `givings_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Export completed");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading givings...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
+  const pendingGivings = givings.filter(g => g.status === "pending");
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold">All Givings</h1>
-          <p className="text-muted-foreground">View and manage all church givings</p>
+          <h1 className="text-3xl font-bold">Payment Verification</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Verify mobile money and bank transaction codes. Prioritize Airtel Money and TNM Mpamba transactions.
+          </p>
         </div>
-        <Button onClick={exportToExcel} variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
+        <Button onClick={exportToExcel} variant="outline">
+          <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Givings</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Available Funds</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">MWK {stats.total.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">MWK {stats.verified.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Verified</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">MWK {stats.verified.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
@@ -240,27 +331,29 @@ export default function AdminGivings() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">MWK {stats.rejected.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-600">MWK {stats.rejected.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Received</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">MWK {stats.totalReceived.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>Giving Records</CardTitle>
-              <CardDescription>
-                {givings.length} total record{givings.length !== 1 ? "s" : ""}
-              </CardDescription>
-            </div>
+          <div className="flex gap-4">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
@@ -269,84 +362,132 @@ export default function AdminGivings() {
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedGivings.length > 0 && (
+              <Button onClick={() => handleVerifyPayment(selectedGivings)} className="bg-green-600">
+                <Check className="mr-2 h-4 w-4" />
+                Verify {selectedGivings.length}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          {givings.length === 0 ? (
-            <div className="text-center py-12">
-              <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">No givings found</p>
-              <p className="text-muted-foreground">
-                {filterStatus === "all" 
-                  ? "No givings have been recorded yet" 
-                  : `No givings with status: ${filterStatus}`}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Giver</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Receipt</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {givings.map((giving) => (
-                    <TableRow key={giving.id}>
-                      <TableCell className="text-sm">
-                        {format(new Date(giving.created_at), "dd MMM yyyy")}
-                        <br />
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(giving.created_at), "HH:mm")}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{giving.profiles.full_name}</span>
-                          <span className="text-xs text-muted-foreground">{giving.profiles.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{giving.giving_types.name}</TableCell>
-                      <TableCell>
-                        {giving.services ? (
-                          <div className="flex flex-col">
-                            <span className="text-sm">{giving.services.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(giving.services.service_date), "dd MMM yyyy")}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">General</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {giving.currency} {giving.amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm">{giving.payment_method.replace("_", " ").toUpperCase()}</span>
-                          {giving.payment_reference && (
-                            <span className="text-xs text-muted-foreground">{giving.payment_reference}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(giving.status)}</TableCell>
-                      <TableCell>{getReceiptBadge(giving.receipts)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  {pendingGivings.length > 0 && (
+                    <Checkbox
+                      checked={selectedGivings.length === pendingGivings.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  )}
+                </TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Giver</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {givings.map((giving) => (
+                <TableRow key={giving.id} className={getRowClass(giving.status)}>
+                  <TableCell>
+                    {giving.status === "pending" && (
+                      <Checkbox
+                        checked={selectedGivings.includes(giving.id)}
+                        onCheckedChange={() => toggleSelectGiving(giving.id)}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusColors[giving.status as keyof typeof statusColors]}>
+                      {giving.status}
+                    </Badge>
+                    {giving.rejection_reason && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                        <AlertCircle className="h-3 w-3" />
+                        {giving.rejection_reason}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getPaymentMethodIcon(giving.payment_method)}
+                      <span className="capitalize">{giving.payment_method?.replace("_", " ")}</span>
+                    </div>
+                    {giving.payment_reference && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <code className="text-xs bg-muted px-1">{giving.payment_reference}</code>
+                        <Button size="sm" variant="ghost" onClick={() => copyToClipboard(giving.payment_reference!)} className="h-5 w-5 p-0">
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-semibold">{giving.currency} {Number(giving.amount).toLocaleString()}</TableCell>
+                  <TableCell>{giving.profiles.full_name}</TableCell>
+                  <TableCell>{giving.giving_types.name}</TableCell>
+                  <TableCell>{format(new Date(giving.created_at), "MMM dd")}</TableCell>
+                  <TableCell>
+                    {giving.status === "pending" && (
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={() => handleVerifyPayment([giving.id])} className="bg-green-600">
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => openRejectDialog(giving.id)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payment</DialogTitle>
+            <DialogDescription>Provide a reason for rejection</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Select value={rejectionReason} onValueChange={setRejectionReason}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {REJECTION_REASONS.map((reason) => (
+                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {rejectionReason === "Other" && (
+              <Textarea value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Enter reason..." rows={3} />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectPayment}>Reject</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

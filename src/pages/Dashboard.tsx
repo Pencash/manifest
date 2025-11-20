@@ -216,48 +216,6 @@ const Dashboard = () => {
         </Card>
 
         <Card 
-          className="group relative overflow-hidden border-2 bg-gradient-to-br from-amber-500/10 to-yellow-500/10 hover:from-amber-500/20 hover:to-yellow-500/20 hover:scale-105 hover:shadow-xl hover:shadow-amber-500/20 hover:border-amber-500/50 transition-all duration-300 cursor-pointer"
-          onClick={() => navigate("/expenses/request")}
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
-          <CardHeader className="relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-amber-500/20 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
-                <FileText className="h-7 w-7 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-xl group-hover:text-amber-600 transition-colors">Submit Expense</CardTitle>
-                <CardDescription className="mt-2">Request expense approval</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <Button className="w-full bg-amber-600 hover:bg-amber-700">New Request</Button>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className="group relative overflow-hidden border-2 bg-gradient-to-br from-orange-500/10 to-red-500/10 hover:from-orange-500/20 hover:to-red-500/20 hover:scale-105 hover:shadow-xl hover:shadow-orange-500/20 hover:border-orange-500/50 transition-all duration-300 cursor-pointer"
-          onClick={() => navigate("/expenses/my-requests")}
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500" />
-          <CardHeader className="relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-lg bg-orange-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
-                <Receipt className="h-7 w-7 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-xl group-hover:text-orange-600 transition-colors">My Expense Requests</CardTitle>
-                <CardDescription className="mt-2">Track your expense submissions</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <Button className="w-full bg-orange-600 hover:bg-orange-700">View Requests</Button>
-          </CardContent>
-        </Card>
-
-        <Card 
           className="group relative overflow-hidden border-2 bg-gradient-to-br from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 hover:scale-105 hover:shadow-xl hover:shadow-green-500/20 hover:border-green-500/50 transition-all duration-300 cursor-pointer"
           onClick={() => navigate("/history")}
         >
