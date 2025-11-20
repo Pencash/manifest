@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, XCircle, FileText, CreditCard } from "lucide-react";
 import { format } from "date-fns";
+import { hasAdminAccess } from "../lib/roles";
 
 interface PendingGiving {
   id: string;
@@ -50,16 +51,21 @@ const PendingVerifications = () => {
       return;
     }
 
-    // Check role directly from user_roles table
-    const { data: roleData } = await supabase
+    // Load ALL roles for this user (NOT single)
+    const { data: rolesData, error: rolesError } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", session.user.id)
-      .single();
+      .eq("user_id", session.user.id);
 
-    if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance')) {
-      toast.error("Access denied. Finance or Admin role required.");
-      navigate("/admin/dashboard");
+    if (rolesError) {
+      console.error("Error loading roles:", rolesError);
+    }
+
+    const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+    if (!hasAdminAccess(mainRole)) {
+      toast.error("Access denied. Admin privileges required.");
+      navigate("/dashboard");
       return;
     }
 
