@@ -423,9 +423,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Total Givings</p>
+              <p className="text-sm font-medium text-foreground/70">Total Givings</p>
               <p className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalGivings)}</p>
-              <p className="text-xs text-muted-foreground">vs previous period</p>
+              <p className="text-xs text-foreground/60">vs previous period</p>
             </div>
           </CardContent>
         </Card>
@@ -440,9 +440,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Active Members</p>
+              <p className="text-sm font-medium text-foreground/70">Active Members</p>
               <p className="text-2xl font-bold text-foreground">{metrics.activeMembers}</p>
-              <p className="text-xs text-muted-foreground">{metrics.newMembers} new this period</p>
+              <p className="text-xs text-foreground/60">{metrics.newMembers} new this period</p>
             </div>
           </CardContent>
         </Card>
@@ -457,9 +457,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Pending Approvals</p>
+              <p className="text-sm font-medium text-foreground/70">Pending Approvals</p>
               <p className="text-2xl font-bold text-foreground">{totalPending}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/60">
                 {metrics.pendingGivings} givings, {metrics.pendingExpenses} expenses
               </p>
             </div>
@@ -476,9 +476,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Total Attendance</p>
+              <p className="text-sm font-medium text-foreground/70">Total Attendance</p>
               <p className="text-2xl font-bold text-foreground">{metrics.totalAttendance}</p>
-              <p className="text-xs text-muted-foreground">Avg: {metrics.avgAttendance}/service</p>
+              <p className="text-xs text-foreground/60">Avg: {metrics.avgAttendance}/service</p>
             </div>
           </CardContent>
         </Card>
@@ -493,9 +493,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Engagement</p>
+              <p className="text-sm font-medium text-foreground/70">Engagement</p>
               <p className="text-2xl font-bold text-foreground">{metrics.testimonies + metrics.prayers}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground/60">
                 {metrics.testimonies} testimonies, {metrics.prayers} prayers
               </p>
             </div>
