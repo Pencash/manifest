@@ -15,6 +15,7 @@ import { CalendarIcon, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import FundingAvailability from "@/components/FundingAvailability";
+import { ServiceSelector } from "@/components/ServiceSelector";
 
 interface ExpenseCategory {
   id: string;
@@ -35,6 +36,7 @@ export default function ExpenseRequest() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dueDate, setDueDate] = useState<Date>();
+  const [selectedServiceName, setSelectedServiceName] = useState("");
   const [formData, setFormData] = useState({
     category_id: "",
     service_id: "",
@@ -172,20 +174,20 @@ export default function ExpenseRequest() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="service">Link to Service/Event (Optional)</Label>
-                  <Select value={formData.service_id} onValueChange={(value) => setFormData({ ...formData, service_id: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select service" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {services.map((service) => (
-                        <SelectItem key={service.id} value={service.id}>
-                          {service.name} - {format(new Date(service.service_date), "PPP")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Link to Service/Event (Optional)</Label>
+                  <ServiceSelector
+                    onServiceSelect={(serviceId, serviceName) => {
+                      setFormData({ ...formData, service_id: serviceId });
+                      setSelectedServiceName(serviceName);
+                    }}
+                    selectedServiceId={formData.service_id}
+                  />
+                  {formData.service_id && selectedServiceName && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {selectedServiceName}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
