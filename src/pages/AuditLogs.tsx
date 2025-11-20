@@ -10,6 +10,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Database } from "@/integrations/supabase/types";
 import { ArrowLeft, Shield } from "lucide-react";
 import { format } from "date-fns";
+import { hasAdminAccess } from "../lib/roles";
 
 type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 
@@ -34,7 +35,7 @@ const AuditLogs = () => {
   };
 
   useEffect(() => {
-    if (user && role === 'admin') {
+    if (user && hasAdminAccess(role)) {
       loadLogs();
     }
   }, [user, role]);
@@ -72,7 +73,7 @@ const AuditLogs = () => {
     );
   }
 
-  if (role !== 'admin') {
+  if (!hasAdminAccess(role)) {
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -82,7 +83,7 @@ const AuditLogs = () => {
               Access Denied
             </CardTitle>
             <CardDescription>
-              You do not have permission to view audit logs.
+              You do not have permission to view audit logs. Admin privileges required.
             </CardDescription>
           </CardHeader>
           <CardContent>
