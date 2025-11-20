@@ -665,7 +665,6 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
   );
 };
 
