@@ -102,11 +102,13 @@ export function AppSidebar() {
         return;
       }
 
-      // Count pending givings
-      const { data: pendingGivings } = await supabase
+      // Count pending givings - simplified query to avoid !inner join issues
+      const { count: pendingGivingsCount } = await supabase
         .from("givings")
-        .select("id, status, service_id, services!inner(approval_status)")
-        .or("status.eq.pending,services.approval_status.eq.pending_admin_approval");
+        .select("*", { count: 'exact', head: true })
+        .eq("status", "pending");
+
+      console.log("📊 Pending Givings Query Result:", { count: pendingGivingsCount });
 
       // Count pending expense requests
       const { data: pendingExpenses } = await supabase
@@ -120,22 +122,34 @@ export function AppSidebar() {
         .select("id")
         .eq("approval_status", "pending_admin_approval");
 
-      const pendingGivingsCount = pendingGivings?.length || 0;
-      const pendingExpensesCount = pendingExpenses?.length || 0;
-      const pendingServicesCount = pendingServices?.length || 0;
+      const givingsCount = pendingGivingsCount || 0;
+      const expensesCount = pendingExpenses?.length || 0;
+      const servicesCount = pendingServices?.length || 0;
+
+      console.log("📊 Notification Counts:", {
+        givings: givingsCount,
+        expenses: expensesCount,
+        services: servicesCount,
+        timestamp: new Date().toISOString()
+      });
 
       const updatedItems = adminNavItems.map(item => {
         if (item.path === "/admin/givings") {
-          return { ...item, notificationCount: pendingGivingsCount };
+          console.log("✅ Setting badge for Payment Verification:", givingsCount);
+          return { ...item, notificationCount: givingsCount };
         }
         if (item.path === "/admin/expenses/pending") {
-          return { ...item, notificationCount: pendingExpensesCount };
+          return { ...item, notificationCount: expensesCount };
         }
         if (item.path === "/admin/pending-services") {
-          return { ...item, notificationCount: pendingServicesCount };
+          return { ...item, notificationCount: servicesCount };
         }
         return item;
       });
+
+      console.log("📝 Updated nav items with badges:", 
+        updatedItems.filter(i => i.notificationCount !== undefined && i.notificationCount > 0)
+      );
 
       setNavItems(updatedItems);
     } catch (error) {
@@ -184,13 +198,16 @@ export function AppSidebar() {
             <Icon className="h-4 w-4 shrink-0" />
             {!isCollapsed && <span className="flex-1">{item.label}</span>}
             {item.notificationCount !== undefined && item.notificationCount > 0 && (
-              !isCollapsed ? (
-                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
-                  {item.notificationCount > 99 ? "99+" : item.notificationCount}
-                </span>
-              ) : (
-                <NotificationBadge count={item.notificationCount} />
-              )
+              (() => {
+                console.log(`🔔 Rendering badge for ${item.label}:`, item.notificationCount, "collapsed:", isCollapsed);
+                return !isCollapsed ? (
+                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+                    {item.notificationCount > 99 ? "99+" : item.notificationCount}
+                  </span>
+                ) : (
+                  <NotificationBadge count={item.notificationCount} />
+                );
+              })()
             )}
           </NavLink>
         </SidebarMenuButton>
