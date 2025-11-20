@@ -1,4 +1,4 @@
-import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck } from "lucide-react";
+import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -32,6 +32,7 @@ export const adminNavItems: NavItem[] = [
   
   // Events & Attendance
   { label: "Events", path: "/admin/events", icon: Calendar },
+  { label: "Pending Services", path: "/admin/pending-services", icon: Clock },
   { label: "Attendance", path: "/admin/reports/attendance", icon: Users },
   
   // Administration

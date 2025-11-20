@@ -791,7 +791,9 @@ export type Database = {
       }
       services: {
         Row: {
+          approval_status: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           is_archived: boolean | null
@@ -804,7 +806,9 @@ export type Database = {
           total_attendance: number | null
         }
         Insert: {
+          approval_status?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean | null
@@ -817,7 +821,9 @@ export type Database = {
           total_attendance?: number | null
         }
         Update: {
+          approval_status?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean | null

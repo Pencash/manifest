@@ -24,6 +24,7 @@ import ExpenseRequest from "./pages/ExpenseRequest";
 import AdminExpenseRequests from "./pages/AdminExpenseRequests";
 import PendingExpenseApprovals from "./pages/PendingExpenseApprovals";
 import AdminGivings from "./pages/AdminGivings";
+import AdminPendingServices from "./pages/AdminPendingServices";
 import Give from "./pages/Give";
 import History from "./pages/History";
 import Testimony from "./pages/Testimony";
@@ -58,6 +59,7 @@ const App = () => (
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/events" element={<AdminLayout><EventsManagement /></AdminLayout>} />
+          <Route path="/admin/pending-services" element={<AdminLayout><AdminPendingServices /></AdminLayout>} />
           <Route path="/admin/attendance/:serviceId" element={<AdminLayout><AttendanceLog /></AdminLayout>} />
           <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><BulkAttendanceImport /></AdminLayout>} />
           <Route path="/admin/reports/attendance" element={<AdminLayout><AttendanceReport /></AdminLayout>} />

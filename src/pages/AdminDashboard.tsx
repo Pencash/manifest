@@ -98,13 +98,14 @@ const AdminDashboard = () => {
         return hasUploadedReceipt || hasPendingMobilePayment;
       }).length || 0;
 
-      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, givingTypesRes] = await Promise.all([
+      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, givingTypesRes, pendingServicesRes] = await Promise.all([
         supabase.from("givings").select("amount, giving_type_id, created_at"),
         supabase.from("profiles").select("id, is_active"),
         supabase.from("attendance").select("id"),
         supabase.from("testimonies").select("id"),
         supabase.from("prayer_requests").select("id"),
         supabase.from("giving_types").select("id, name"),
+        supabase.from("services").select("id").eq("approval_status", "pending_admin_approval"),
       ]);
 
               const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
@@ -112,6 +113,7 @@ const AdminDashboard = () => {
               const totalAttendance = attendanceRes.data?.length || 0;
               const totalTestimonies = testimoniesRes.data?.length || 0;
               const totalPrayers = prayerRes.data?.length || 0;
+              const pendingServicesCount = pendingServicesRes.data?.length || 0;
 
       const givingsByType: any = {};
       givingsRes.data?.forEach(g => {
@@ -127,6 +129,7 @@ const AdminDashboard = () => {
         totalTestimonies,
         totalPrayers,
         pendingPayments: pendingCount,
+        pendingServices: pendingServicesCount,
         givingsByType,
       });
     } catch (error: any) {
@@ -475,6 +478,26 @@ const AdminDashboard = () => {
               <p className="text-xs text-muted-foreground mt-1">Awaiting payment verification</p>
               <Button variant="link" className="p-0 h-auto mt-2 text-sm text-yellow-600 hover:text-yellow-700">
                 Verify Payments →
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="group cursor-pointer hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background border-orange-500/20 overflow-hidden relative"
+            onClick={() => navigate("/admin/pending-services")}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/5 to-orange-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+              <CardTitle className="text-sm font-medium">Pending Services</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors group-hover:rotate-12 duration-300">
+                <CalendarIcon className="h-5 w-5 text-orange-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">{metrics.pendingServices || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Member-submitted events</p>
+              <Button variant="link" className="p-0 h-auto mt-2 text-sm text-orange-600 hover:text-orange-700">
+                Review Events →
               </Button>
             </CardContent>
           </Card>
