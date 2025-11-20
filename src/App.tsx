@@ -22,8 +22,9 @@ import ReceiptVerification from "./pages/ReceiptVerification";
 import FinancialReports from "./pages/FinancialReports";
 import ExpenseCategories from "./pages/ExpenseCategories";
 import ExpenseRequest from "./pages/ExpenseRequest";
-import MyExpenseRequests from "./pages/MyExpenseRequests";
+import AdminExpenseRequests from "./pages/AdminExpenseRequests";
 import PendingExpenseApprovals from "./pages/PendingExpenseApprovals";
+import AdminGivings from "./pages/AdminGivings";
 import Give from "./pages/Give";
 import History from "./pages/History";
 import Testimony from "./pages/Testimony";
@@ -52,8 +53,6 @@ const App = () => (
           <Route path="/dashboard" element={<MemberLayout><Dashboard /></MemberLayout>} />
           <Route path="/give" element={<MemberLayout><Give /></MemberLayout>} />
           <Route path="/history" element={<MemberLayout><History /></MemberLayout>} />
-          <Route path="/expenses/request" element={<MemberLayout><ExpenseRequest /></MemberLayout>} />
-          <Route path="/expenses/my-requests" element={<MemberLayout><MyExpenseRequests /></MemberLayout>} />
           <Route path="/testimony" element={<MemberLayout><Testimony /></MemberLayout>} />
           <Route path="/prayer" element={<MemberLayout><Prayer /></MemberLayout>} />
           <Route path="/mobilization" element={<MemberLayout><MemberMobilization /></MemberLayout>} />
@@ -65,6 +64,9 @@ const App = () => (
           <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><BulkAttendanceImport /></AdminLayout>} />
           <Route path="/admin/reports/attendance" element={<AdminLayout><AttendanceReport /></AdminLayout>} />
           <Route path="/admin/reports/financial" element={<AdminLayout><FinancialReports /></AdminLayout>} />
+          <Route path="/admin/givings" element={<AdminLayout><AdminGivings /></AdminLayout>} />
+          <Route path="/admin/expenses/request" element={<AdminLayout><ExpenseRequest /></AdminLayout>} />
+          <Route path="/admin/expenses/all" element={<AdminLayout><AdminExpenseRequests /></AdminLayout>} />
           <Route path="/admin/expenses/categories" element={<AdminLayout><ExpenseCategories /></AdminLayout>} />
           <Route path="/admin/expenses/pending" element={<AdminLayout><PendingExpenseApprovals /></AdminLayout>} />
           <Route path="/admin/reminders" element={<AdminLayout><EventReminders /></AdminLayout>} />

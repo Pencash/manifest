@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { hasAdminAccess } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import FundingAvailability from "@/components/FundingAvailability";
 
 interface ExpenseCategory {
   id: string;
@@ -49,9 +51,23 @@ export default function ExpenseRequest() {
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      navigate("/auth");
+      navigate("/admin/auth");
       return;
     }
+
+    // Check admin access
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (!roleData || !hasAdminAccess(roleData.role)) {
+      toast.error("Access denied. Only administrators can create expense requests.");
+      navigate("/dashboard");
+      return;
+    }
+
     loadData();
   };
 
@@ -98,7 +114,7 @@ export default function ExpenseRequest() {
       if (error) throw error;
 
       toast.success(isDraft ? "Draft saved successfully" : "Expense request submitted for approval");
-      navigate("/expenses/my-requests");
+      navigate("/admin/expenses/all");
     } catch (error: any) {
       toast.error(error.message || "Failed to submit request");
       console.error(error);
@@ -121,10 +137,16 @@ export default function ExpenseRequest() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
-        <div>
+         <div>
           <h1 className="text-3xl font-bold text-foreground">New Expense Request</h1>
           <p className="text-muted-foreground">Submit an expense request for approval</p>
         </div>
+
+        <FundingAvailability 
+          selectedCategoryId={formData.category_id}
+          selectedServiceId={formData.service_id}
+          requestedAmount={parseFloat(formData.amount) || 0}
+        />
 
         <Card>
           <CardHeader>

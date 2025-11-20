@@ -13,8 +13,6 @@ export const memberNavItems: NavItem[] = [
   { label: "Give", path: "/give", icon: DollarSign },
   { label: "Prayer", path: "/prayer", icon: MessageSquare },
   { label: "Testimony", path: "/testimony", icon: HandHeart },
-  { label: "Expenses", path: "/expenses/request", icon: FileText },
-  { label: "My Requests", path: "/expenses/my-requests", icon: Receipt },
   { label: "History", path: "/history", icon: History },
   { label: "Mobilization", path: "/mobilization", icon: Users },
 ];
@@ -23,6 +21,9 @@ export const adminNavItems: NavItem[] = [
   { label: "Dashboard", path: "/admin/dashboard", icon: Home },
   { label: "Events", path: "/admin/events", icon: Calendar },
   { label: "Attendance", path: "/admin/reports/attendance", icon: Users },
+  { label: "Givings", path: "/admin/givings", icon: DollarSign },
+  { label: "Expense Requests", path: "/admin/expenses/request", icon: FileText },
+  { label: "All Requests", path: "/admin/expenses/all", icon: Receipt },
   { label: "Categories", path: "/admin/expenses/categories", icon: FolderOpen },
   { label: "Pending Approvals", path: "/admin/expenses/pending", icon: FileCheck },
   { label: "Verifications", path: "/admin/verifications", icon: Shield },
