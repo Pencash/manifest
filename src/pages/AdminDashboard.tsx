@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, Calendar as CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, Shield, TrendingUp, Receipt, FolderOpen } from "lucide-react";
+import { Download, Calendar as CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, Shield, TrendingUp, Receipt, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
@@ -138,11 +138,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out successfully");
-    navigate("/admin/auth");
-  };
 
   const createTestUsers = async () => {
     try {
@@ -328,66 +323,29 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <div className="flex justify-between items-center mb-8">
-            <div className="space-y-2">
-              <div className="h-8 w-64 bg-muted animate-pulse rounded" />
-              <div className="h-4 w-96 bg-muted animate-pulse rounded" />
-            </div>
-            <div className="flex gap-2">
-              <div className="h-9 w-40 bg-muted animate-pulse rounded" />
-              <div className="h-9 w-28 bg-muted animate-pulse rounded" />
-            </div>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {[...Array(7)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <CardHeader className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                    <div className="h-10 w-10 bg-muted animate-pulse rounded-full" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="h-8 w-24 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-40 bg-muted animate-pulse rounded" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Admin Dashboard
-            </h1>
-            {profile && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Welcome, {profile.full_name}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Overview of all church activities and contributions
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">
+          Admin Dashboard
+        </h1>
+        {profile && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Welcome, {profile.full_name}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Overview of all church activities and contributions
+        </p>
+      </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card 
             className="group cursor-pointer hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-background border-blue-500/20 overflow-hidden relative"
             onClick={() => navigate("/admin/events")}
