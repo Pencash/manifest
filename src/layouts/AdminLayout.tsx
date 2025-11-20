@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { User } from "@supabase/supabase-js";
 import { hasAdminAccess } from "@/lib/roles";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -72,8 +73,9 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center px-4">
+            <div className="flex h-14 items-center px-4 justify-between">
               <SidebarTrigger />
+              <ThemeToggle />
             </div>
           </header>
           <main className="flex-1 overflow-auto">

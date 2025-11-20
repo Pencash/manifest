@@ -1,4 +1,4 @@
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,6 +52,10 @@ export const UserMenu = ({ userName, userEmail }: UserMenuProps) => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Settings</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Sign out</span>

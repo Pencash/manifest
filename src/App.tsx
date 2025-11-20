@@ -32,6 +32,7 @@ import Prayer from "./pages/Prayer";
 import MemberMobilization from "./pages/MemberMobilization";
 import MobilizationReport from "./pages/MobilizationReport";
 import AuditLogs from "./pages/AuditLogs";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
           <Route path="/testimony" element={<MemberLayout><Testimony /></MemberLayout>} />
           <Route path="/prayer" element={<MemberLayout><Prayer /></MemberLayout>} />
           <Route path="/mobilization" element={<MemberLayout><MemberMobilization /></MemberLayout>} />
+          <Route path="/settings" element={<MemberLayout><Settings /></MemberLayout>} />
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
