@@ -26,7 +26,7 @@ interface Giving {
   created_at: string;
   profiles: { full_name: string; email: string };
   giving_types: { name: string };
-  services: { name: string; service_date: string } | null;
+  services: { name: string; service_date: string; approval_status?: string } | null;
 }
 
 const statusColors = {
@@ -101,7 +101,7 @@ export default function AdminGivings() {
         .select(`
           *,
           giving_types(name),
-          services(name, service_date)
+          services(name, service_date, approval_status)
         `)
         .order("created_at", { ascending: false });
 
@@ -398,6 +398,7 @@ export default function AdminGivings() {
                 <TableHead>Amount</TableHead>
                 <TableHead>Giver</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Service</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -441,6 +442,20 @@ export default function AdminGivings() {
                   <TableCell className="font-semibold">{giving.currency} {Number(giving.amount).toLocaleString()}</TableCell>
                   <TableCell>{giving.profiles.full_name}</TableCell>
                   <TableCell>{giving.giving_types.name}</TableCell>
+                  <TableCell>
+                    {giving.services ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{giving.services.name}</span>
+                        {giving.services.approval_status === "pending_admin_approval" && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">General</span>
+                    )}
+                  </TableCell>
                   <TableCell>{format(new Date(giving.created_at), "MMM dd")}</TableCell>
                   <TableCell>
                     {giving.status === "pending" && (

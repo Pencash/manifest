@@ -1,9 +1,11 @@
 import { NavLink } from "@/components/NavLink";
 import { UserMenu } from "@/components/UserMenu";
 import { NavItem } from "@/config/navigation";
+import { NotificationBadge } from "@/components/NotificationBadge";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NavbarProps {
   items: NavItem[];
@@ -13,6 +15,92 @@ interface NavbarProps {
 
 export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navItems, setNavItems] = useState<NavItem[]>(items);
+
+  useEffect(() => {
+    loadNotificationCounts();
+    
+    // Set up realtime subscriptions for updates
+    const givingsChannel = supabase
+      .channel('givings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('expenses-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
+      .subscribe();
+
+    const servicesChannel = supabase
+      .channel('services-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(givingsChannel);
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(servicesChannel);
+    };
+  }, []);
+
+  const loadNotificationCounts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!roleData || !['admin', 'finance', 'pastor'].includes(roleData.role)) {
+        setNavItems(items);
+        return;
+      }
+
+      // Count pending givings (including those for pending services)
+      const { data: pendingGivings } = await supabase
+        .from("givings")
+        .select("id, status, service_id, services!inner(approval_status)")
+        .or("status.eq.pending,services.approval_status.eq.pending_admin_approval");
+
+      // Count pending expense requests
+      const { data: pendingExpenses } = await supabase
+        .from("expense_requests")
+        .select("id")
+        .in("status", ["pending_approval", "draft"]);
+
+      // Count pending service events
+      const { data: pendingServices } = await supabase
+        .from("services")
+        .select("id")
+        .eq("approval_status", "pending_admin_approval");
+
+      const pendingGivingsCount = pendingGivings?.length || 0;
+      const pendingExpensesCount = pendingExpenses?.length || 0;
+      const pendingServicesCount = pendingServices?.length || 0;
+
+      // Update navigation items with counts
+      const updatedItems = items.map(item => {
+        if (item.path === "/admin/givings") {
+          return { ...item, notificationCount: pendingGivingsCount };
+        }
+        if (item.path === "/admin/expenses/pending") {
+          return { ...item, notificationCount: pendingExpensesCount };
+        }
+        if (item.path === "/admin/pending-services") {
+          return { ...item, notificationCount: pendingServicesCount };
+        }
+        return item;
+      });
+
+      setNavItems(updatedItems);
+    } catch (error) {
+      console.error("Error loading notification counts:", error);
+      setNavItems(items);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -26,15 +114,16 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
-              {items.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors relative"
                   activeClassName="bg-accent text-accent-foreground"
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>
+                  <NotificationBadge count={item.notificationCount || 0} variant="warning" />
                 </NavLink>
               ))}
             </div>
@@ -66,16 +155,17 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t">
             <div className="flex flex-col gap-2">
-              {items.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground rounded-md hover:bg-accent hover:text-accent-foreground transition-colors relative"
                   activeClassName="bg-accent text-accent-foreground"
                 >
                   <item.icon className="h-5 w-5" />
                   <span>{item.label}</span>
+                  <NotificationBadge count={item.notificationCount || 0} variant="warning" />
                 </NavLink>
               ))}
               <div className="mt-4 pt-4 border-t">

@@ -18,6 +18,8 @@ interface Service {
   start_time?: string;
   location?: string;
   description?: string;
+  approval_status?: string;
+  created_by?: string;
 }
 
 interface ServiceSelectorProps {
@@ -60,23 +62,44 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
   }, [selectedCategory]);
 
   const loadServicesForCategory = async (category: string) => {
-    const { data, error } = await supabase
-      .from("services")
-      .select("*")
-      .eq("service_type", category as any)
-      .eq("is_published", true)
-      .eq("approval_status", "approved")
-      .gte("service_date", new Date().toISOString().split('T')[0])
-      .order("service_date", { ascending: true });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Get approved services (all dates)
+      const { data: approvedData, error: approvedError } = await supabase
+        .from("services")
+        .select("*")
+        .eq("service_type", category as any)
+        .eq("is_published", true)
+        .eq("approval_status", "approved")
+        .order("service_date", { ascending: true });
 
-    if (error) {
+      if (approvedError) throw approvedError;
+
+      // Get user's pending services for this category
+      let pendingData: any[] = [];
+      if (user) {
+        const { data: userPendingData, error: pendingError } = await supabase
+          .from("services")
+          .select("*")
+          .eq("service_type", category as any)
+          .eq("created_by", user.id)
+          .eq("approval_status", "pending_admin_approval")
+          .order("service_date", { ascending: true });
+
+        if (!pendingError) {
+          pendingData = userPendingData || [];
+        }
+      }
+
+      // Combine all services
+      const allData = [...(approvedData || []), ...pendingData];
+      setServices(allData);
+      setSelectedDate(undefined);
+      setSelectedService(null);
+    } catch (error) {
       console.error("Error loading services:", error);
-      return;
     }
-
-    setServices(data || []);
-    setSelectedDate(undefined);
-    setSelectedService(null);
   };
 
   const handleCreateService = async () => {
@@ -139,6 +162,16 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
   };
 
   const serviceDates = services.map(s => parseISO(s.service_date));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const pastServiceDates = services
+    .filter(s => parseISO(s.service_date) < today)
+    .map(s => parseISO(s.service_date));
+  
+  const futureServiceDates = services
+    .filter(s => parseISO(s.service_date) >= today)
+    .map(s => parseISO(s.service_date));
   
   const isDateAvailable = (date: Date) => {
     return serviceDates.some(serviceDate => isSameDay(serviceDate, date));
@@ -212,28 +245,45 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
             <CardHeader>
               <CardTitle className="text-sm font-medium">Select Event Date</CardTitle>
             </CardHeader>
-            <CardContent className="flex justify-center">
+            <CardContent className="flex flex-col items-center">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateSelect}
-                disabled={(date) => !isDateAvailable(date) || date < new Date()}
+                disabled={(date) => !isDateAvailable(date)}
                 modifiers={{
-                  available: serviceDates
+                  past: pastServiceDates,
+                  future: futureServiceDates,
                 }}
                 modifiersClassNames={{
-                  available: "bg-primary/20 font-bold hover:bg-primary/30"
+                  past: "bg-muted/50 text-muted-foreground line-through opacity-60",
+                  future: "bg-primary/10 text-primary font-semibold border border-primary/20",
                 }}
                 className="rounded-md border"
               />
+              <div className="flex gap-4 text-xs text-muted-foreground mt-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-primary/10 border border-primary/20"></div>
+                  <span>Future Events</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm bg-muted/50 border border-muted"></div>
+                  <span>Past Events</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {selectedDate && selectedService && (
             <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30 animate-fade-in">
               <CardHeader>
-                <CardTitle className="text-sm font-medium flex items-center space-x-2">
+                <CardTitle className="text-sm font-medium flex items-center justify-between">
                   <Badge variant="default">Selected Event</Badge>
+                  {selectedService.approval_status === "pending_admin_approval" && (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      Pending Approval
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">

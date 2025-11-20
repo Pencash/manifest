@@ -6,6 +6,7 @@ export interface NavItem {
   path: string;
   icon: LucideIcon;
   badge?: string;
+  notificationCount?: number;
 }
 
 export const memberNavItems: NavItem[] = [
