@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 interface Service {
@@ -28,15 +31,15 @@ interface ServiceSelectorProps {
 }
 
 const serviceCategories = [
-  { type: "sunday_service", label: "Sunday Service", color: "from-blue-500/10 to-cyan-500/10", icon: "⛪" },
-  { type: "nop", label: "NOP (Night of Power)", color: "from-purple-500/10 to-pink-500/10", icon: "🌙" },
-  { type: "gic", label: "GIC (Generation in Christ)", color: "from-green-500/10 to-emerald-500/10", icon: "🎯" },
-  { type: "ltc", label: "LTC (Love Thy Children)", color: "from-yellow-500/10 to-orange-500/10", icon: "👶" },
-  { type: "tuesday_fellowship", label: "Tuesday Fellowship", color: "from-indigo-500/10 to-blue-500/10", icon: "🙏" },
-  { type: "thursday_livestream", label: "Thursday Livestream", color: "from-pink-500/10 to-rose-500/10", icon: "📹" },
-  { type: "mgp", label: "MGP (My Great Price)", color: "from-violet-500/10 to-purple-500/10", icon: "💎" },
-  { type: "men_gather", label: "Men's Gathering", color: "from-teal-500/10 to-cyan-500/10", icon: "🤝" },
-  { type: "other", label: "Other Events", color: "from-gray-500/10 to-slate-500/10", icon: "📅" },
+  { type: "sunday_service", label: "Sunday Service" },
+  { type: "nop", label: "NOP (Night of Power)" },
+  { type: "gic", label: "GIC (Generation in Christ)" },
+  { type: "ltc", label: "LTC (Love Thy Children)" },
+  { type: "tuesday_fellowship", label: "Tuesday Fellowship" },
+  { type: "thursday_livestream", label: "Thursday Livestream" },
+  { type: "mgp", label: "MGP (My Great Price)" },
+  { type: "men_gather", label: "Men's Gathering" },
+  { type: "other", label: "Other Events" },
 ];
 
 export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceSelectorProps) => {
@@ -206,12 +209,9 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <span className="text-3xl">{currentCategory?.icon}</span>
-          <div>
-            <Label className="text-base font-semibold">{currentCategory?.label}</Label>
-            <p className="text-sm text-muted-foreground">Select a date with available events</p>
-          </div>
+        <div>
+          <Label className="text-base font-semibold">{currentCategory?.label}</Label>
+          <p className="text-sm text-muted-foreground">Select a date with available events</p>
         </div>
         <Button
           variant="outline"
@@ -376,8 +376,3 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
     </div>
   );
 };
-
-// Don't forget to add Label and Button imports
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

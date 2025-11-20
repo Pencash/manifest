@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { HandHeart, Heart, MessageSquare, Shield } from "lucide-react";
+import { HandHeart, Heart, MessageSquare, Shield, UserPlus, LogIn } from "lucide-react";
 const Landing = () => {
   const navigate = useNavigate();
 
@@ -17,9 +17,13 @@ const Landing = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" onClick={() => navigate("/member/auth")} className="min-w-[200px]">
-                <Heart className="mr-2 h-5 w-5" />
-                Member Portal
+              <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")} className="min-w-[200px]">
+                <UserPlus className="mr-2 h-5 w-5" />
+                Create Member Account
+              </Button>
+              <Button size="lg" variant="secondary" onClick={() => navigate("/member/auth?mode=login")} className="min-w-[200px]">
+                <LogIn className="mr-2 h-5 w-5" />
+                Member Login
               </Button>
               <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")} className="min-w-[200px]">
                 <Shield className="mr-2 h-5 w-5" />
