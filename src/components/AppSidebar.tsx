@@ -184,9 +184,13 @@ export function AppSidebar() {
             <Icon className="h-4 w-4 shrink-0" />
             {!isCollapsed && <span className="flex-1">{item.label}</span>}
             {item.notificationCount !== undefined && item.notificationCount > 0 && (
-              <div className={isCollapsed ? "absolute -top-1 -right-1" : ""}>
+              !isCollapsed ? (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+                  {item.notificationCount > 99 ? "99+" : item.notificationCount}
+                </span>
+              ) : (
                 <NotificationBadge count={item.notificationCount} />
-              </div>
+              )
             )}
           </NavLink>
         </SidebarMenuButton>
