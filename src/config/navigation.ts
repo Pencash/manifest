@@ -1,4 +1,4 @@
-import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock } from "lucide-react";
+import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -16,6 +16,7 @@ export const memberNavItems: NavItem[] = [
   { label: "Testimony", path: "/testimony", icon: HandHeart },
   { label: "History", path: "/history", icon: History },
   { label: "Mobilization", path: "/mobilization", icon: Users },
+  { label: "Settings", path: "/settings", icon: Settings },
 ];
 
 export const adminNavItems: NavItem[] = [

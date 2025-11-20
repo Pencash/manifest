@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { memberNavItems } from "@/config/navigation";
 import { User } from "@supabase/supabase-js";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface MemberLayoutProps {
   children: ReactNode;
@@ -64,6 +65,9 @@ export const MemberLayout = ({ children }: MemberLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="fixed top-4 right-20 z-50">
+        <ThemeToggle />
+      </div>
       <Navbar 
         items={memberNavItems} 
         userName={profile?.full_name}
