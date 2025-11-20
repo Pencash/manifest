@@ -306,7 +306,7 @@ const FinancialReports = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">MWK {metrics.totalAmount.toLocaleString()}</div>
@@ -315,7 +315,7 @@ const FinancialReports = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileText className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics.totalTransactions}</div>
@@ -324,7 +324,7 @@ const FinancialReports = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Average Giving</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">MWK {metrics.averageGiving.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
@@ -333,7 +333,7 @@ const FinancialReports = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending Verifications</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Calendar className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{metrics.pendingCount}</div>
@@ -354,8 +354,11 @@ const FinancialReports = () => {
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    labelLine={true}
+                    label={({ name, percent, value }) => {
+                      const shortName = name.length > 15 ? name.substring(0, 12) + '...' : name;
+                      return `${shortName}: ${(percent * 100).toFixed(1)}%`;
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -379,7 +382,20 @@ const FinancialReports = () => {
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
-                  <YAxis />
+                  <YAxis 
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                      if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                      return value.toString();
+                    }}
+                    width={80}
+                    label={{ 
+                      value: 'Amount (MWK)', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle' }
+                    }}
+                  />
                   <Tooltip formatter={(value: any) => `MWK ${value.toLocaleString()}`} />
                   <Bar dataKey="amount" fill="hsl(var(--primary))" />
                 </BarChart>
