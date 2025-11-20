@@ -10,6 +10,7 @@ import { User } from "@supabase/supabase-js";
 import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube, Shield } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
+import { hasAdminAccess } from "../lib/roles";
 
 const AdminDashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -35,41 +36,49 @@ const AdminDashboard = () => {
 
   const checkUser = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session?.user) {
         navigate("/admin/auth");
         return;
       }
-      
+
       setUser(session.user);
-      
-      const { data: profileData, error } = await supabase
+
+      // Load profile
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", session.user.id)
         .single();
 
-      if (error) throw error;
-      
-      // Check user role from user_roles table
-      const { data: roleData } = await supabase
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      // Load ALL roles for this user (NOT single)
+      const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-      
-      if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance' && roleData.role !== 'pastor')) {
+        .eq("user_id", session.user.id);
+
+      if (rolesError) throw rolesError;
+
+      const mainRole =
+        rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+      if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
-      
-      setProfile(profileData);
+
+      // User is definitely admin / finance / pastor at this point
       await loadMetrics();
     } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
+      console.error("Error loading admin profile or role:", error);
+      toast.error("Failed to load admin profile");
     } finally {
       setLoading(false);
     }

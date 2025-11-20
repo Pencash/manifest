@@ -8,9 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { z } from "zod";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
-import type { Database } from "@/integrations/supabase/types";
-
-type AppRole = Database["public"]["Enums"]["app_role"];
+import { hasAdminAccess } from "../lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -64,19 +62,23 @@ const Auth = () => {
         
         await logLoginAttempt(validation.email, true);
         
-        // Check user role and redirect accordingly
-        const { data: roleData } = await supabase
+        // Fetch all roles for this user
+        const { data: rolesData, error: rolesError } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", data.user.id)
-          .order("role", { ascending: true })
-          .limit(1)
-          .single();
-        
+          .eq("user_id", data.user.id);
+
+        if (rolesError) {
+          console.error("Error loading user roles:", rolesError);
+        }
+
+        // Pick one role if available
+        const mainRole =
+          rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
         toast.success("Welcome back!");
-        
-        const userRole = roleData?.role as AppRole | null;
-        if (userRole === 'admin' || userRole === 'finance' || userRole === 'pastor') {
+
+        if (hasAdminAccess(mainRole)) {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");
