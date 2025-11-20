@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MemberLayout } from "./layouts/MemberLayout";
+import { AdminLayout } from "./layouts/AdminLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AdminAuth from "./pages/AdminAuth";
@@ -45,29 +47,34 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin/auth" element={<AdminAuth />} />
           <Route path="/member/auth" element={<MemberAuth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/events" element={<EventsManagement />} />
-          <Route path="/admin/attendance/:serviceId" element={<AttendanceLog />} />
-          <Route path="/admin/attendance/:serviceId/bulk-import" element={<BulkAttendanceImport />} />
-          <Route path="/admin/reports/attendance" element={<AttendanceReport />} />
-          <Route path="/admin/reports/financial" element={<FinancialReports />} />
-          <Route path="/admin/expenses/categories" element={<ExpenseCategories />} />
-          <Route path="/admin/expenses/pending" element={<PendingExpenseApprovals />} />
-          <Route path="/admin/reminders" element={<EventReminders />} />
-          <Route path="/admin/visitor-followup" element={<VisitorFollowup />} />
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/receipts" element={<ReceiptVerification />} />
-          <Route path="/give" element={<Give />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/expenses/request" element={<ExpenseRequest />} />
-          <Route path="/expenses/my-requests" element={<MyExpenseRequests />} />
-          <Route path="/testimony" element={<Testimony />} />
-          <Route path="/prayer" element={<Prayer />} />
-          <Route path="/mobilization" element={<MemberMobilization />} />
-          <Route path="/admin/mobilization" element={<MobilizationReport />} />
-          <Route path="/admin/verifications" element={<PendingVerifications />} />
-          <Route path="/admin/audit-logs" element={<AuditLogs />} />
+          
+          {/* Member Routes */}
+          <Route path="/dashboard" element={<MemberLayout><Dashboard /></MemberLayout>} />
+          <Route path="/give" element={<MemberLayout><Give /></MemberLayout>} />
+          <Route path="/history" element={<MemberLayout><History /></MemberLayout>} />
+          <Route path="/expenses/request" element={<MemberLayout><ExpenseRequest /></MemberLayout>} />
+          <Route path="/expenses/my-requests" element={<MemberLayout><MyExpenseRequests /></MemberLayout>} />
+          <Route path="/testimony" element={<MemberLayout><Testimony /></MemberLayout>} />
+          <Route path="/prayer" element={<MemberLayout><Prayer /></MemberLayout>} />
+          <Route path="/mobilization" element={<MemberLayout><MemberMobilization /></MemberLayout>} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+          <Route path="/admin/events" element={<AdminLayout><EventsManagement /></AdminLayout>} />
+          <Route path="/admin/attendance/:serviceId" element={<AdminLayout><AttendanceLog /></AdminLayout>} />
+          <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><BulkAttendanceImport /></AdminLayout>} />
+          <Route path="/admin/reports/attendance" element={<AdminLayout><AttendanceReport /></AdminLayout>} />
+          <Route path="/admin/reports/financial" element={<AdminLayout><FinancialReports /></AdminLayout>} />
+          <Route path="/admin/expenses/categories" element={<AdminLayout><ExpenseCategories /></AdminLayout>} />
+          <Route path="/admin/expenses/pending" element={<AdminLayout><PendingExpenseApprovals /></AdminLayout>} />
+          <Route path="/admin/reminders" element={<AdminLayout><EventReminders /></AdminLayout>} />
+          <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
+          <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
+          <Route path="/admin/receipts" element={<AdminLayout><ReceiptVerification /></AdminLayout>} />
+          <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
+          <Route path="/admin/verifications" element={<AdminLayout><PendingVerifications /></AdminLayout>} />
+          <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
