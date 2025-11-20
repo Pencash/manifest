@@ -142,12 +142,12 @@ const AdminDashboard = () => {
       const { start, end } = getDateRange(timePeriod);
       const { start: prevStart, end: prevEnd } = getPreviousDateRange(timePeriod);
 
-      let givingsQuery = supabase.from("givings").select("amount, payment_method, created_at, giving_type_id, giving_types(name)").eq("status", "approved");
+      let givingsQuery = supabase.from("givings").select("amount, payment_method, created_at, giving_type_id, giving_types(name)").eq("status", "verified");
       if (start && end) {
         givingsQuery = givingsQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
       }
 
-      let prevGivingsQuery = supabase.from("givings").select("amount").eq("status", "approved");
+      let prevGivingsQuery = supabase.from("givings").select("amount").eq("status", "verified");
       if (prevStart && prevEnd) {
         prevGivingsQuery = prevGivingsQuery.gte("created_at", prevStart.toISOString()).lte("created_at", prevEnd.toISOString());
       }
