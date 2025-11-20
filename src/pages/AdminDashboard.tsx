@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, TestTube, Shield } from "lucide-react";
+import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, Shield, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
@@ -380,10 +380,6 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={createTestUsers}>
-              <TestTube className="mr-2 h-4 w-4" />
-              Create Test Users
-            </Button>
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
@@ -622,6 +618,21 @@ const AdminDashboard = () => {
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground mb-1">Pending Verifications</h3>
                     <p className="text-xs text-muted-foreground">Review receipts & payments ({metrics.pendingVerifications || 0})</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/reports/financial")}
+                className="group relative p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 hover:from-green-500/10 hover:to-emerald-500/10 border border-green-500/20 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-green-500/20 text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                    <TrendingUp className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Financial Reports</h3>
+                    <p className="text-xs text-muted-foreground">Detailed giving analytics & exports</p>
                   </div>
                 </div>
               </button>

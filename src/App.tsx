@@ -17,6 +17,7 @@ import EventReminders from "./pages/EventReminders";
 import VisitorFollowup from "./pages/VisitorFollowup";
 import UserManagement from "./pages/UserManagement";
 import ReceiptVerification from "./pages/ReceiptVerification";
+import FinancialReports from "./pages/FinancialReports";
 import Give from "./pages/Give";
 import History from "./pages/History";
 import Testimony from "./pages/Testimony";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/admin/attendance/:serviceId" element={<AttendanceLog />} />
           <Route path="/admin/attendance/:serviceId/bulk-import" element={<BulkAttendanceImport />} />
           <Route path="/admin/reports/attendance" element={<AttendanceReport />} />
+          <Route path="/admin/reports/financial" element={<FinancialReports />} />
           <Route path="/admin/reminders" element={<EventReminders />} />
           <Route path="/admin/visitor-followup" element={<VisitorFollowup />} />
           <Route path="/admin/users" element={<UserManagement />} />
