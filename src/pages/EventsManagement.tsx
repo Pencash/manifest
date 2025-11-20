@@ -352,72 +352,78 @@ const EventsManagement = () => {
           </Button>
         </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-2">Event Status</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={statusFilter === 'all' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('all')}
-                  size="sm"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={statusFilter === 'upcoming' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('upcoming')}
-                  size="sm"
-                >
-                  Upcoming
-                </Button>
-                <Button
-                  variant={statusFilter === 'today' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('today')}
-                  size="sm"
-                >
-                  Today
-                </Button>
-                <Button
-                  variant={statusFilter === 'past' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('past')}
-                  size="sm"
-                >
-                  Past
-                </Button>
-              </div>
+        {/* Compact Filter Bar */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-card border rounded-lg p-4">
+          {/* Status Filter */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-sm font-medium text-muted-foreground">Status:</span>
+            <div className="flex gap-1">
+              <Button
+                variant={statusFilter === 'all' ? 'default' : 'ghost'}
+                onClick={() => setStatusFilter('all')}
+                size="sm"
+                className="h-8"
+              >
+                All
+              </Button>
+              <Button
+                variant={statusFilter === 'upcoming' ? 'default' : 'ghost'}
+                onClick={() => setStatusFilter('upcoming')}
+                size="sm"
+                className="h-8"
+              >
+                Upcoming
+              </Button>
+              <Button
+                variant={statusFilter === 'today' ? 'default' : 'ghost'}
+                onClick={() => setStatusFilter('today')}
+                size="sm"
+                className="h-8"
+              >
+                Today
+              </Button>
+              <Button
+                variant={statusFilter === 'past' ? 'default' : 'ghost'}
+                onClick={() => setStatusFilter('past')}
+                size="sm"
+                className="h-8"
+              >
+                Past
+              </Button>
             </div>
+          </div>
 
-            <div>
-              <p className="text-sm font-medium mb-2">Service Type</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={filterType === 'all' ? 'default' : 'outline'}
-                  onClick={() => setFilterType('all')}
-                  size="sm"
-                >
+          {/* Divider */}
+          <div className="hidden sm:block h-8 w-px bg-border" />
+
+          {/* Service Type Filter - Dropdown Select */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-8 w-full sm:w-[200px]">
+                <SelectValue placeholder="All Service Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
                   All ({services.length})
-                </Button>
+                </SelectItem>
                 {serviceTypes.map(type => {
                   const count = services.filter(s => s.service_type === type.value).length;
                   return (
-                    <Button
-                      key={type.value}
-                      variant={filterType === type.value ? 'default' : 'outline'}
-                      onClick={() => setFilterType(type.value)}
-                      size="sm"
-                    >
+                    <SelectItem key={type.value} value={type.value}>
                       {type.label} ({count})
-                    </Button>
+                    </SelectItem>
                   );
                 })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-sm text-muted-foreground flex-shrink-0">
+            {filteredServices.length} event{filteredServices.length !== 1 ? 's' : ''}
+          </div>
+        </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => (
