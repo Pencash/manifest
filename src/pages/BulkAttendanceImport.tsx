@@ -7,11 +7,56 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
+import { hasAdminAccess } from "../lib/roles";
+import { useEffect } from "react";
+import { User } from "@supabase/supabase-js";
 
 const BulkAttendanceImport = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
+  const [user, setUser] = useState<User | null>(null);
   const [importing, setImporting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        navigate("/admin/auth");
+        return;
+      }
+
+      setUser(session.user);
+
+      // Load ALL roles for this user (NOT single)
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      if (rolesError) {
+        console.error("Error loading roles:", rolesError);
+      }
+
+      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+      if (!hasAdminAccess(mainRole)) {
+        toast.error("Access denied. Admin privileges required.");
+        navigate("/dashboard");
+        return;
+      }
+
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error("Failed to verify access");
+    }
+  };
 
   const downloadTemplate = () => {
     const template = [
@@ -152,6 +197,17 @@ const BulkAttendanceImport = () => {
       setImporting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">

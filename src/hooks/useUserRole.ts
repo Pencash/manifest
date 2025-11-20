@@ -44,18 +44,19 @@ export const useUserRole = (userId: string | undefined) => {
       } catch (error) {
         console.error("Error fetching user role (RPC):", error);
         // Fallback to direct table query if RPC fails
-        try {
-          const { data: fallbackData, error: tableError } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", userId)
-            .single();
+      try {
+        const { data: fallbackData, error: tableError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId);
 
-          if (tableError) throw tableError;
-          
-          const fallbackRole: AppRole = fallbackData?.role ?? "member";
-          roleCache.set(userId, fallbackRole);
-          setRole(fallbackRole);
+        if (tableError) throw tableError;
+        
+        const fallbackRole: AppRole = fallbackData && fallbackData.length > 0 
+          ? fallbackData[0].role 
+          : "member";
+        roleCache.set(userId, fallbackRole);
+        setRole(fallbackRole);
         } catch (fallbackError) {
           console.error("Error fetching user role (fallback):", fallbackError);
           setRole(null);

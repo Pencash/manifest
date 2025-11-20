@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ArrowLeft, Download, TrendingUp, Users, Target, Award, Search } from "lucide-react";
 import * as XLSX from "xlsx";
+import { hasAdminAccess } from "../lib/roles";
 
 interface MemberStats {
   member_id: string;
@@ -40,15 +41,20 @@ const MobilizationReport = () => {
       return;
     }
 
-    // Check role directly from user_roles table
-    const { data: roleData } = await supabase
+    // Load ALL roles for this user (NOT single)
+    const { data: rolesData, error: rolesError } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", session.user.id)
-      .single();
+      .eq("user_id", session.user.id);
 
-    if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'pastor')) {
-      toast.error("Access denied. Admin or Pastor role required.");
+    if (rolesError) {
+      console.error("Error loading roles:", rolesError);
+    }
+
+    const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+    if (!hasAdminAccess(mainRole)) {
+      toast.error("Access denied. Admin privileges required.");
       navigate("/dashboard");
       return;
     }

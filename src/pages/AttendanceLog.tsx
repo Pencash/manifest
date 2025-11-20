@@ -13,8 +13,8 @@ import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus, Upload } from "lucide-react";
 import { format } from "date-fns";
-import { useUserRole, hasRole } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
+import { hasAdminAccess } from "../lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -43,7 +43,6 @@ interface AttendanceRecord {
 const AttendanceLog = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const [user, setUser] = useState<User | null>(null);
-  const { role, loading: roleLoading } = useUserRole(user?.id);
   const [service, setService] = useState<Service | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
   const [attendance, setAttendance] = useState<Map<string, boolean>>(new Map());
@@ -83,23 +82,33 @@ const AttendanceLog = () => {
       }
       
       setUser(session.user);
+
+      // Load ALL roles for this user (NOT single)
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      if (rolesError) {
+        console.error("Error loading roles:", rolesError);
+      }
+
+      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+      if (!hasAdminAccess(mainRole)) {
+        toast.error("Access denied. Admin privileges required.");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Role verified - load data
+      setLoading(true);
+      loadData().finally(() => setLoading(false));
     } catch (error: any) {
       console.error("Error loading profile:", error);
       toast.error("Failed to load profile");
     }
   };
-
-  useEffect(() => {
-    if (user && !roleLoading) {
-      if (!hasRole(role, 'finance')) {
-        toast.error("Access denied. Admin privileges required.");
-        navigate("/dashboard");
-        return;
-      }
-      setLoading(true);
-      loadData().finally(() => setLoading(false));
-    }
-  }, [user, role, roleLoading]);
 
   const loadData = async () => {
     if (!serviceId) return;
