@@ -16,8 +16,8 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useUserRole, hasRole } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
+import { hasAdminAccess } from "../lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -48,7 +48,6 @@ const serviceTypes = [
 
 const EventsManagement = () => {
   const [user, setUser] = useState<User | null>(null);
-  const { role, loading: roleLoading } = useUserRole(user?.id);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -92,23 +91,33 @@ const EventsManagement = () => {
       }
       
       setUser(session.user);
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
-    }
-  };
 
-  useEffect(() => {
-    if (user && !roleLoading) {
-      if (!hasRole(role, 'finance')) {
+      // Load ALL roles for this user (NOT single)
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      if (rolesError) {
+        console.error("Error loading roles:", rolesError);
+      }
+
+      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+      if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
+
+      // Role verified - load services
       setLoading(true);
       loadServices().finally(() => setLoading(false));
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error("Failed to load profile");
     }
-  }, [user, role, roleLoading]);
+  };
 
   const loadServices = async () => {
     try {

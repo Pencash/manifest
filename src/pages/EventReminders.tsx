@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { ArrowLeft, Bell, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { hasAdminAccess } from "../lib/roles";
 
 interface Service {
   id: string;
@@ -41,8 +42,43 @@ const EventReminders = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadData();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        navigate("/admin/auth");
+        return;
+      }
+
+      // Load ALL roles for this user (NOT single)
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id);
+
+      if (rolesError) {
+        console.error("Error loading roles:", rolesError);
+      }
+
+      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+
+      if (!hasAdminAccess(mainRole)) {
+        toast.error("Access denied. Admin privileges required.");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Role verified - load data
+      loadData();
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error("Failed to verify access");
+    }
+  };
 
   const loadData = async () => {
     try {
