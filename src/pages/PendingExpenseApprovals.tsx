@@ -117,6 +117,21 @@ export default function PendingExpenseApprovals() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check if user is main admin for approval action
+      if (action === "approve") {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.email !== "pnderitu2@gmail.com") {
+          toast.error("Only the main administrator (pnderitu2@gmail.com) can approve expense requests.");
+          setProcessing(false);
+          return;
+        }
+      }
+
       const newStatus = action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested";
 
       // Update expense request status
