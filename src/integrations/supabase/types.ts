@@ -835,7 +835,15 @@ export type Database = {
           start_time?: string | null
           total_attendance?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       testimonies: {
         Row: {
