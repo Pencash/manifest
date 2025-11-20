@@ -86,34 +86,44 @@ const AdminDashboard = () => {
 
   const loadMetrics = async () => {
     try {
-      // First get pending verifications count
-      const { data: pendingVerificationsData } = await supabase
+      // Pending givings (including those for pending services)
+      const { data: pendingGivingsData } = await supabase
         .from("givings")
-        .select("id, payment_reference, payment_method, status, receipts(verification_status)")
-        .or("status.eq.pending,receipts.verification_status.eq.pending");
+        .select("id, status, service_id, services!left(approval_status)")
+        .or("status.eq.pending,services.approval_status.eq.pending_admin_approval");
 
-      const pendingCount = pendingVerificationsData?.filter((giving: any) => {
-        const hasUploadedReceipt = giving.receipts?.some((r: any) => r.verification_status === "pending");
-        const hasPendingMobilePayment = giving.payment_method === "mobile_money" && giving.payment_reference && giving.status === "pending";
-        return hasUploadedReceipt || hasPendingMobilePayment;
-      }).length || 0;
+      const pendingGivingsCount = pendingGivingsData?.length || 0;
 
-      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, givingTypesRes, pendingServicesRes] = await Promise.all([
+      // Pending expense requests
+      const { data: pendingExpenses } = await supabase
+        .from("expense_requests")
+        .select("id")
+        .in("status", ["pending_approval", "draft"]);
+
+      const pendingExpensesCount = pendingExpenses?.length || 0;
+
+      // Pending service events
+      const { data: pendingServices } = await supabase
+        .from("services")
+        .select("id")
+        .eq("approval_status", "pending_admin_approval");
+
+      const pendingServicesCount = pendingServices?.length || 0;
+
+      const [givingsRes, profilesRes, attendanceRes, testimoniesRes, prayerRes, givingTypesRes] = await Promise.all([
         supabase.from("givings").select("amount, giving_type_id, created_at"),
         supabase.from("profiles").select("id, is_active"),
         supabase.from("attendance").select("id"),
         supabase.from("testimonies").select("id"),
         supabase.from("prayer_requests").select("id"),
         supabase.from("giving_types").select("id, name"),
-        supabase.from("services").select("id").eq("approval_status", "pending_admin_approval"),
       ]);
 
-              const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-              const activeMembers = profilesRes.data?.filter(p => p.is_active).length || 0;
-              const totalAttendance = attendanceRes.data?.length || 0;
-              const totalTestimonies = testimoniesRes.data?.length || 0;
-              const totalPrayers = prayerRes.data?.length || 0;
-              const pendingServicesCount = pendingServicesRes.data?.length || 0;
+      const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
+      const activeMembers = profilesRes.data?.filter(p => p.is_active).length || 0;
+      const totalAttendance = attendanceRes.data?.length || 0;
+      const totalTestimonies = testimoniesRes.data?.length || 0;
+      const totalPrayers = prayerRes.data?.length || 0;
 
       const givingsByType: any = {};
       givingsRes.data?.forEach(g => {
@@ -128,8 +138,10 @@ const AdminDashboard = () => {
         totalAttendance,
         totalTestimonies,
         totalPrayers,
-        pendingPayments: pendingCount,
+        pendingGivings: pendingGivingsCount,
+        pendingExpenses: pendingExpensesCount,
         pendingServices: pendingServicesCount,
+        totalPendingApprovals: pendingGivingsCount + pendingExpensesCount + pendingServicesCount,
         givingsByType,
       });
     } catch (error: any) {
@@ -474,7 +486,7 @@ const AdminDashboard = () => {
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">{metrics.pendingPayments || 0}</div>
+              <div className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-red-600 bg-clip-text text-transparent">{metrics.pendingGivings || 0}</div>
               <p className="text-xs text-muted-foreground mt-1">Awaiting payment verification</p>
               <Button variant="link" className="p-0 h-auto mt-2 text-sm text-yellow-600 hover:text-yellow-700">
                 Verify Payments →
@@ -499,6 +511,35 @@ const AdminDashboard = () => {
               <Button variant="link" className="p-0 h-auto mt-2 text-sm text-orange-600 hover:text-orange-700">
                 Review Events →
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="group hover:shadow-2xl hover:shadow-amber-500/20 transition-all duration-300 hover:scale-105 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-background border-amber-500/20 overflow-hidden relative"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+              <CardTitle className="text-sm font-medium">All Pending Approvals</CardTitle>
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors group-hover:animate-pulse duration-300">
+                <FileCheck className="h-5 w-5 text-amber-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">{metrics.totalPendingApprovals || 0}</div>
+              <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                <div className="flex justify-between items-center">
+                  <span>Givings:</span>
+                  <span className="font-semibold text-amber-600">{metrics.pendingGivings || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Expenses:</span>
+                  <span className="font-semibold text-amber-600">{metrics.pendingExpenses || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Services:</span>
+                  <span className="font-semibold text-amber-600">{metrics.pendingServices || 0}</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
