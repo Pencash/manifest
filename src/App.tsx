@@ -18,6 +18,10 @@ import VisitorFollowup from "./pages/VisitorFollowup";
 import UserManagement from "./pages/UserManagement";
 import ReceiptVerification from "./pages/ReceiptVerification";
 import FinancialReports from "./pages/FinancialReports";
+import ExpenseCategories from "./pages/ExpenseCategories";
+import ExpenseRequest from "./pages/ExpenseRequest";
+import MyExpenseRequests from "./pages/MyExpenseRequests";
+import PendingExpenseApprovals from "./pages/PendingExpenseApprovals";
 import Give from "./pages/Give";
 import History from "./pages/History";
 import Testimony from "./pages/Testimony";
@@ -48,12 +52,16 @@ const App = () => (
           <Route path="/admin/attendance/:serviceId/bulk-import" element={<BulkAttendanceImport />} />
           <Route path="/admin/reports/attendance" element={<AttendanceReport />} />
           <Route path="/admin/reports/financial" element={<FinancialReports />} />
+          <Route path="/admin/expenses/categories" element={<ExpenseCategories />} />
+          <Route path="/admin/expenses/pending" element={<PendingExpenseApprovals />} />
           <Route path="/admin/reminders" element={<EventReminders />} />
           <Route path="/admin/visitor-followup" element={<VisitorFollowup />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/receipts" element={<ReceiptVerification />} />
           <Route path="/give" element={<Give />} />
           <Route path="/history" element={<History />} />
+          <Route path="/expenses/request" element={<ExpenseRequest />} />
+          <Route path="/expenses/my-requests" element={<MyExpenseRequests />} />
           <Route path="/testimony" element={<Testimony />} />
           <Route path="/prayer" element={<Prayer />} />
           <Route path="/mobilization" element={<MemberMobilization />} />

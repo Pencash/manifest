@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { HandHeart, MessageSquare, History, LogOut, Download, Users } from "lucide-react";
+import { HandHeart, MessageSquare, History as HistoryIcon, LogOut, Download, Users, DollarSign, BookOpen, Calendar, ArrowRight, Heart, Receipt, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const Dashboard = () => {
@@ -236,7 +236,7 @@ const Dashboard = () => {
             <CardHeader className="relative z-10">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-green-500/20 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
-                  <History className="h-7 w-7 text-green-600" />
+                  <HistoryIcon className="h-7 w-7 text-green-600" />
                 </div>
                 <div className="flex-1">
                   <CardTitle className="text-xl group-hover:text-green-600 transition-colors">Giving History</CardTitle>

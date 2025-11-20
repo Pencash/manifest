@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { LogOut, Download, CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, Shield, TrendingUp } from "lucide-react";
+import { LogOut, Download, Calendar as CalendarIcon, Users, DollarSign, MessageSquare, HandHeart, FileCheck, UserCog, Shield, TrendingUp, Receipt, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
