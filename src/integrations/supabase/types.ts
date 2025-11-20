@@ -98,6 +98,66 @@ export type Database = {
         }
         Relationships: []
       }
+      budgets: {
+        Row: {
+          allocated_amount: number
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          fiscal_year: number
+          id: string
+          notes: string | null
+          remaining_amount: number | null
+          service_id: string | null
+          spent_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allocated_amount?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fiscal_year: number
+          id?: string
+          notes?: string | null
+          remaining_amount?: number | null
+          service_id?: string | null
+          spent_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allocated_amount?: number
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fiscal_year?: number
+          id?: string
+          notes?: string | null
+          remaining_amount?: number | null
+          service_id?: string | null
+          spent_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           contact_type: string
@@ -177,6 +237,193 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "event_reminders_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_approvals: {
+        Row: {
+          action: string
+          approver_id: string
+          comments: string | null
+          created_at: string
+          expense_request_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          approver_id: string
+          comments?: string | null
+          created_at?: string
+          expense_request_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          approver_id?: string
+          comments?: string | null
+          created_at?: string
+          expense_request_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_approvals_expense_request_id_fkey"
+            columns: ["expense_request_id"]
+            isOneToOne: false
+            referencedRelation: "expense_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_receipts: {
+        Row: {
+          expense_request_id: string
+          file_name: string
+          file_size: number | null
+          id: string
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          expense_request_id: string
+          file_name: string
+          file_size?: number | null
+          id?: string
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          expense_request_id?: string
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_receipts_expense_request_id_fkey"
+            columns: ["expense_request_id"]
+            isOneToOne: false
+            referencedRelation: "expense_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_requests: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          currency: string
+          description: string
+          due_date: string | null
+          id: string
+          justification: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          priority: string
+          rejection_reason: string | null
+          request_number: string | null
+          requester_id: string
+          service_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          currency?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          justification: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          priority?: string
+          rejection_reason?: string | null
+          request_number?: string | null
+          requester_id: string
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          currency?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          justification?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          priority?: string
+          rejection_reason?: string | null
+          request_number?: string | null
+          requester_id?: string
+          service_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_requests_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_requests_service_id_fkey"
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
