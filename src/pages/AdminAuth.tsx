@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Shield } from "lucide-react";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
+import { hasAdminAccess } from "../lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -52,14 +53,21 @@ const AdminAuth = () => {
       
       await logLoginAttempt(validation.email, true);
       
-      // Check if user has admin/finance role using user_roles table
-      const { data: roleData } = await supabase
+      // Fetch all roles for this user
+      const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", data.user.id)
-        .single();
+        .eq("user_id", data.user.id);
+
+      if (rolesError) {
+        console.error("Error loading user roles:", rolesError);
+      }
+
+      // Pick one role if available
+      const mainRole =
+        rolesData && rolesData.length > 0 ? rolesData[0].role : null;
       
-      if (!roleData || (roleData.role !== 'admin' && roleData.role !== 'finance' && roleData.role !== 'pastor')) {
+      if (!hasAdminAccess(mainRole)) {
         await supabase.auth.signOut();
         toast.error("Access denied. This login is for admin and finance staff only.");
         return;
