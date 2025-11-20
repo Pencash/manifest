@@ -467,6 +467,7 @@ export type Database = {
           payment_method: string
           payment_reference: string | null
           profile_id: string
+          rejection_reason: string | null
           service_id: string | null
           status: string
         }
@@ -481,6 +482,7 @@ export type Database = {
           payment_method: string
           payment_reference?: string | null
           profile_id: string
+          rejection_reason?: string | null
           service_id?: string | null
           status?: string
         }
@@ -495,6 +497,7 @@ export type Database = {
           payment_method?: string
           payment_reference?: string | null
           profile_id?: string
+          rejection_reason?: string | null
           service_id?: string | null
           status?: string
         }
