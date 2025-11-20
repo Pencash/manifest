@@ -1,8 +1,8 @@
 import { useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Navbar } from "@/components/Navbar";
-import { adminNavItems } from "@/config/navigation";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { User } from "@supabase/supabase-js";
 import { hasAdminAccess } from "@/lib/roles";
 import { toast } from "sonner";
@@ -67,15 +67,22 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar 
-        items={adminNavItems} 
-        userName={profile?.full_name}
-        userEmail={user.email}
-      />
-      <main className="container mx-auto px-4 py-6">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-14 items-center px-4">
+              <SidebarTrigger />
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto">
+            <div className="container mx-auto px-4 py-6">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
