@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { useUserRole } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -73,13 +75,53 @@ const History = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "verified":
-        return "bg-secondary text-secondary-foreground";
+        return "bg-green-500/10 text-green-700 dark:text-green-400";
       case "pending":
-        return "bg-yellow-500 text-white";
+        return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400";
       case "rejected":
-        return "bg-destructive text-destructive-foreground";
+        return "bg-red-500/10 text-red-700 dark:text-red-400";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-gray-500/10 text-gray-700 dark:text-gray-400";
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      toast.loading("Preparing export...");
+      
+      const { data: givingsData } = await supabase
+        .from("givings")
+        .select(`
+          *,
+          giving_types(name),
+          services(name, service_date)
+        `)
+        .eq('profile_id', userId)
+        .order('created_at', { ascending: false });
+
+      const givingsSheet = givingsData?.map(g => ({
+        'Date': new Date(g.created_at).toLocaleDateString(),
+        'Type': g.giving_types?.name || 'N/A',
+        'Amount': g.amount,
+        'Currency': g.currency,
+        'Payment Method': g.payment_method,
+        'Reference': g.payment_reference || 'N/A',
+        'Service': g.services?.name || 'N/A',
+        'Status': g.status,
+      })) || [];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(givingsSheet);
+      
+      XLSX.utils.book_append_sheet(wb, ws, "Giving History");
+      XLSX.writeFile(wb, `my_giving_history_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast.dismiss();
+      toast.success("Export completed successfully!");
+    } catch (error: any) {
+      toast.dismiss();
+      console.error("Error exporting data:", error);
+      toast.error("Failed to export data");
     }
   };
 
@@ -104,12 +146,20 @@ const History = () => {
         </Button>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">My Giving History</CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              This is your personal giving history. Track your contributions and payment verification status.
-            </p>
-          </CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">My Giving History</CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                This is your personal giving history. Track your contributions and payment verification status.
+              </p>
+            </div>
+            <Button variant="outline" onClick={exportToExcel} disabled={givings.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Download Excel
+            </Button>
+          </div>
+        </CardHeader>
           <CardContent>
             {givings.length === 0 ? (
               <div className="text-center py-8">

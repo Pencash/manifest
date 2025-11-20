@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,16 @@ const authSchema = z.object({
 });
 
 const MemberAuth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const navigate = useNavigate();
+  const { checkRateLimit, logLoginAttempt } = useRateLimiting();
+  const [searchParams] = useSearchParams();
+  const initialMode = searchParams.get("mode");
+  const [isLogin, setIsLogin] = useState(initialMode !== "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { checkRateLimit, logLoginAttempt } = useRateLimiting();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

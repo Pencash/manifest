@@ -22,13 +22,14 @@ const givingSchema = z.object({
   paymentMethod: z.string().min(1, "Please select a payment method"),
   paymentReference: z.string().optional(),
 }).refine((data) => {
-  // If payment method is mobile_money, payment reference is required
-  if (data.paymentMethod === "mobile_money" && (!data.paymentReference || data.paymentReference.length < 6)) {
+  // If payment method is mobile_money or bank_transfer, payment reference is required
+  if ((data.paymentMethod === "mobile_money" || data.paymentMethod === "bank_transfer") && 
+      (!data.paymentReference || data.paymentReference.length < 6)) {
     return false;
   }
   return true;
 }, {
-  message: "Payment reference is required for mobile money payments (minimum 6 characters)",
+  message: "Payment reference is required for mobile money and bank transfer payments (minimum 6 characters)",
   path: ["paymentReference"],
 });
 
@@ -271,7 +272,10 @@ const Give = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="paymentReference">
-                    Payment Reference/Transaction ID {formData.paymentMethod === "mobile_money" && (<span className="text-destructive">*</span>)}
+                    Payment Reference/Transaction ID {
+                      (formData.paymentMethod === "mobile_money" || formData.paymentMethod === "bank_transfer") && 
+                      (<span className="text-destructive">*</span>)
+                    }
                   </Label>
                   <Input
                     id="paymentReference"
@@ -280,13 +284,13 @@ const Give = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, paymentReference: e.target.value })
                     }
-                    required={formData.paymentMethod === "mobile_money"}
-                    minLength={formData.paymentMethod === "mobile_money" ? 6 : undefined}
+                    required={formData.paymentMethod === "mobile_money" || formData.paymentMethod === "bank_transfer"}
+                    minLength={(formData.paymentMethod === "mobile_money" || formData.paymentMethod === "bank_transfer") ? 6 : undefined}
                     className="bg-background font-mono"
                   />
                   <p className="text-sm text-muted-foreground">
-                    {formData.paymentMethod === "mobile_money" 
-                      ? "Required: Enter your mobile money transaction reference (minimum 6 characters)"
+                    {(formData.paymentMethod === "mobile_money" || formData.paymentMethod === "bank_transfer")
+                      ? "Required: Enter your transaction reference (minimum 6 characters)"
                       : "Optional: Transaction reference or code"}
                   </p>
                 </div>

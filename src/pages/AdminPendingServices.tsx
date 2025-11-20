@@ -28,7 +28,7 @@ interface PendingService {
   creator?: {
     full_name: string;
     email: string | null;
-  }[];
+  };
 }
 
 export default function AdminPendingServices() {
