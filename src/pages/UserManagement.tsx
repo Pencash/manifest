@@ -97,61 +97,6 @@ const UserManagement = () => {
     checkUser();
   }, [checkUser]);
 
-  const handleDeleteUser = async (userId: string) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this user? This action cannot be undone.");
-
-    if (!confirmDelete) return;
-
-    setActionInProgress(userId);
-
-    try {
-      const { error: rolesError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
-      if (rolesError) throw rolesError;
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userId);
-
-      if (profileError) throw profileError;
-
-      toast.success("User deleted successfully");
-      await loadProfiles();
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast.error(`Failed to delete user: ${getErrorMessage(error)}`);
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  const handleResetPassword = async (profile: ProfileWithRole) => {
-    if (!profile.email) {
-      toast.error("User does not have a valid email");
-      return;
-    }
-
-    setActionInProgress(profile.id);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-        redirectTo: `${window.location.origin}/member/auth`,
-      });
-
-      if (error) throw error;
-
-      toast.success("Password reset email sent");
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      toast.error(`Failed to send reset email: ${getErrorMessage(error)}`);
-    } finally {
-      setActionInProgress(null);
-    }
-  };
 
   const handleDeleteUser = async (userId: string) => {
     if (userId === user?.id) {
