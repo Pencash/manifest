@@ -28,6 +28,7 @@ const UserManagement = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const navigate = useNavigate();
   const { role: currentUserRole, loading: roleLoading } = useUserRole(user?.id);
 
@@ -81,6 +82,62 @@ const UserManagement = () => {
     } catch (error: any) {
       console.error("Error loading profiles:", error);
       toast.error("Failed to load profiles");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this user? This action cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    setActionInProgress(userId);
+
+    try {
+      const { error: rolesError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (rolesError) throw rolesError;
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+
+      if (profileError) throw profileError;
+
+      toast.success("User deleted successfully");
+      await loadProfiles();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleResetPassword = async (profile: ProfileWithRole) => {
+    if (!profile.email) {
+      toast.error("User does not have a valid email");
+      return;
+    }
+
+    setActionInProgress(profile.id);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+        redirectTo: `${window.location.origin}/member/auth`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password reset email sent");
+    } catch (error: any) {
+      console.error("Error resetting password:", error);
+      toast.error("Failed to send reset email");
+    } finally {
+      setActionInProgress(null);
     }
   };
 
@@ -207,6 +264,7 @@ const UserManagement = () => {
                     <TableHead>Current Role</TableHead>
                     <TableHead>Change Role</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -243,6 +301,24 @@ const UserManagement = () => {
                           <Badge variant={profile.is_active ? "default" : "secondary"}>
                             {profile.is_active ? "Active" : "Inactive"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="space-x-2 text-right">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={actionInProgress === profile.id || profile.id === user?.id}
+                            onClick={() => handleResetPassword(profile)}
+                          >
+                            Reset Password
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={actionInProgress === profile.id || profile.id === user?.id}
+                            onClick={() => handleDeleteUser(profile.id)}
+                          >
+                            Delete
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
