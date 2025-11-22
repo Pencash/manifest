@@ -191,24 +191,27 @@ const FinancialReports = () => {
     'hsl(48 96% 53%)'   // yellow
   ];
 
-  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }: any) => {
+  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name, index }: any) => {
     // Only show labels for segments >= 5%
     if (percent < 0.05) return null;
-    
+
     // Calculate label position outside the donut
     const RADIAN = Math.PI / 180;
     const radius = outerRadius + 30;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    
+
+    // Match the label color with the corresponding slice color for clarity
+    const labelColor = COLORS[index % COLORS.length];
+
     // Dynamic text anchor based on position
     const textAnchor = x > cx ? 'start' : 'end';
-    
+
     return (
-      <text 
-        x={x} 
-        y={y} 
-        fill="hsl(var(--foreground))"
+      <text
+        x={x}
+        y={y}
+        fill={labelColor}
         textAnchor={textAnchor}
         dominantBaseline="central"
         className="text-xs font-medium"
@@ -228,7 +231,9 @@ const FinancialReports = () => {
 
   const metrics = getSummaryMetrics();
   const pieData = getGivingsByTypeData();
-  const totalPieValue = pieData.reduce((sum, item) => sum + item.value, 0);
+  const totalPieValue = pieData.length > 0
+    ? pieData.reduce((sum, item) => sum + item.value, 0)
+    : 0;
   const monthlyData = getMonthlyTrendsData();
 
   return (
