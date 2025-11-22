@@ -34,7 +34,7 @@ interface NavItemWithCount {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, openMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [navItems, setNavItems] = useState<NavItemWithCount[]>(adminNavItems);
   const [userName, setUserName] = useState<string>("");
@@ -44,6 +44,13 @@ export function AppSidebar() {
   useEffect(() => {
     loadUserInfo();
   }, []);
+
+  // Close the mobile sidebar when the route changes so the content is visible.
+  useEffect(() => {
+    if (isMobile && openMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, openMobile, setOpenMobile, location.pathname]);
 
   // Load notification counts with realtime updates
   useEffect(() => {
