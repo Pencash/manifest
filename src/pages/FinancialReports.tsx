@@ -402,8 +402,6 @@ const FinancialReports = () => {
                       data={pieData}
                       cx="40%"
                       cy="50%"
-                      labelLine={true}
-                      label={renderCustomLabel}
                       innerRadius={60}
                       outerRadius={100}
                       fill="#8884d8"
