@@ -329,7 +329,7 @@ const MobilizationReport = () => {
                 />
               </div>
               <Select value={conversionFilter} onValueChange={setConversionFilter}>
-                <SelectTrigger className="w-full md:w-[200px]">
+                <SelectTrigger className="w-full md:w-52">
                   <SelectValue placeholder="Filter by success rate" />
                 </SelectTrigger>
                 <SelectContent>

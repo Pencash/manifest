@@ -353,9 +353,9 @@ export default function AdminGivings() {
 
       <Card>
         <CardHeader>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -366,7 +366,7 @@ export default function AdminGivings() {
               </SelectContent>
             </Select>
             <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -388,7 +388,7 @@ export default function AdminGivings() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[50px]">
+                <TableHead className="w-12">
                   {pendingGivings.length > 0 && (
                     <Checkbox
                       checked={selectedGivings.length === pendingGivings.length}

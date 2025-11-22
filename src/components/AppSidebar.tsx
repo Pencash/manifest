@@ -219,7 +219,7 @@ export function AppSidebar() {
               (() => {
                 console.log(`🔔 Rendering badge for ${item.label}:`, item.notificationCount, "collapsed:", isCollapsed);
                 return !isCollapsed ? (
-                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+                  <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1 text-[0.625rem] font-bold text-white">
                     {item.notificationCount > 99 ? "99+" : item.notificationCount}
                   </span>
                 ) : (

@@ -7,8 +7,8 @@ export const NotificationBadge = ({ count, variant = "default" }: NotificationBa
   if (count <= 0) return null;
 
   return (
-    <span 
-      className={`absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
+    <span
+      className={`absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[0.625rem] font-bold text-white ${
         variant === "warning" ? "bg-amber-500" : "bg-destructive"
       }`}
     >

@@ -394,13 +394,13 @@ const EventsManagement = () => {
           </div>
 
           {/* Divider */}
-          <div className="hidden sm:block h-8 w-px bg-border" />
+          <div className="hidden sm:block h-8 w-[0.1rem] bg-border" />
 
           {/* Service Type Filter - Dropdown Select */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 w-full sm:w-[200px]">
+              <SelectTrigger className="h-8 w-full sm:w-52">
                 <SelectValue placeholder="All Service Types" />
               </SelectTrigger>
               <SelectContent>
@@ -641,7 +641,7 @@ const EventsManagement = () => {
                 placeholder="Add event details, theme, or special notes"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="min-h-[100px]"
+                className="min-h-[6.25rem]"
               />
             </div>
 
