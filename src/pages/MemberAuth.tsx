@@ -28,6 +28,9 @@ const MemberAuth = () => {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +111,34 @@ const MemberAuth = () => {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const validation = z.string().email().parse(resetEmail);
+      setResetLoading(true);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(validation, {
+        redirectTo: `${window.location.origin}/member/auth`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password reset email sent! Check your inbox.");
+      setShowResetPassword(false);
+      setResetEmail("");
+      setIsLogin(true);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast.error("Please enter a valid email address");
+      } else {
+        toast.error(error.message || "An error occurred");
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
@@ -127,76 +158,131 @@ const MemberAuth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
-              <>
+          {!showResetPassword ? (
+            <>
+              <form onSubmit={handleAuth} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="John Doe"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required={!isLogin}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number (Optional)</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+265 999 123 456"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={!isLogin}
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+265 999 123 456"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
                 </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm space-y-2">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline block w-full"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="text-muted-foreground hover:underline block w-full"
-            >
-              ← Back to home
-            </button>
-          </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+                </Button>
+              </form>
+              <div className="mt-4 text-center text-sm space-y-2">
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetEmail(email);
+                      setShowResetPassword(true);
+                    }}
+                    className="text-primary hover:underline block w-full"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-primary hover:underline block w-full"
+                >
+                  {isLogin
+                    ? "Don't have an account? Sign up"
+                    : "Already have an account? Sign in"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="text-muted-foreground hover:underline block w-full"
+                >
+                  ← Back to home
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={resetLoading}>
+                  {resetLoading ? "Sending..." : "Send Reset Link"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setIsLogin(true);
+                  }}
+                >
+                  Back to Login
+                </Button>
+              </form>
+              <div className="mt-4 text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="text-muted-foreground hover:underline"
+                >
+                  ← Back to home
+                </button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
