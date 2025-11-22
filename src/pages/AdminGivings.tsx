@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatAmount } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
 interface Giving {
@@ -588,7 +589,7 @@ export default function AdminGivings() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Available Funds</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">MWK {stats.verified.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">{formatAmount(stats.verified)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -596,7 +597,7 @@ export default function AdminGivings() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">MWK {stats.pending.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-yellow-600">{formatAmount(stats.pending)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -604,7 +605,7 @@ export default function AdminGivings() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">MWK {stats.rejected.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-600">{formatAmount(stats.rejected)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -612,7 +613,7 @@ export default function AdminGivings() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Received</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">MWK {stats.totalReceived.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(stats.totalReceived)}</div>
           </CardContent>
         </Card>
       </div>
@@ -708,7 +709,7 @@ export default function AdminGivings() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="font-semibold">{giving.currency} {Number(giving.amount).toLocaleString()}</TableCell>
+                  <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
                   <TableCell>{giving.profiles.full_name}</TableCell>
                   <TableCell>{giving.giving_types.name}</TableCell>
                   <TableCell>
