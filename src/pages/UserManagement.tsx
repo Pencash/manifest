@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,32 +32,14 @@ const UserManagement = () => {
   const navigate = useNavigate();
   const { role: currentUserRole, loading: roleLoading } = useUserRole(user?.id);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  const getErrorMessage = useCallback(
+    (error: unknown) =>
+      error instanceof Error ? error.message : "An unexpected error occurred",
+    []
+  );
 
-  const checkUser = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        navigate("/admin/auth");
-        return;
-      }
-      
-      setUser(session.user);
-      await loadProfiles();
-    } catch (error: any) {
-      console.error("Error loading user:", error);
-      toast.error("Failed to load user data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadProfiles = async () => {
-    try {
-      // Fetch profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, email, phone, created_at, is_active")
@@ -65,25 +47,55 @@ const UserManagement = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all user roles
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with their roles
-      const profilesWithRoles = profilesData?.map(profile => ({
-        ...profile,
-        user_roles: rolesData?.filter(r => r.user_id === profile.id).map(r => ({ role: r.role })) || []
-      })) || [];
+      const profilesWithRoles =
+        profilesData?.map((profile) => ({
+          ...profile,
+          user_roles:
+            rolesData
+              ?.filter((role) => role.user_id === profile.id)
+              .map((role) => ({ role: role.role })) || [],
+        })) || [];
 
       setProfiles(profilesWithRoles);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error loading profiles:", error);
-      toast.error("Failed to load profiles");
+      toast.error(`Failed to load profiles: ${getErrorMessage(error)}`);
     }
-  };
+  }, [getErrorMessage]);
+
+  const checkUser = useCallback(async () => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (!session?.user) {
+        navigate("/admin/auth");
+        return;
+      }
+
+      setUser(session.user);
+      await loadProfiles();
+    } catch (error) {
+      console.error("Error loading user:", error);
+      toast.error(`Failed to load user data: ${getErrorMessage(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [getErrorMessage, loadProfiles, navigate]);
+
+  useEffect(() => {
+    checkUser();
+  }, [checkUser]);
 
   const handleDeleteUser = async (userId: string) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this user? This action cannot be undone.");
@@ -109,9 +121,9 @@ const UserManagement = () => {
 
       toast.success("User deleted successfully");
       await loadProfiles();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting user:", error);
-      toast.error("Failed to delete user");
+      toast.error(`Failed to delete user: ${getErrorMessage(error)}`);
     } finally {
       setActionInProgress(null);
     }
@@ -133,9 +145,9 @@ const UserManagement = () => {
       if (error) throw error;
 
       toast.success("Password reset email sent");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error resetting password:", error);
-      toast.error("Failed to send reset email");
+      toast.error(`Failed to send reset email: ${getErrorMessage(error)}`);
     } finally {
       setActionInProgress(null);
     }
@@ -143,16 +155,18 @@ const UserManagement = () => {
 
   const updateUserRole = async (userId: string, newRole: AppRole) => {
     try {
-      // Get user's email for notification
-      const profile = profiles.find(p => p.id === userId);
-      
-      // First, delete existing roles for this user
+      const profile = profiles.find((p) => p.id === userId);
+
+      if (!profile) {
+        toast.error("User profile not found");
+        return;
+      }
+
       await supabase
         .from("user_roles")
         .delete()
         .eq("user_id", userId);
 
-      // Then insert the new role
       const { error } = await supabase
         .from("user_roles")
         .insert({
@@ -163,27 +177,25 @@ const UserManagement = () => {
 
       if (error) throw error;
 
-      // Call edge function to send role change notification
       try {
-        await supabase.functions.invoke('send-role-notification', {
+        await supabase.functions.invoke("send-role-notification", {
           body: {
             email: profile?.email,
             name: profile?.full_name,
             newRole: newRole,
             userId: userId,
-            assignedBy: user?.id
-          }
+            assignedBy: user?.id,
+          },
         });
       } catch (emailError) {
         console.error("Failed to send notification email:", emailError);
-        // Don't fail the role update if email fails
       }
 
       toast.success(`User role updated to ${newRole}. Notification sent.`);
       await loadProfiles();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating role:", error);
-      toast.error("Failed to update user role");
+      toast.error(`Failed to update user role: ${getErrorMessage(error)}`);
     }
   };
 
