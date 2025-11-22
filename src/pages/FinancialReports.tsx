@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { formatAmount } from "@/lib/utils";
 
 const FinancialReports = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -309,7 +310,7 @@ const FinancialReports = () => {
               <DollarSign className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK {metrics.totalAmount.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{formatAmount(metrics.totalAmount)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -327,7 +328,7 @@ const FinancialReports = () => {
               <TrendingUp className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">MWK {metrics.averageGiving.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+              <div className="text-2xl font-bold">{formatAmount(metrics.averageGiving)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -367,7 +368,7 @@ const FinancialReports = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any) => `MWK ${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value: any) => formatAmount(value)} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -396,7 +397,7 @@ const FinancialReports = () => {
                       style: { textAnchor: 'middle' }
                     }}
                   />
-                  <Tooltip formatter={(value: any) => `MWK ${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value: any) => formatAmount(value)} />
                   <Bar dataKey="amount" fill="hsl(var(--primary))" />
                 </BarChart>
               </ResponsiveContainer>
@@ -452,7 +453,7 @@ const FinancialReports = () => {
                           "N/A"
                         )}
                       </TableCell>
-                      <TableCell className="font-semibold">MWK {Number(giving.amount).toLocaleString()}</TableCell>
+                      <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
                       <TableCell>{giving.payment_method.replace("_", " ")}</TableCell>
                       <TableCell className="text-xs">{giving.payment_reference || "N/A"}</TableCell>
                       <TableCell>{getStatusBadge(giving.status)}</TableCell>

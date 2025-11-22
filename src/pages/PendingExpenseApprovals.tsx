@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
   id: string;
@@ -245,7 +246,7 @@ export default function PendingExpenseApprovals() {
                         <div className="text-xs text-muted-foreground line-clamp-2">{request.justification}</div>
                       </TableCell>
                       <TableCell className="font-mono">
-                        {request.currency} {request.amount.toLocaleString()}
+                        {formatAmount(request.amount, request.currency)}
                       </TableCell>
                       <TableCell>{getPriorityBadge(request.priority)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -292,7 +293,7 @@ export default function PendingExpenseApprovals() {
                 {action === "approve" ? "Approve" : action === "reject" ? "Reject" : "Request Changes"}
               </DialogTitle>
               <DialogDescription>
-                {selectedRequest && `${selectedRequest.expense_categories.code} - ${selectedRequest.currency} ${selectedRequest.amount.toLocaleString()}`}
+                {selectedRequest && `${selectedRequest.expense_categories.code} - ${formatAmount(selectedRequest.amount, selectedRequest.currency)}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">

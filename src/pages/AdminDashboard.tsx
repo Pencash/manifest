@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatAmount } from "@/lib/utils";
 
 type TimePeriod = "today" | "week" | "month" | "all";
 
@@ -214,7 +215,7 @@ const AdminDashboard = () => {
       recentGivings.forEach(g => {
         recentActivity.push({
           type: "giving",
-          message: `New giving recorded (${formatCurrency(Number(g.amount))})`,
+          message: `New giving recorded (${formatAmount(Number(g.amount))})`,
           time: formatTimeAgo(new Date(g.created_at))
         });
       });
@@ -272,10 +273,6 @@ const AdminDashboard = () => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
-  };
-
-  const formatCurrency = (amount: number, currency: string = "MWK"): string => {
-    return `${currency} ${formatNumber(amount)}`;
   };
 
   const calculateTrend = (current: number, previous: number) => {
@@ -424,7 +421,7 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground/70">Total Givings</p>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalGivings)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatAmount(metrics.totalGivings)}</p>
               <p className="text-xs text-foreground/60">vs previous period</p>
             </div>
           </CardContent>

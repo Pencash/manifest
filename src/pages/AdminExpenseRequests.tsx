@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Plus, FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
+import { formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
   id: string;
@@ -288,7 +289,7 @@ export default function AdminExpenseRequests() {
                         {request.description}
                       </TableCell>
                       <TableCell className="font-medium">
-                        {request.currency} {request.amount.toLocaleString()}
+                        {formatAmount(request.amount, request.currency)}
                       </TableCell>
                       <TableCell>{getPriorityBadge(request.priority)}</TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>

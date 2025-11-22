@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle, DollarSign } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { formatAmount } from "@/lib/utils";
 
 interface FundingAvailabilityProps {
   selectedCategoryId?: string;
@@ -167,7 +168,7 @@ export default function FundingAvailability({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Total Offerings</p>
-            <p className="text-lg font-semibold">MWK {totalOfferings.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatAmount(totalOfferings)}</p>
             <p className="text-xs text-muted-foreground mt-1">Excludes Tithes/First Fruits/Seed/Pledges</p>
           </div>
           
@@ -175,11 +176,11 @@ export default function FundingAvailability({
             <>
               <div>
                 <p className="text-sm text-muted-foreground">Service Offerings</p>
-                <p className="text-lg font-semibold">MWK {serviceOfferings.toLocaleString()}</p>
+                <p className="text-lg font-semibold">{formatAmount(serviceOfferings)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">General Offerings</p>
-                <p className="text-lg font-semibold">MWK {generalOfferings.toLocaleString()}</p>
+                <p className="text-lg font-semibold">{formatAmount(generalOfferings)}</p>
               </div>
             </>
           )}
@@ -187,18 +188,18 @@ export default function FundingAvailability({
           {!selectedServiceId && (
             <div>
               <p className="text-sm text-muted-foreground">General Offerings</p>
-              <p className="text-lg font-semibold">MWK {generalOfferings.toLocaleString()}</p>
+              <p className="text-lg font-semibold">{formatAmount(generalOfferings)}</p>
             </div>
           )}
           
           <div>
             <p className="text-sm text-muted-foreground">Allocated</p>
-            <p className="text-lg font-semibold">MWK {allocatedExpenses.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatAmount(allocatedExpenses)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Available for This Expense</p>
             <p className={`text-lg font-semibold ${availableFunds < 0 ? 'text-destructive' : 'text-primary'}`}>
-              MWK {availableFunds.toLocaleString()}
+              {formatAmount(availableFunds)}
             </p>
           </div>
         </div>
@@ -234,11 +235,11 @@ export default function FundingAvailability({
             <AlertDescription>
               {isSufficient ? (
                 <>
-                  <strong>Sufficient funding available.</strong> Your request of MWK {requestedAmount.toLocaleString()} can be covered by available funds.
+                  <strong>Sufficient funding available.</strong> Your request of {formatAmount(requestedAmount)} can be covered by available funds.
                 </>
               ) : (
                 <>
-                  <strong>Funding shortfall: MWK {shortfall.toLocaleString()}</strong>
+                  <strong>Funding shortfall: {formatAmount(shortfall)}</strong>
                   <br />
                   This expense exceeds available funds. Approval may require additional funding or budget reallocation.
                 </>
