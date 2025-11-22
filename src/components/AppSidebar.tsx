@@ -7,6 +7,7 @@ import { NotificationBadge } from "@/components/NotificationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { adminNavItems } from "@/config/navigation";
 import { hasAdminAccess } from "@/lib/roles";
+import { subscribeToNotificationRefresh } from "@/lib/notification-events";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -33,7 +34,7 @@ interface NavItemWithCount {
 
 export function AppSidebar() {
   const location = useLocation();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [navItems, setNavItems] = useState<NavItemWithCount[]>(adminNavItems);
   const [userName, setUserName] = useState<string>("");
@@ -63,10 +64,13 @@ export function AppSidebar() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
       .subscribe();
 
+    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
+
     return () => {
       supabase.removeChannel(givingsChannel);
       supabase.removeChannel(expensesChannel);
       supabase.removeChannel(servicesChannel);
+      unsubscribeFromEvents();
     };
   }, []);
 
@@ -183,6 +187,12 @@ export function AppSidebar() {
 
   const dashboardItem = navItems.find(item => item.path === "/admin/dashboard");
 
+  const handleMenuSelect = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   const renderMenuItem = (item: NavItemWithCount) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
@@ -190,10 +200,11 @@ export function AppSidebar() {
     return (
       <SidebarMenuItem key={item.path}>
         <SidebarMenuButton asChild isActive={isActive}>
-          <NavLink 
+          <NavLink
             to={item.path}
             className="relative flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-accent"
             activeClassName="bg-accent text-accent-foreground font-medium"
+            onClick={handleMenuSelect}
           >
             <Icon className="h-4 w-4 shrink-0" />
             {!isCollapsed && <span className="flex-1">{item.label}</span>}

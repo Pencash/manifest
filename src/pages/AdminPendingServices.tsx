@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { hasAdminAccess } from "@/lib/roles";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { format } from "date-fns";
 import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, Edit } from "lucide-react";
 
@@ -116,6 +117,7 @@ export default function AdminPendingServices() {
 
     toast({ title: "Service approved", description: "The service event is now published" });
     loadServices();
+    triggerNotificationRefresh();
   };
 
   const handleReject = async (serviceId: string) => {
@@ -134,6 +136,7 @@ export default function AdminPendingServices() {
 
     toast({ title: "Service rejected", description: "The service event has been rejected" });
     loadServices();
+    triggerNotificationRefresh();
   };
 
   const openEditDialog = (service: PendingService) => {
