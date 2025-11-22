@@ -153,6 +153,63 @@ const UserManagement = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === user?.id) {
+      toast.error("You cannot delete your own account");
+      return;
+    }
+
+    const confirmDelete = window.confirm("Are you sure you want to delete this user? This action cannot be undone.");
+
+    if (!confirmDelete) return;
+
+    setActionInProgress(userId);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId },
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Deletion failed");
+      }
+
+      toast.success("User deleted successfully");
+      await loadProfiles();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error(error?.message || "Failed to delete user");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleResetPassword = async (profile: ProfileWithRole) => {
+    if (!profile.email) {
+      toast.error("User does not have a valid email");
+      return;
+    }
+
+    setActionInProgress(profile.id);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+        redirectTo: `${window.location.origin}/member/auth`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password reset email sent");
+    } catch (error: any) {
+      console.error("Error resetting password:", error);
+      toast.error("Failed to send reset email");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const updateUserRole = async (userId: string, newRole: AppRole) => {
     try {
       const profile = profiles.find((p) => p.id === userId);
