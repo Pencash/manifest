@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,20 @@ const MemberAuth = () => {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowUpdatePassword(true);
+        setShowResetPassword(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +153,55 @@ const MemberAuth = () => {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password updated successfully!");
+      setShowUpdatePassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      // Check user role and redirect accordingly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
@@ -149,16 +212,55 @@ const MemberAuth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-center">
-            {isLogin ? "Member Login" : "Join Phaneroo"}
+            {showUpdatePassword 
+              ? "Set New Password" 
+              : isLogin 
+              ? "Member Login" 
+              : "Join Phaneroo"}
           </CardTitle>
           <CardDescription className="text-center">
-            {isLogin
+            {showUpdatePassword
+              ? "Enter your new password below"
+              : isLogin
               ? "Sign in to access your giving dashboard"
               : "Create an account to start giving"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!showResetPassword ? (
+          {showUpdatePassword ? (
+            <>
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Password must be at least 6 characters long.
+                </p>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Updating..." : "Update Password"}
+                </Button>
+              </form>
+            </>
+          ) : !showResetPassword ? (
             <>
               <form onSubmit={handleAuth} className="space-y-4">
                 {!isLogin && (
