@@ -86,6 +86,11 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (userId === user?.id) {
+      toast.error("You cannot delete your own account");
+      return;
+    }
+
     const confirmDelete = window.confirm("Are you sure you want to delete this user? This action cannot be undone.");
 
     if (!confirmDelete) return;
