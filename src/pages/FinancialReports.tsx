@@ -191,13 +191,7 @@ const FinancialReports = () => {
     'hsl(48 96% 53%)'   // yellow
   ];
 
-  const formatShortAmount = (amount: number): string => {
-    if (amount >= 1000000) return `MWK ${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `MWK ${(amount / 1000).toFixed(0)}K`;
-    return formatAmount(amount);
-  };
-
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }: any) => {
+  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name }: any) => {
     // Only show labels for segments >= 5%
     if (percent < 0.05) return null;
     
@@ -214,12 +208,12 @@ const FinancialReports = () => {
       <text 
         x={x} 
         y={y} 
-        fill="hsl(var(--foreground))" 
+        fill="hsl(var(--foreground))"
         textAnchor={textAnchor}
         dominantBaseline="central"
         className="text-xs font-medium"
       >
-        {`${name}: ${(percent * 100).toFixed(1)}% • ${formatShortAmount(value)}`}
+        {`${name}: ${(percent * 100).toFixed(1)}%`}
       </text>
     );
   };
@@ -234,6 +228,7 @@ const FinancialReports = () => {
 
   const metrics = getSummaryMetrics();
   const pieData = getGivingsByTypeData();
+  const totalPieValue = pieData.reduce((sum, item) => sum + item.value, 0);
   const monthlyData = getMonthlyTrendsData();
 
   return (
@@ -413,19 +408,25 @@ const FinancialReports = () => {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
-                      formatter={(value: any, name: string) => [formatAmount(value), name]}
-                      contentStyle={{ 
+                    <Tooltip
+                      formatter={(value: any, name: string) => {
+                        const percent = totalPieValue ? ((value as number) / totalPieValue) * 100 : 0;
+                        return [`${percent.toFixed(1)}%`, name];
+                      }}
+                      contentStyle={{
                         borderRadius: '8px',
                         border: '1px solid hsl(var(--border))',
                         backgroundColor: 'hsl(var(--background))'
                       }}
                     />
-                    <Legend 
-                      layout="vertical" 
-                      align="right" 
+                    <Legend
+                      layout="vertical"
+                      align="right"
                       verticalAlign="middle"
-                      formatter={(value: string, entry: any) => `${value}: ${formatAmount(entry.payload.value)}`}
+                      formatter={(value: string, entry: any) => {
+                        const percent = totalPieValue ? (entry.payload.value / totalPieValue) * 100 : 0;
+                        return `${value}: ${percent.toFixed(1)}%`;
+                      }}
                       wrapperStyle={{ paddingLeft: '20px' }}
                     />
                   </PieChart>
