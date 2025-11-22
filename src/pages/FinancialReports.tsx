@@ -180,7 +180,49 @@ const FinancialReports = () => {
     return <Badge variant={variants[status] || "secondary"}>{status}</Badge>;
   };
 
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', '#82ca9d', '#ffc658'];
+  const COLORS = [
+    'hsl(var(--primary))', 
+    'hsl(var(--secondary))', 
+    'hsl(var(--accent))',
+    'hsl(142 76% 36%)', // green
+    'hsl(217 91% 60%)', // blue
+    'hsl(262 83% 58%)', // purple
+    'hsl(346 77% 50%)', // pink
+    'hsl(48 96% 53%)'   // yellow
+  ];
+
+  const formatShortAmount = (amount: number): string => {
+    if (amount >= 1000000) return `MWK ${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `MWK ${(amount / 1000).toFixed(0)}K`;
+    return formatAmount(amount);
+  };
+
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }: any) => {
+    // Only show labels for segments >= 5%
+    if (percent < 0.05) return null;
+    
+    // Calculate label position outside the donut
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 30;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    // Dynamic text anchor based on position
+    const textAnchor = x > cx ? 'start' : 'end';
+    
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="hsl(var(--foreground))" 
+        textAnchor={textAnchor}
+        dominantBaseline="central"
+        className="text-xs font-medium"
+      >
+        {`${name}: ${(percent * 100).toFixed(1)}% • ${formatShortAmount(value)}`}
+      </text>
+    );
+  };
 
   if (loading) {
     return (
@@ -349,28 +391,46 @@ const FinancialReports = () => {
               <CardTitle>Givings by Type</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent, value }) => {
-                      const shortName = name.length > 15 ? name.substring(0, 12) + '...' : name;
-                      return `${shortName}: ${(percent * 100).toFixed(1)}%`;
-                    }}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => formatAmount(value)} />
-                </PieChart>
-              </ResponsiveContainer>
+              {pieData.length === 0 ? (
+                <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                  No data available for the selected filters
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="40%"
+                      cy="50%"
+                      labelLine={true}
+                      label={renderCustomLabel}
+                      innerRadius={60}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [formatAmount(value), name]}
+                      contentStyle={{ 
+                        borderRadius: '8px',
+                        border: '1px solid hsl(var(--border))',
+                        backgroundColor: 'hsl(var(--background))'
+                      }}
+                    />
+                    <Legend 
+                      layout="vertical" 
+                      align="right" 
+                      verticalAlign="middle"
+                      formatter={(value: string, entry: any) => `${value}: ${formatAmount(entry.payload.value)}`}
+                      wrapperStyle={{ paddingLeft: '20px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
