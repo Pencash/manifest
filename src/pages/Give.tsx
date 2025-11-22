@@ -321,7 +321,7 @@ const Give = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, note: e.target.value })
                     }
-                    className="bg-background min-h-[100px]"
+                    className="bg-background min-h-[6.25rem]"
                   />
                 </div>
 

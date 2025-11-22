@@ -214,10 +214,10 @@ export default function AdminExpenseRequests() {
                 {requests.length} total request{requests.length !== 1 ? "s" : ""}
               </CardDescription>
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>

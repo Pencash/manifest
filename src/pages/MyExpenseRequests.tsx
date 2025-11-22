@@ -145,7 +145,7 @@ export default function MyExpenseRequests() {
                 <CardDescription>Track the status of your expense requests</CardDescription>
               </div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>

@@ -228,7 +228,7 @@ const UserManagement = () => {
                             onValueChange={(value) => updateUserRole(profile.id, value as AppRole)}
                             disabled={profile.id === user?.id}
                           >
-                            <SelectTrigger className="w-[140px]">
+                            <SelectTrigger className="w-full sm:w-36">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

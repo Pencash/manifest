@@ -13,26 +13,40 @@ const Landing = () => {
       </div>
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Manifest Malawi
           </h1>
-          <p className="text-xl text-muted-foreground mb-8">
+          <p className="text-lg sm:text-xl text-muted-foreground mb-8">
             A secure and transparent way to give, share testimonies, and connect with your church
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")} className="min-w-[200px]">
-                <UserPlus className="mr-2 h-5 w-5" />
-                Create Member Account
-              </Button>
-              <Button size="lg" variant="secondary" onClick={() => navigate("/member/auth?mode=login")} className="min-w-[200px]">
-                <LogIn className="mr-2 h-5 w-5" />
-                Member Login
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")} className="min-w-[200px]">
-                <Shield className="mr-2 h-5 w-5" />
-                Admin/Finance
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  onClick={() => navigate("/member/auth?mode=signup")}
+                  className="w-full sm:min-w-[12.5rem]"
+                >
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Create Member Account
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => navigate("/member/auth?mode=login")}
+                  className="w-full sm:min-w-[12.5rem]"
+                >
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Member Login
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate("/admin/auth")}
+                  className="w-full sm:min-w-[12.5rem]"
+                >
+                  <Shield className="mr-2 h-5 w-5" />
+                  Admin/Finance
+                </Button>
             </div>
           </div>
         </div>
@@ -44,9 +58,9 @@ const Landing = () => {
                 <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
                   <Heart className="w-6 h-6 text-secondary" />
                 </div>
-                <CardTitle className="text-2xl">For Members</CardTitle>
+              <CardTitle className="text-2xl">For Members</CardTitle>
               </div>
-              <CardDescription className="text-base">Access your personal giving dashboard to:</CardDescription>
+              <CardDescription className="text-base sm:text-lg">Access your personal giving dashboard to:</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -81,7 +95,7 @@ const Landing = () => {
                 </div>
                 <CardTitle className="text-2xl">For Admin & Finance</CardTitle>
               </div>
-              <CardDescription className="text-base">Access administrative tools to:</CardDescription>
+              <CardDescription className="text-base sm:text-lg">Access administrative tools to:</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
