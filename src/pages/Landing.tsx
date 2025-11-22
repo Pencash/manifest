@@ -163,7 +163,7 @@ const Landing = () => {
                 Join thousands of members using our platform to support Phaneroo's mission
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" onClick={() => navigate("/member/auth")}>
+                <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")}> 
                   Create Member Account
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")}>

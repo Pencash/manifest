@@ -53,11 +53,11 @@ export default function AdminGivings() {
   const [givings, setGivings] = useState<Giving[]>([]);
   const [loading, setLoading] = useState(true);
   const [givingTypes, setGivingTypes] = useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; full_name: string; email: string | null; phone: string | null }[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const [submittingOffline, setSubmittingOffline] = useState(false);
   const [offlineForm, setOfflineForm] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
+    memberId: "",
     givingTypeId: "",
     amount: "",
     currency: "MWK",
@@ -109,6 +109,7 @@ export default function AdminGivings() {
     }
 
     await loadMetadata();
+    loadMembers();
     loadGivings();
   };
 
@@ -197,6 +198,25 @@ export default function AdminGivings() {
     } catch (error: any) {
       console.error("Error loading giving types:", error);
       toast.error("Failed to load giving types");
+    }
+  };
+
+  const loadMembers = async () => {
+    try {
+      setLoadingMembers(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone")
+        .order("full_name", { ascending: true });
+
+      if (error) throw error;
+
+      setMembers(data || []);
+    } catch (error: any) {
+      console.error("Error loading members:", error);
+      toast.error("Failed to load members list");
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -325,16 +345,36 @@ export default function AdminGivings() {
     toast.success("Export completed");
   };
 
+  const formatAmountWithSeparators = (value: string) => {
+    const numericValue = parseFloat(value.replace(/,/g, ""));
+    if (isNaN(numericValue)) return value.replace(/,/g, "");
+
+    return numericValue.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const handleAmountBlur = () => {
+    if (!offlineForm.amount) return;
+    setOfflineForm((prev) => ({
+      ...prev,
+      amount: formatAmountWithSeparators(prev.amount),
+    }));
+  };
+
+  const handleAmountFocus = () => {
+    setOfflineForm((prev) => ({
+      ...prev,
+      amount: prev.amount.replace(/,/g, ""),
+    }));
+  };
+
   const handleOfflineGivingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!offlineForm.fullName.trim()) {
-      toast.error("Full name is required");
-      return;
-    }
-
-    if (!offlineForm.phone && !offlineForm.email) {
-      toast.error("Please provide at least one contact detail");
+    if (!offlineForm.memberId) {
+      toast.error("Please select a registered member");
       return;
     }
 
@@ -343,7 +383,7 @@ export default function AdminGivings() {
       return;
     }
 
-    const amountValue = parseFloat(offlineForm.amount);
+    const amountValue = parseFloat(offlineForm.amount.replace(/,/g, ""));
     if (isNaN(amountValue) || amountValue <= 0) {
       toast.error("Please enter a valid amount");
       return;
@@ -363,39 +403,8 @@ export default function AdminGivings() {
     setSubmittingOffline(true);
 
     try {
-      let profileId: string | null = null;
-
-      const orFilters = [] as string[];
-      if (offlineForm.email) orFilters.push(`email.eq.${offlineForm.email}`);
-      if (offlineForm.phone) orFilters.push(`phone.eq.${offlineForm.phone}`);
-
-      if (orFilters.length > 0) {
-        const { data: existingProfile, error: profileLookupError } = await supabase
-          .from("profiles")
-          .select("id")
-          .or(orFilters.join(","))
-          .maybeSingle();
-
-        if (profileLookupError) throw profileLookupError;
-        if (existingProfile) profileId = existingProfile.id;
-      }
-
-      if (!profileId) {
-        const newProfileId = crypto.randomUUID();
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: newProfileId,
-          full_name: offlineForm.fullName,
-          email: offlineForm.email || null,
-          phone: offlineForm.phone || null,
-          is_active: false,
-        });
-
-        if (profileError) throw profileError;
-        profileId = newProfileId;
-      }
-
       const { error: givingError } = await supabase.from("givings").insert({
-        profile_id: profileId,
+        profile_id: offlineForm.memberId,
         giving_type_id: offlineForm.givingTypeId,
         amount: amountValue,
         currency: offlineForm.currency,
@@ -410,9 +419,7 @@ export default function AdminGivings() {
 
       toast.success("Offline giving recorded successfully");
       setOfflineForm({
-        fullName: "",
-        email: "",
-        phone: "",
+        memberId: "",
         givingTypeId: "",
         amount: "",
         currency: offlineForm.currency,
@@ -451,14 +458,34 @@ export default function AdminGivings() {
           <form onSubmit={handleOfflineGivingSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
-                <Input
-                  id="fullName"
-                  value={offlineForm.fullName}
-                  onChange={(e) => setOfflineForm({ ...offlineForm, fullName: e.target.value })}
-                  placeholder="Enter giver's full name"
-                  required
-                />
+                <Label htmlFor="member">Member *</Label>
+                <Select
+                  value={offlineForm.memberId}
+                  onValueChange={(value) => setOfflineForm({ ...offlineForm, memberId: value })}
+                  disabled={loadingMembers || submittingOffline}
+                >
+                  <SelectTrigger id="member">
+                    <SelectValue placeholder={loadingMembers ? "Loading members..." : "Select registered member"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.full_name} {member.email ? `(${member.email})` : ""}
+                      </SelectItem>
+                    ))}
+                    {!members.length && !loadingMembers && (
+                      <SelectItem value="" disabled>
+                        No registered members found
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {offlineForm.memberId && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected member contact: {members.find((m) => m.id === offlineForm.memberId)?.email || "No email"}
+                    {" "}| {members.find((m) => m.id === offlineForm.memberId)?.phone || "No phone"}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="givingType">Purpose of Giving *</Label>
@@ -483,11 +510,11 @@ export default function AdminGivings() {
                 <Label htmlFor="amount">Amount *</Label>
                 <Input
                   id="amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
                   value={offlineForm.amount}
                   onChange={(e) => setOfflineForm({ ...offlineForm, amount: e.target.value })}
+                  onBlur={handleAmountBlur}
+                  onFocus={handleAmountFocus}
                   placeholder="0.00"
                   required
                 />
@@ -534,18 +561,18 @@ export default function AdminGivings() {
                 <Input
                   id="email"
                   type="email"
-                  value={offlineForm.email}
-                  onChange={(e) => setOfflineForm({ ...offlineForm, email: e.target.value })}
-                  placeholder="Contact email"
+                  value={members.find((m) => m.id === offlineForm.memberId)?.email || ""}
+                  readOnly
+                  placeholder="Member email"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
-                  value={offlineForm.phone}
-                  onChange={(e) => setOfflineForm({ ...offlineForm, phone: e.target.value })}
-                  placeholder="Contact phone"
+                  value={members.find((m) => m.id === offlineForm.memberId)?.phone || ""}
+                  readOnly
+                  placeholder="Member phone"
                 />
               </div>
             </div>
