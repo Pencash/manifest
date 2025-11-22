@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
   id: string;
@@ -198,7 +199,7 @@ export default function MyExpenseRequests() {
                         )}
                       </TableCell>
                       <TableCell className="font-mono">
-                        {request.currency} {request.amount.toLocaleString()}
+                        {formatAmount(request.amount, request.currency)}
                       </TableCell>
                       <TableCell>{getPriorityBadge(request.priority)}</TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
