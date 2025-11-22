@@ -228,7 +228,9 @@ const FinancialReports = () => {
 
   const metrics = getSummaryMetrics();
   const pieData = getGivingsByTypeData();
-  const totalPieValue = pieData.reduce((sum, item) => sum + item.value, 0);
+  const totalPieValue = pieData.length > 0
+    ? pieData.reduce((sum, item) => sum + item.value, 0)
+    : 0;
   const monthlyData = getMonthlyTrendsData();
 
   return (
