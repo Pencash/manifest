@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { subscribeToNotificationRefresh } from "@/lib/notification-events";
 
 interface NavbarProps {
   items: NavItem[];
@@ -36,10 +37,13 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
       .subscribe();
 
+    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
+
     return () => {
       supabase.removeChannel(givingsChannel);
       supabase.removeChannel(expensesChannel);
       supabase.removeChannel(servicesChannel);
+      unsubscribeFromEvents();
     };
   }, []);
 

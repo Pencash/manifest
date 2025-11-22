@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess } from "@/lib/roles";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -160,6 +161,7 @@ export default function PendingExpenseApprovals() {
       toast.success(`Request ${newStatus.replace("_", " ")}`);
       setDialogOpen(false);
       loadRequests();
+      triggerNotificationRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to process approval");
       console.error(error);

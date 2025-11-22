@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess } from "@/lib/roles";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -177,6 +178,7 @@ export default function AdminGivings() {
       toast.success(`${givingIds.length} payment(s) verified successfully`);
       setSelectedGivings([]);
       loadGivings();
+      triggerNotificationRefresh();
     } catch (error: any) {
       console.error("Error verifying payment:", error);
       toast.error("Failed to verify payment");
@@ -215,6 +217,7 @@ export default function AdminGivings() {
       setShowRejectDialog(false);
       setRejectGivingId(null);
       loadGivings();
+      triggerNotificationRefresh();
     } catch (error: any) {
       console.error("Error rejecting payment:", error);
       toast.error("Failed to reject payment");
