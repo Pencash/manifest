@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Download, Check, X, Copy, Smartphone, Banknote, Wallet, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import * as XLSX from "xlsx";
 
 interface Giving {
@@ -49,6 +51,19 @@ export default function AdminGivings() {
   const navigate = useNavigate();
   const [givings, setGivings] = useState<Giving[]>([]);
   const [loading, setLoading] = useState(true);
+  const [givingTypes, setGivingTypes] = useState<{ id: string; name: string }[]>([]);
+  const [submittingOffline, setSubmittingOffline] = useState(false);
+  const [offlineForm, setOfflineForm] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    givingTypeId: "",
+    amount: "",
+    currency: "MWK",
+    paymentMethod: "",
+    paymentReference: "",
+    note: "",
+  });
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("all");
   const [selectedGivings, setSelectedGivings] = useState<string[]>([]);
@@ -92,6 +107,7 @@ export default function AdminGivings() {
       return;
     }
 
+    await loadMetadata();
     loadGivings();
   };
 
@@ -163,6 +179,23 @@ export default function AdminGivings() {
       toast.error("Failed to load givings");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMetadata = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("giving_types")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+
+      setGivingTypes(data || []);
+    } catch (error: any) {
+      console.error("Error loading giving types:", error);
+      toast.error("Failed to load giving types");
     }
   };
 
@@ -291,6 +324,111 @@ export default function AdminGivings() {
     toast.success("Export completed");
   };
 
+  const handleOfflineGivingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!offlineForm.fullName.trim()) {
+      toast.error("Full name is required");
+      return;
+    }
+
+    if (!offlineForm.phone && !offlineForm.email) {
+      toast.error("Please provide at least one contact detail");
+      return;
+    }
+
+    if (!offlineForm.givingTypeId) {
+      toast.error("Please select a purpose of giving");
+      return;
+    }
+
+    const amountValue = parseFloat(offlineForm.amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    if (!offlineForm.paymentMethod) {
+      toast.error("Please select a mode of giving");
+      return;
+    }
+
+    if ((offlineForm.paymentMethod === "mobile_money" || offlineForm.paymentMethod === "bank_transfer") &&
+      (!offlineForm.paymentReference || offlineForm.paymentReference.length < 4)) {
+      toast.error("Payment reference is required for mobile money or bank transfers");
+      return;
+    }
+
+    setSubmittingOffline(true);
+
+    try {
+      let profileId: string | null = null;
+
+      const orFilters = [] as string[];
+      if (offlineForm.email) orFilters.push(`email.eq.${offlineForm.email}`);
+      if (offlineForm.phone) orFilters.push(`phone.eq.${offlineForm.phone}`);
+
+      if (orFilters.length > 0) {
+        const { data: existingProfile, error: profileLookupError } = await supabase
+          .from("profiles")
+          .select("id")
+          .or(orFilters.join(","))
+          .maybeSingle();
+
+        if (profileLookupError) throw profileLookupError;
+        if (existingProfile) profileId = existingProfile.id;
+      }
+
+      if (!profileId) {
+        const newProfileId = crypto.randomUUID();
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: newProfileId,
+          full_name: offlineForm.fullName,
+          email: offlineForm.email || null,
+          phone: offlineForm.phone || null,
+          is_active: false,
+        });
+
+        if (profileError) throw profileError;
+        profileId = newProfileId;
+      }
+
+      const { error: givingError } = await supabase.from("givings").insert({
+        profile_id: profileId,
+        giving_type_id: offlineForm.givingTypeId,
+        amount: amountValue,
+        currency: offlineForm.currency,
+        payment_method: offlineForm.paymentMethod,
+        payment_reference: offlineForm.paymentReference || null,
+        note: offlineForm.note || null,
+        status: "verified",
+        is_anonymous: false,
+      });
+
+      if (givingError) throw givingError;
+
+      toast.success("Offline giving recorded successfully");
+      setOfflineForm({
+        fullName: "",
+        email: "",
+        phone: "",
+        givingTypeId: "",
+        amount: "",
+        currency: offlineForm.currency,
+        paymentMethod: "",
+        paymentReference: "",
+        note: "",
+      });
+      loadGivings();
+      triggerNotificationRefresh();
+    } catch (error: any) {
+      console.error("Error recording offline giving:", error);
+      toast.error(error.message || "Failed to record giving");
+    } finally {
+      setSubmittingOffline(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -303,6 +441,134 @@ export default function AdminGivings() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Record Offline Giving</CardTitle>
+          <p className="text-sm text-muted-foreground">Capture cash or manual contributions for members without app access.</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleOfflineGivingSubmit} className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name *</Label>
+                <Input
+                  id="fullName"
+                  value={offlineForm.fullName}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, fullName: e.target.value })}
+                  placeholder="Enter giver's full name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="givingType">Purpose of Giving *</Label>
+                <Select
+                  value={offlineForm.givingTypeId}
+                  onValueChange={(value) => setOfflineForm({ ...offlineForm, givingTypeId: value })}
+                >
+                  <SelectTrigger id="givingType">
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {givingTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount *</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={offlineForm.amount}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, amount: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Input
+                  id="currency"
+                  value={offlineForm.currency}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, currency: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Mode of Giving *</Label>
+                <Select
+                  value={offlineForm.paymentMethod}
+                  onValueChange={(value) => setOfflineForm({ ...offlineForm, paymentMethod: value })}
+                >
+                  <SelectTrigger id="paymentMethod">
+                    <SelectValue placeholder="Select mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="card">Card / POS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="paymentReference">Payment Reference</Label>
+                <Input
+                  id="paymentReference"
+                  value={offlineForm.paymentReference}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, paymentReference: e.target.value })}
+                  placeholder="Txn code or receipt number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={offlineForm.email}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, email: e.target.value })}
+                  placeholder="Contact email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={offlineForm.phone}
+                  onChange={(e) => setOfflineForm({ ...offlineForm, phone: e.target.value })}
+                  placeholder="Contact phone"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="note">Notes</Label>
+              <Textarea
+                id="note"
+                value={offlineForm.note}
+                onChange={(e) => setOfflineForm({ ...offlineForm, note: e.target.value })}
+                placeholder="Add any helpful details about this giving"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="submit" disabled={submittingOffline}>
+                {submittingOffline ? "Saving..." : "Record Giving"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Payment Verification</h1>
