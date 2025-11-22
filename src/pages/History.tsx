@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { useUserRole } from "@/hooks/useUserRole";
 import type { Database } from "@/integrations/supabase/types";
+import { formatAmount } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
@@ -213,7 +214,7 @@ const History = () => {
                           )}
                         </TableCell>
                         <TableCell className="font-semibold">
-                          {giving.currency} {parseFloat(giving.amount).toLocaleString()}
+                          {formatAmount(parseFloat(giving.amount), giving.currency)}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
