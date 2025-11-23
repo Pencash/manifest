@@ -1,4 +1,4 @@
-import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings } from "lucide-react";
+import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings, Sparkles } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -21,6 +21,9 @@ export const memberNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { label: "Dashboard", path: "/admin/dashboard", icon: Home },
+  
+  // Conversion Tracking
+  { label: "Conversion Dashboard", path: "/admin/conversions", icon: Sparkles, badge: "New" },
   
   // Financial Management
   { label: "Payment Verification", path: "/admin/givings", icon: DollarSign },

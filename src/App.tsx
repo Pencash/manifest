@@ -31,6 +31,7 @@ import Testimony from "./pages/Testimony";
 import Prayer from "./pages/Prayer";
 import MemberMobilization from "./pages/MemberMobilization";
 import MobilizationReport from "./pages/MobilizationReport";
+import ConversionDashboard from "./pages/ConversionDashboard";
 import AuditLogs from "./pages/AuditLogs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
           <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
           <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
+          <Route path="/admin/conversions" element={<AdminLayout><ConversionDashboard /></AdminLayout>} />
           <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
