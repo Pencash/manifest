@@ -68,7 +68,13 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider 
+      defaultOpen={true}
+      style={{
+        "--sidebar-width": "16rem",
+        "--sidebar-width-mobile": "18rem",
+      } as React.CSSProperties}
+    >
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">

@@ -50,7 +50,7 @@ export function AppSidebar() {
     if (isMobile && openMobile) {
       setOpenMobile(false);
     }
-  }, [isMobile, openMobile, setOpenMobile, location.pathname]);
+  }, [location.pathname]); // Only trigger on route changes, not on sidebar state changes
 
   // Load notification counts with realtime updates
   useEffect(() => {
@@ -196,7 +196,8 @@ export function AppSidebar() {
 
   const handleMenuSelect = () => {
     if (isMobile) {
-      setOpenMobile(false);
+      // Add small delay to show selection feedback before closing
+      setTimeout(() => setOpenMobile(false), 150);
     }
   };
 
@@ -209,7 +210,7 @@ export function AppSidebar() {
         <SidebarMenuButton asChild isActive={isActive}>
           <NavLink
             to={item.path}
-            className="relative flex items-center gap-3 px-3 py-2 rounded-md transition-colors hover:bg-accent"
+            className="relative flex items-center gap-3 px-3 py-3 md:py-2 rounded-md transition-colors hover:bg-accent"
             activeClassName="bg-accent text-accent-foreground font-medium"
             onClick={handleMenuSelect}
           >
@@ -234,7 +235,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader className="border-b px-4 py-4">
         {!isCollapsed && (
           <h2 className="text-lg font-semibold text-foreground">Admin Portal</h2>
