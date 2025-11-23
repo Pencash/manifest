@@ -10,10 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { formatAmount } from "@/lib/utils";
+import { BulkActionBar } from "@/components/BulkActionBar";
 
 interface ExpenseRequest {
   id: string;
@@ -39,6 +41,8 @@ export default function PendingExpenseApprovals() {
   const [action, setAction] = useState<"approve" | "reject" | "changes">("approve");
   const [comments, setComments] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -104,15 +108,15 @@ export default function PendingExpenseApprovals() {
     }
   };
 
-  const openApprovalDialog = (request: ExpenseRequest, approvalAction: "approve" | "reject" | "changes") => {
+  const openApprovalDialog = (request: ExpenseRequest | null, approvalAction: "approve" | "reject" | "changes", isBulk = false) => {
     setSelectedRequest(request);
     setAction(approvalAction);
     setComments("");
+    setBulkAction(isBulk);
     setDialogOpen(true);
   };
 
   const handleApproval = async () => {
-    if (!selectedRequest) return;
     setProcessing(true);
 
     try {
@@ -135,6 +139,7 @@ export default function PendingExpenseApprovals() {
       }
 
       const newStatus = action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested";
+      const requestIdsToProcess = bulkAction ? selectedIds : [selectedRequest!.id];
 
       // Update expense request status
       const { error: updateError } = await supabase
@@ -143,24 +148,31 @@ export default function PendingExpenseApprovals() {
           status: newStatus,
           rejection_reason: action === "reject" ? comments : null,
         })
-        .eq("id", selectedRequest.id);
+        .in("id", requestIdsToProcess);
 
       if (updateError) throw updateError;
 
-      // Log approval action
+      // Log approval actions
+      const approvals = requestIdsToProcess.map(id => ({
+        expense_request_id: id,
+        approver_id: user.id,
+        action: action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested",
+        comments: comments || null,
+      }));
+
       const { error: approvalError } = await supabase
         .from("expense_approvals")
-        .insert({
-          expense_request_id: selectedRequest.id,
-          approver_id: user.id,
-          action: action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested",
-          comments: comments || null,
-        });
+        .insert(approvals);
 
       if (approvalError) throw approvalError;
 
-      toast.success(`Request ${newStatus.replace("_", " ")}`);
+      toast.success(
+        bulkAction 
+          ? `${requestIdsToProcess.length} requests ${newStatus.replace("_", " ")}` 
+          : `Request ${newStatus.replace("_", " ")}`
+      );
       setDialogOpen(false);
+      setSelectedIds([]);
       loadRequests();
       triggerNotificationRefresh();
     } catch (error: any) {
@@ -169,6 +181,18 @@ export default function PendingExpenseApprovals() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => 
+      prev.length === requests.length ? [] : requests.map(r => r.id)
+    );
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -210,6 +234,31 @@ export default function PendingExpenseApprovals() {
             <CardDescription>Review details and approve or reject expense requests</CardDescription>
           </CardHeader>
           <CardContent>
+            <BulkActionBar
+              selectedCount={selectedIds.length}
+              onSelectAll={toggleSelectAll}
+              onClearSelection={() => setSelectedIds([])}
+              actions={[
+                {
+                  label: "Approve Selected",
+                  icon: CheckCircle,
+                  onClick: () => openApprovalDialog(null, "approve", true),
+                  variant: "default",
+                },
+                {
+                  label: "Reject Selected",
+                  icon: XCircle,
+                  onClick: () => openApprovalDialog(null, "reject", true),
+                  variant: "destructive",
+                },
+                {
+                  label: "Request Changes",
+                  icon: AlertCircle,
+                  onClick: () => openApprovalDialog(null, "changes", true),
+                  variant: "outline",
+                },
+              ]}
+            />
             {requests.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -219,6 +268,12 @@ export default function PendingExpenseApprovals() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedIds.length === requests.length && requests.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Request #</TableHead>
                     <TableHead>Requester</TableHead>
                     <TableHead>Category</TableHead>
@@ -232,6 +287,12 @@ export default function PendingExpenseApprovals() {
                 <TableBody>
                   {requests.map((request) => (
                     <TableRow key={request.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.includes(request.id)}
+                          onCheckedChange={() => toggleSelection(request.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-sm">{request.request_number}</TableCell>
                       <TableCell>
                         <div className="font-medium">{request.profiles.full_name}</div>
@@ -256,7 +317,7 @@ export default function PendingExpenseApprovals() {
                         <Button
                           size="sm"
                           variant="default"
-                          onClick={() => openApprovalDialog(request, "approve")}
+                          onClick={() => openApprovalDialog(request, "approve", false)}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Approve
@@ -264,7 +325,7 @@ export default function PendingExpenseApprovals() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => openApprovalDialog(request, "reject")}
+                          onClick={() => openApprovalDialog(request, "reject", false)}
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Reject
@@ -272,7 +333,7 @@ export default function PendingExpenseApprovals() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openApprovalDialog(request, "changes")}
+                          onClick={() => openApprovalDialog(request, "changes", false)}
                         >
                           <AlertCircle className="h-4 w-4 mr-1" />
                           Request Changes
@@ -291,9 +352,11 @@ export default function PendingExpenseApprovals() {
             <DialogHeader>
               <DialogTitle>
                 {action === "approve" ? "Approve" : action === "reject" ? "Reject" : "Request Changes"}
+                {bulkAction && ` ${selectedIds.length} Request${selectedIds.length !== 1 ? 's' : ''}`}
               </DialogTitle>
               <DialogDescription>
-                {selectedRequest && `${selectedRequest.expense_categories.code} - ${formatAmount(selectedRequest.amount, selectedRequest.currency)}`}
+                {!bulkAction && selectedRequest && `${selectedRequest.expense_categories.code} - ${formatAmount(selectedRequest.amount, selectedRequest.currency)}`}
+                {bulkAction && `You are about to ${action} ${selectedIds.length} expense request${selectedIds.length !== 1 ? 's' : ''}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
