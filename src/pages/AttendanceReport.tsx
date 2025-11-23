@@ -18,6 +18,7 @@ interface AttendanceData {
   total_attendance: number;
   profile_count: number;
   contact_count: number;
+  born_again_count: number;
 }
 
 const AttendanceReport = () => {
@@ -91,14 +92,30 @@ const AttendanceReport = () => {
           .eq("status", "present");
 
         const profileCount = attendance?.filter(a => a.profile_id).length || 0;
-        const contactCount = attendance?.filter(a => a.contact_id).length || 0;
+        
+        // For contacts, we need to fetch their contact_type
+        const contactIds = attendance?.filter(a => a.contact_id).map(a => a.contact_id) || [];
+        
+        let visitorCount = 0;
+        let bornAgainCount = 0;
+        
+        if (contactIds.length > 0) {
+          const { data: contacts } = await supabase
+            .from("contacts")
+            .select("id, contact_type")
+            .in("id", contactIds);
+          
+          visitorCount = contacts?.filter(c => c.contact_type === 'visitor').length || 0;
+          bornAgainCount = contacts?.filter(c => c.contact_type === 'born_again').length || 0;
+        }
 
         return {
           service_name: service.name,
           service_date: service.service_date,
           total_attendance: service.total_attendance || 0,
           profile_count: profileCount,
-          contact_count: contactCount
+          contact_count: visitorCount,
+          born_again_count: bornAgainCount
         };
       });
 
@@ -125,7 +142,8 @@ const AttendanceReport = () => {
         "Date": format(new Date(r.service_date), "PPP"),
         "Total Attendance": r.total_attendance,
         "Members": r.profile_count,
-        "Visitors": r.contact_count
+        "Visitors": r.contact_count,
+        "Born Again": r.born_again_count
       }))
     );
 
@@ -231,7 +249,7 @@ const AttendanceReport = () => {
 
         {reportData.length > 0 && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-2xl font-bold">{reportData.length}</div>
@@ -250,6 +268,14 @@ const AttendanceReport = () => {
                   <p className="text-sm text-muted-foreground">Average Attendance</p>
                 </CardContent>
               </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">
+                    {reportData.reduce((sum, r) => sum + r.born_again_count, 0)}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Born Again</p>
+                </CardContent>
+              </Card>
             </div>
 
             <Card>
@@ -266,6 +292,7 @@ const AttendanceReport = () => {
                         <th className="text-right p-4">Total</th>
                         <th className="text-right p-4">Members</th>
                         <th className="text-right p-4">Visitors</th>
+                        <th className="text-right p-4">Born Again</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -276,6 +303,7 @@ const AttendanceReport = () => {
                           <td className="p-4 text-right">{row.total_attendance}</td>
                           <td className="p-4 text-right">{row.profile_count}</td>
                           <td className="p-4 text-right">{row.contact_count}</td>
+                          <td className="p-4 text-right">{row.born_again_count}</td>
                         </tr>
                       ))}
                     </tbody>
