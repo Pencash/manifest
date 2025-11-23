@@ -321,6 +321,8 @@ const AttendanceLog = () => {
       toast.success(
         newPersonData.status === "member" 
           ? `New member added with code: ${memberCode}` 
+          : newPersonData.status === "born_again"
+          ? "New convert added successfully - Born Again!"
           : "First-time visitor added successfully"
       );
     } catch (error: any) {
@@ -538,6 +540,7 @@ const AttendanceLog = () => {
                 <SelectContent>
                   <SelectItem value="visitor">First-time Visitor</SelectItem>
                   <SelectItem value="member">New Member</SelectItem>
+                  <SelectItem value="born_again">Born Again</SelectItem>
                 </SelectContent>
               </Select>
             </div>
