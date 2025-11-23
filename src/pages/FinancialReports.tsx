@@ -29,6 +29,9 @@ const FinancialReports = () => {
   const [selectedService, setSelectedService] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("all");
+  const [minAmount, setMinAmount] = useState<string>("");
+  const [maxAmount, setMaxAmount] = useState<string>("");
+  const [showAnonymous, setShowAnonymous] = useState<boolean>(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -107,7 +110,23 @@ const FinancialReports = () => {
       const { data: givingsData, error } = await query;
 
       if (error) throw error;
-      setGivings(givingsData || []);
+      
+      // Apply client-side filters for amount and anonymous
+      let filteredGivings = givingsData || [];
+      
+      if (minAmount) {
+        filteredGivings = filteredGivings.filter(g => Number(g.amount) >= Number(minAmount));
+      }
+      
+      if (maxAmount) {
+        filteredGivings = filteredGivings.filter(g => Number(g.amount) <= Number(maxAmount));
+      }
+      
+      if (!showAnonymous) {
+        filteredGivings = filteredGivings.filter(g => !g.is_anonymous);
+      }
+      
+      setGivings(filteredGivings);
     } catch (error: any) {
       console.error("Error loading financial data:", error);
       toast.error("Failed to load financial data");
@@ -338,6 +357,38 @@ const FinancialReports = () => {
                     <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>Min Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g., 1000"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label>Max Amount</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g., 50000"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  min="0"
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-6">
+                <input
+                  type="checkbox"
+                  id="show-anonymous"
+                  checked={showAnonymous}
+                  onChange={(e) => setShowAnonymous(e.target.checked)}
+                  className="h-4 w-4 rounded"
+                />
+                <Label htmlFor="show-anonymous" className="cursor-pointer text-sm">
+                  Show Anonymous
+                </Label>
               </div>
             </div>
             <Button onClick={loadFinancialData} className="mt-4">Apply Filters</Button>

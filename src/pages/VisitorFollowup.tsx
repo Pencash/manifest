@@ -11,11 +11,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ArrowLeft, UserPlus, CalendarIcon, Phone, Mail, CheckCircle, X } from "lucide-react";
+import { ArrowLeft, UserPlus, CalendarIcon, Phone, Mail, CheckCircle, X, UserCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { hasAdminAccess } from "../lib/roles";
+import { BulkActionBar } from "@/components/BulkActionBar";
 
 interface Contact {
   id: string;
@@ -34,6 +36,7 @@ interface Followup {
   scheduled_date: string | null;
   completed_date: string | null;
   notes: string | null;
+  assigned_to: string | null;
   contacts: Contact;
 }
 
@@ -50,6 +53,12 @@ const VisitorFollowup = () => {
     assigned_to: ""
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [assignedFilter, setAssignedFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAssignDialogOpen, setBulkAssignDialogOpen] = useState(false);
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkAssignTo, setBulkAssignTo] = useState<string>("");
+  const [bulkStatus, setBulkStatus] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -191,9 +200,77 @@ const VisitorFollowup = () => {
     }
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev =>
+      prev.length === filteredFollowups.length ? [] : filteredFollowups.map(f => f.id)
+    );
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignTo) {
+      toast.error("Please select a user to assign to");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("visitor_followups")
+        .update({ assigned_to: bulkAssignTo })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`Assigned ${selectedIds.length} follow-up(s) successfully`);
+      setBulkAssignDialogOpen(false);
+      setSelectedIds([]);
+      setBulkAssignTo("");
+      await loadData();
+    } catch (error: any) {
+      console.error("Error assigning follow-ups:", error);
+      toast.error("Failed to assign follow-ups");
+    }
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatus) {
+      toast.error("Please select a status");
+      return;
+    }
+
+    try {
+      const updates: any = { status: bulkStatus };
+      if (bulkStatus === "completed") {
+        updates.completed_date = new Date().toISOString().split('T')[0];
+      }
+
+      const { error } = await supabase
+        .from("visitor_followups")
+        .update(updates)
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`Updated ${selectedIds.length} follow-up(s) successfully`);
+      setBulkStatusDialogOpen(false);
+      setSelectedIds([]);
+      setBulkStatus("");
+      await loadData();
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "default",
+      in_progress: "default",
       completed: "secondary",
       cancelled: "destructive"
     };
@@ -201,9 +278,15 @@ const VisitorFollowup = () => {
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
-  const filteredFollowups = statusFilter === "all"
+  let filteredFollowups = statusFilter === "all"
     ? followups
     : followups.filter(f => f.status === statusFilter);
+
+  if (assignedFilter !== "all") {
+    filteredFollowups = filteredFollowups.filter(f =>
+      assignedFilter === "unassigned" ? !f.assigned_to : f.assigned_to === assignedFilter
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
