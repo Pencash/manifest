@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import LoadingFallback from "./components/LoadingFallback";
-import PageLoadingFallback from "./components/PageLoadingFallback";
 
 // Lazy load layouts
 const MemberLayout = lazy(() => import("./layouts/MemberLayout"));
@@ -65,33 +64,33 @@ const App = () => (
             <Route path="/member/auth" element={<MemberAuth />} />
             
             {/* Member Routes */}
-            <Route path="/dashboard" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><Dashboard /></Suspense></MemberLayout>} />
-            <Route path="/give" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><Give /></Suspense></MemberLayout>} />
-            <Route path="/history" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><History /></Suspense></MemberLayout>} />
-            <Route path="/testimony" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><Testimony /></Suspense></MemberLayout>} />
-            <Route path="/prayer" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><Prayer /></Suspense></MemberLayout>} />
-            <Route path="/mobilization" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><MemberMobilization /></Suspense></MemberLayout>} />
-            <Route path="/settings" element={<MemberLayout><Suspense fallback={<PageLoadingFallback />}><Settings /></Suspense></MemberLayout>} />
+            <Route path="/dashboard" element={<MemberLayout><Dashboard /></MemberLayout>} />
+            <Route path="/give" element={<MemberLayout><Give /></MemberLayout>} />
+            <Route path="/history" element={<MemberLayout><History /></MemberLayout>} />
+            <Route path="/testimony" element={<MemberLayout><Testimony /></MemberLayout>} />
+            <Route path="/prayer" element={<MemberLayout><Prayer /></MemberLayout>} />
+            <Route path="/mobilization" element={<MemberLayout><MemberMobilization /></MemberLayout>} />
+            <Route path="/settings" element={<MemberLayout><Settings /></MemberLayout>} />
             
             {/* Admin Routes */}
-            <Route path="/admin/dashboard" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AdminDashboard /></Suspense></AdminLayout>} />
-            <Route path="/admin/events" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><EventsManagement /></Suspense></AdminLayout>} />
-            <Route path="/admin/pending-services" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AdminPendingServices /></Suspense></AdminLayout>} />
-            <Route path="/admin/attendance/:serviceId" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AttendanceLog /></Suspense></AdminLayout>} />
-            <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><BulkAttendanceImport /></Suspense></AdminLayout>} />
-            <Route path="/admin/reports/attendance" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AttendanceReport /></Suspense></AdminLayout>} />
-            <Route path="/admin/reports/financial" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><FinancialReports /></Suspense></AdminLayout>} />
-            <Route path="/admin/givings" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AdminGivings /></Suspense></AdminLayout>} />
-            <Route path="/admin/expenses/request" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><ExpenseRequest /></Suspense></AdminLayout>} />
-            <Route path="/admin/expenses/all" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AdminExpenseRequests /></Suspense></AdminLayout>} />
-            <Route path="/admin/expenses/categories" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><ExpenseCategories /></Suspense></AdminLayout>} />
-            <Route path="/admin/expenses/pending" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><PendingExpenseApprovals /></Suspense></AdminLayout>} />
-            <Route path="/admin/reminders" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><EventReminders /></Suspense></AdminLayout>} />
-            <Route path="/admin/visitor-followup" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><VisitorFollowup /></Suspense></AdminLayout>} />
-            <Route path="/admin/users" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><UserManagement /></Suspense></AdminLayout>} />
-            <Route path="/admin/mobilization" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><MobilizationReport /></Suspense></AdminLayout>} />
-            <Route path="/admin/conversions" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><ConversionDashboard /></Suspense></AdminLayout>} />
-            <Route path="/admin/audit-logs" element={<AdminLayout><Suspense fallback={<PageLoadingFallback />}><AuditLogs /></Suspense></AdminLayout>} />
+            <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+            <Route path="/admin/events" element={<AdminLayout><EventsManagement /></AdminLayout>} />
+            <Route path="/admin/pending-services" element={<AdminLayout><AdminPendingServices /></AdminLayout>} />
+            <Route path="/admin/attendance/:serviceId" element={<AdminLayout><AttendanceLog /></AdminLayout>} />
+            <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><BulkAttendanceImport /></AdminLayout>} />
+            <Route path="/admin/reports/attendance" element={<AdminLayout><AttendanceReport /></AdminLayout>} />
+            <Route path="/admin/reports/financial" element={<AdminLayout><FinancialReports /></AdminLayout>} />
+            <Route path="/admin/givings" element={<AdminLayout><AdminGivings /></AdminLayout>} />
+            <Route path="/admin/expenses/request" element={<AdminLayout><ExpenseRequest /></AdminLayout>} />
+            <Route path="/admin/expenses/all" element={<AdminLayout><AdminExpenseRequests /></AdminLayout>} />
+            <Route path="/admin/expenses/categories" element={<AdminLayout><ExpenseCategories /></AdminLayout>} />
+            <Route path="/admin/expenses/pending" element={<AdminLayout><PendingExpenseApprovals /></AdminLayout>} />
+            <Route path="/admin/reminders" element={<AdminLayout><EventReminders /></AdminLayout>} />
+            <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
+            <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
+            <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
+            <Route path="/admin/conversions" element={<AdminLayout><ConversionDashboard /></AdminLayout>} />
+            <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
