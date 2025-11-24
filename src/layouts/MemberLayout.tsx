@@ -12,7 +12,7 @@ interface MemberLayoutProps {
   children: ReactNode;
 }
 
-export const MemberLayout = ({ children }: MemberLayoutProps) => {
+const MemberLayout = ({ children }: MemberLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const navigate = useNavigate();
@@ -104,3 +104,5 @@ export const MemberLayout = ({ children }: MemberLayoutProps) => {
     </div>
   );
 };
+
+export default MemberLayout;
