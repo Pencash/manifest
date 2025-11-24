@@ -12,7 +12,7 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-export const AdminLayout = ({ children }: AdminLayoutProps) => {
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const navigate = useNavigate();
@@ -94,3 +94,5 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     </SidebarProvider>
   );
 };
+
+export default AdminLayout;
