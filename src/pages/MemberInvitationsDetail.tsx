@@ -115,7 +115,7 @@ const MemberInvitationsDetail = () => {
     ) as string[];
 
     // Fetch service details
-    let servicesMap = new Map<string, { name: string; date: string }>();
+    const servicesMap = new Map<string, { name: string; date: string }>();
     if (serviceIds.length > 0) {
       const { data: servicesData } = await supabase
         .from("services")

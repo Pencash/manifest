@@ -57,6 +57,8 @@ const AttendanceReport = () => {
     const today = new Date();
     let start = new Date();
     
+    const quarter = Math.floor(today.getMonth() / 3);
+
     switch (range) {
       case "7days":
         start.setDate(today.getDate() - 7);
@@ -68,11 +70,12 @@ const AttendanceReport = () => {
         start = new Date(today.getFullYear(), today.getMonth(), 1);
         break;
       case "quarter":
-        const quarter = Math.floor(today.getMonth() / 3);
         start = new Date(today.getFullYear(), quarter * 3, 1);
         break;
       case "year":
         start = new Date(today.getFullYear(), 0, 1);
+        break;
+      default:
         break;
     }
     
@@ -176,6 +179,12 @@ const AttendanceReport = () => {
       }
 
       processedData.sort((a, b) => {
+        const conversionSort = () => {
+          const bRate = b.total_attendance > 0 ? (b.born_again_count / b.total_attendance) * 100 : 0;
+          const aRate = a.total_attendance > 0 ? (a.born_again_count / a.total_attendance) * 100 : 0;
+          return bRate - aRate;
+        };
+
         switch (sortBy) {
           case "date_asc":
             return new Date(a.service_date).getTime() - new Date(b.service_date).getTime();
@@ -186,9 +195,7 @@ const AttendanceReport = () => {
           case "attendance_low":
             return a.total_attendance - b.total_attendance;
           case "conversion_high":
-            const bRate = b.total_attendance > 0 ? (b.born_again_count / b.total_attendance) * 100 : 0;
-            const aRate = a.total_attendance > 0 ? (a.born_again_count / a.total_attendance) * 100 : 0;
-            return bRate - aRate;
+            return conversionSort();
           default:
             return 0;
         }

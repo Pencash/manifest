@@ -12,11 +12,11 @@ const Landing = () => {
         <ThemeToggle />
       </div>
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+        <div className="text-center mb-16 max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-tight">
             Manifest Malawi
           </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground mb-8">
+          <p className="text-lg sm:text-xl text-muted-foreground mb-8 text-balance">
             A secure and transparent way to give, share testimonies, and connect with your church
           </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import LoadingFallback from "./components/LoadingFallback";
 import SupabaseEnvAlert from "./components/SupabaseEnvAlert";
 import { getMissingSupabaseEnvVars } from "./lib/env";
+import { PageMetadataManager } from "./components/PageMetadataManager";
 
 // Lazy load layouts
 const MemberLayout = lazy(() => import("./layouts/MemberLayout"));
@@ -66,6 +67,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <PageMetadataManager />
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/" element={<Landing />} />
