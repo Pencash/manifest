@@ -5,6 +5,17 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const missingEnvVars = [
+  SUPABASE_URL ? null : "VITE_SUPABASE_URL",
+  SUPABASE_PUBLISHABLE_KEY ? null : "VITE_SUPABASE_PUBLISHABLE_KEY",
+].filter(Boolean);
+
+if (missingEnvVars.length) {
+  const message = `Missing Supabase environment variables: ${missingEnvVars.join(", ")}. Please add them to your .env file.`;
+  console.error(message);
+  throw new Error(message);
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
