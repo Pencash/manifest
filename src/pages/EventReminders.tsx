@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { ArrowLeft, Bell, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 interface Service {
   id: string;

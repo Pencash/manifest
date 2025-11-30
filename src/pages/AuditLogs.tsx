@@ -10,7 +10,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Database } from "@/integrations/supabase/types";
 import { ArrowLeft, Shield } from "lucide-react";
 import { format } from "date-fns";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 

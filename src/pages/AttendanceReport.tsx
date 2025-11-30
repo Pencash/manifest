@@ -12,7 +12,7 @@ import { ArrowLeft, Download, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 interface AttendanceData {
   service_name: string;

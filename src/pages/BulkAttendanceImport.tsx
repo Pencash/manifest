@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 import { useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 

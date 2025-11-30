@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { ArrowLeft, UserPlus, CalendarIcon, Phone, Mail, CheckCircle, X, UserCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 import { BulkActionBar } from "@/components/BulkActionBar";
 
 interface Contact {

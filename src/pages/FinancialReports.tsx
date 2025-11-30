@@ -13,7 +13,7 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Download, DollarSign, TrendingUp, FileText, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatAmount } from "@/lib/utils";
 

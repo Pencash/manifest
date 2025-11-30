@@ -14,7 +14,7 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus, Upload } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
