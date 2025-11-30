@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Shield } from "lucide-react";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),

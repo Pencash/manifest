@@ -11,7 +11,7 @@ import { User } from "@supabase/supabase-js";
 import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAmount } from "@/lib/utils";

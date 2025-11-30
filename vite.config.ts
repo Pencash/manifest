@@ -28,14 +28,10 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Vendor chunks - only split external dependencies
+manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            // React ecosystem - must be in same chunk to avoid multiple instances
-            if (id.includes('/node_modules/react/') || 
-                id.includes('/react-dom/') || 
-                id.includes('/react-router') ||
-                id.includes('/scheduler/')) {
+            // React ecosystem - simplified matching for cross-platform compatibility
+            if (id.includes('react') || id.includes('scheduler')) {
               return 'vendor-react';
             }
             if (id.includes('@radix-ui')) {
@@ -57,7 +53,6 @@ export default defineConfig(({ mode }) => ({
               return 'vendor-date';
             }
           }
-          // Let Vite handle page chunks automatically via lazy loading
           return undefined;
         },
       },

@@ -17,7 +17,7 @@ import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users } from "lucide-react"
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
