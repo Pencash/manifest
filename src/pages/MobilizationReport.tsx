@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ArrowLeft, Download, Users, Award, Search, ExternalLink } from "lucide-react";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "../lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
 import { format } from "date-fns";
 
 interface MemberStats {
