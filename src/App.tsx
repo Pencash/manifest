@@ -42,6 +42,7 @@ const AdminExpenseRequests = lazy(() => import("./pages/AdminExpenseRequests"));
 const PendingExpenseApprovals = lazy(() => import("./pages/PendingExpenseApprovals"));
 const AdminGivings = lazy(() => import("./pages/AdminGivings"));
 const MobilizationReport = lazy(() => import("./pages/MobilizationReport"));
+const MemberInvitationsDetail = lazy(() => import("./pages/MemberInvitationsDetail"));
 const ConversionDashboard = lazy(() => import("./pages/ConversionDashboard"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 
@@ -89,6 +90,7 @@ const App = () => (
             <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
             <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
             <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
+            <Route path="/admin/mobilization/member/:memberId" element={<AdminLayout><MemberInvitationsDetail /></AdminLayout>} />
             <Route path="/admin/conversions" element={<AdminLayout><ConversionDashboard /></AdminLayout>} />
             <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
             

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Download, TrendingUp, Users, Target, Award, Search } from "lucide-react";
+import { ArrowLeft, Download, Users, Award, Search, ExternalLink } from "lucide-react";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "../lib/roles";
+import { format } from "date-fns";
 
 interface MemberStats {
   member_id: string;
@@ -23,9 +24,23 @@ interface MemberStats {
   conversion_rate: number;
 }
 
+interface DetailedInvitation {
+  service_name: string;
+  service_date: string;
+  mobiliser_name: string;
+  invitee_name: string;
+  invitee_phone: string;
+  invitee_email: string | null;
+  status: string;
+  invited_at: string | null;
+  confirmed_at: string | null;
+  attended_at: string | null;
+}
+
 const MobilizationReport = () => {
   const navigate = useNavigate();
   const [memberStats, setMemberStats] = useState<MemberStats[]>([]);
+  const [detailedInvitations, setDetailedInvitations] = useState<DetailedInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [conversionFilter, setConversionFilter] = useState("all");
@@ -41,7 +56,6 @@ const MobilizationReport = () => {
       return;
     }
 
-    // Load ALL roles for this user (NOT single)
     const { data: rolesData, error: rolesError } = await supabase
       .from("user_roles")
       .select("role")
@@ -59,17 +73,16 @@ const MobilizationReport = () => {
       return;
     }
 
-    // Role verified - load data
     loadMobilizationData();
   };
 
   const loadMobilizationData = async () => {
     setLoading(true);
 
-    // Step 1: Get all invitations (no join to profiles)
+    // Step 1: Get all invitations with service info
     const { data: invitations, error } = await supabase
       .from("member_invitations")
-      .select("id, member_id, status");
+      .select("id, member_id, invitee_name, invitee_phone, invitee_email, status, target_service_id, invited_at, confirmed_at, attended_at");
 
     if (error) {
       console.error("Error loading invitations:", error);
@@ -80,35 +93,66 @@ const MobilizationReport = () => {
 
     if (!invitations || invitations.length === 0) {
       setMemberStats([]);
+      setDetailedInvitations([]);
       setLoading(false);
       return;
     }
 
-    // Step 2: Collect unique member IDs
+    // Step 2: Collect unique member IDs and service IDs
     const memberIds = Array.from(
       new Set(invitations.map((inv) => inv.member_id).filter(Boolean))
     ) as string[];
 
-    // Step 3: Fetch profiles for those member IDs
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", memberIds);
+    const serviceIds = Array.from(
+      new Set(invitations.map((inv) => inv.target_service_id).filter(Boolean))
+    ) as string[];
 
-    if (profilesError) {
-      console.error("Error loading profiles:", profilesError);
+    // Step 3: Fetch profiles and services
+    const [profilesRes, servicesRes] = await Promise.all([
+      supabase.from("profiles").select("id, full_name").in("id", memberIds),
+      serviceIds.length > 0 
+        ? supabase.from("services").select("id, name, service_date").in("id", serviceIds)
+        : Promise.resolve({ data: [] })
+    ]);
+
+    if (profilesRes.error) {
+      console.error("Error loading profiles:", profilesRes.error);
       toast.error("Failed to load mobilization data");
       setLoading(false);
       return;
     }
 
-    // Step 4: Create profile map
+    // Step 4: Create maps
     const profileMap = new Map<string, string>();
-    profiles?.forEach((p) => {
+    profilesRes.data?.forEach((p) => {
       profileMap.set(p.id, p.full_name ?? "Unknown");
     });
 
-    // Step 5: Group by member and calculate stats
+    const serviceMap = new Map<string, { name: string; date: string }>();
+    servicesRes.data?.forEach((s: any) => {
+      serviceMap.set(s.id, { name: s.name, date: s.service_date });
+    });
+
+    // Step 5: Build detailed invitations for export
+    const detailed: DetailedInvitation[] = invitations.map((inv: any) => {
+      const service = inv.target_service_id ? serviceMap.get(inv.target_service_id) : null;
+      return {
+        service_name: service?.name || "Not specified",
+        service_date: service?.date || "",
+        mobiliser_name: profileMap.get(inv.member_id) ?? "Unknown",
+        invitee_name: inv.invitee_name,
+        invitee_phone: inv.invitee_phone,
+        invitee_email: inv.invitee_email,
+        status: inv.status,
+        invited_at: inv.invited_at,
+        confirmed_at: inv.confirmed_at,
+        attended_at: inv.attended_at,
+      };
+    });
+
+    setDetailedInvitations(detailed);
+
+    // Step 6: Group by member and calculate stats
     const statsMap = new Map<string, MemberStats>();
 
     invitations.forEach((inv: any) => {
@@ -149,7 +193,7 @@ const MobilizationReport = () => {
       }
     });
 
-    // Step 6: Calculate conversion rates and sort
+    // Step 7: Calculate conversion rates and sort
     const statsArray = Array.from(statsMap.values()).map((stat) => ({
       ...stat,
       conversion_rate:
@@ -164,26 +208,102 @@ const MobilizationReport = () => {
     setLoading(false);
   };
 
-  const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      memberStats.map(stat => ({
-        "Member": stat.member_name,
-        "Total Invitations": stat.total_invitations,
-        "Pending": stat.pending,
-        "Invited": stat.invited,
-        "Confirmed": stat.confirmed,
-        "Attended": stat.attended,
-        "Conversion Rate": `${stat.conversion_rate}%`,
-      }))
-    );
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    try {
+      return format(new Date(dateString), "dd MMM yyyy");
+    } catch {
+      return "-";
+    }
+  };
 
+  const formatStatus = (status: string) => {
+    return status.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const exportToExcel = () => {
+    // Create Summary Sheet
+    const summaryData = memberStats.map(stat => ({
+      "Member": stat.member_name,
+      "Total Invitations": stat.total_invitations,
+      "Pending": stat.pending,
+      "Invited": stat.invited,
+      "Confirmed": stat.confirmed,
+      "Attended": stat.attended,
+      "Success Rate": `${stat.conversion_rate}%`,
+    }));
+
+    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+
+    // Create Details Sheet - Group by service like the uploaded format
+    const serviceGroups = new Map<string, DetailedInvitation[]>();
+    detailedInvitations.forEach(inv => {
+      const key = inv.service_name;
+      if (!serviceGroups.has(key)) {
+        serviceGroups.set(key, []);
+      }
+      serviceGroups.get(key)!.push(inv);
+    });
+
+    // Build details data with service headers
+    const detailsRows: any[] = [];
+    serviceGroups.forEach((invs, serviceName) => {
+      // Add service header row
+      detailsRows.push({
+        "Event/Service": serviceName,
+        "Mobiliser": "",
+        "Invitee Name": "",
+        "Contact": "",
+        "Email": "",
+        "Status": "",
+        "Invited Date": "",
+        "Confirmed Date": "",
+        "Attended Date": ""
+      });
+      
+      // Add column headers
+      detailsRows.push({
+        "Event/Service": "",
+        "Mobiliser": "MOBILISER",
+        "Invitee Name": "INVITEE NAME",
+        "Contact": "CONTACT",
+        "Email": "EMAIL",
+        "Status": "STATUS",
+        "Invited Date": "INVITED DATE",
+        "Confirmed Date": "CONFIRMED DATE",
+        "Attended Date": "ATTENDED DATE"
+      });
+
+      // Add invitation rows
+      invs.forEach(inv => {
+        detailsRows.push({
+          "Event/Service": "",
+          "Mobiliser": inv.mobiliser_name,
+          "Invitee Name": inv.invitee_name,
+          "Contact": inv.invitee_phone,
+          "Email": inv.invitee_email || "-",
+          "Status": formatStatus(inv.status),
+          "Invited Date": formatDate(inv.invited_at),
+          "Confirmed Date": formatDate(inv.confirmed_at),
+          "Attended Date": formatDate(inv.attended_at)
+        });
+      });
+
+      // Add empty row between services
+      detailsRows.push({});
+    });
+
+    const detailsSheet = XLSX.utils.json_to_sheet(detailsRows);
+
+    // Create workbook with both sheets
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Mobilization Report");
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, detailsSheet, "Details");
+    
     XLSX.writeFile(workbook, `mobilization-report-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success("Report exported successfully!");
   };
 
-  // Filter member stats based on search and conversion filter
   const filteredStats = memberStats.filter((stat) => {
     const matchesSearch = stat.member_name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesConversion =
@@ -281,9 +401,10 @@ const MobilizationReport = () => {
             <CardContent>
               <div className="space-y-3">
                 {memberStats.slice(0, 3).map((stat, index) => (
-                  <div
+                  <Link
                     key={stat.member_id}
-                    className={`p-4 rounded-lg flex items-center gap-4 ${
+                    to={`/admin/mobilization/member/${stat.member_id}`}
+                    className={`p-4 rounded-lg flex items-center gap-4 transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer ${
                       index === 0
                         ? "bg-gradient-to-r from-yellow-500/20 to-yellow-500/5"
                         : index === 1
@@ -295,7 +416,10 @@ const MobilizationReport = () => {
                       {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold">{stat.member_name}</p>
+                      <p className="font-semibold flex items-center gap-2">
+                        {stat.member_name}
+                        <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         {stat.attended} attended · {stat.confirmed} confirmed · {stat.conversion_rate}% success rate
                       </p>
@@ -303,7 +427,7 @@ const MobilizationReport = () => {
                     <Badge variant="outline" className="text-lg">
                       {stat.attended}
                     </Badge>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </CardContent>
@@ -314,7 +438,7 @@ const MobilizationReport = () => {
         <Card>
           <CardHeader>
             <CardTitle>Member Performance Report</CardTitle>
-            <CardDescription>Detailed breakdown of all member mobilization activities</CardDescription>
+            <CardDescription>Click on a member name to view their detailed invitations</CardDescription>
           </CardHeader>
           <CardContent>
             {/* Filters */}
@@ -363,8 +487,16 @@ const MobilizationReport = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredStats.map((stat) => (
-                      <TableRow key={stat.member_id}>
-                        <TableCell className="font-medium">{stat.member_name}</TableCell>
+                      <TableRow key={stat.member_id} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell>
+                          <Link 
+                            to={`/admin/mobilization/member/${stat.member_id}`}
+                            className="font-medium text-primary hover:underline flex items-center gap-1"
+                          >
+                            {stat.member_name}
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </TableCell>
                         <TableCell className="text-center">{stat.total_invitations}</TableCell>
                         <TableCell className="text-center">{stat.pending}</TableCell>
                         <TableCell className="text-center">{stat.invited}</TableCell>
