@@ -28,50 +28,33 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-tooltip',
-          ],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          
-          // Feature chunks
-          'feature-charts': ['recharts'],
-          'feature-excel': ['xlsx'],
-          'feature-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          'feature-date': ['date-fns', 'react-day-picker'],
-          
-          // Admin pages chunk
-          'admin-pages': [
-            './src/pages/AdminDashboard',
-            './src/pages/EventsManagement',
-            './src/pages/UserManagement',
-            './src/pages/AuditLogs',
-          ],
-          
-          // Member pages chunk
-          'member-pages': [
-            './src/pages/Dashboard',
-            './src/pages/Give',
-            './src/pages/History',
-            './src/pages/Testimony',
-            './src/pages/Prayer',
-          ],
-          
-          // Reports chunk (heavy pages)
-          'reports': [
-            './src/pages/FinancialReports',
-            './src/pages/AttendanceReport',
-            './src/pages/ConversionDashboard',
-            './src/pages/MobilizationReport',
-          ],
+        manualChunks: (id) => {
+          // Vendor chunks - only split external dependencies
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('xlsx')) {
+              return 'vendor-excel';
+            }
+            if (id.includes('date-fns') || id.includes('react-day-picker')) {
+              return 'vendor-date';
+            }
+          }
+          // Let Vite handle page chunks automatically via lazy loading
+          return undefined;
         },
       },
     },
