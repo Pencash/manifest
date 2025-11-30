@@ -31,7 +31,11 @@ export default defineConfig(({ mode }) => ({
         manualChunks: (id) => {
           // Vendor chunks - only split external dependencies
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('react-router')) {
+            // React ecosystem - must be in same chunk to avoid multiple instances
+            if (id.includes('/node_modules/react/') || 
+                id.includes('/react-dom/') || 
+                id.includes('/react-router') ||
+                id.includes('/scheduler/')) {
               return 'vendor-react';
             }
             if (id.includes('@radix-ui')) {
