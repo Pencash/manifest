@@ -43,9 +43,7 @@ manualChunks: (id) => {
             if (id.includes('@supabase')) {
               return 'vendor-supabase';
             }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
+            // recharts removed from manual chunks to prevent module initialization order issues
             if (id.includes('xlsx')) {
               return 'vendor-excel';
             }
