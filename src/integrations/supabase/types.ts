@@ -559,7 +559,7 @@ export type Database = {
           invited_at: string | null
           invitee_email: string | null
           invitee_name: string
-          invitee_phone: string
+          invitee_phone: string | null
           member_id: string
           notes: string | null
           status: string
@@ -575,7 +575,7 @@ export type Database = {
           invited_at?: string | null
           invitee_email?: string | null
           invitee_name: string
-          invitee_phone: string
+          invitee_phone?: string | null
           member_id: string
           notes?: string | null
           status?: string
@@ -591,7 +591,7 @@ export type Database = {
           invited_at?: string | null
           invitee_email?: string | null
           invitee_name?: string
-          invitee_phone?: string
+          invitee_phone?: string | null
           member_id?: string
           notes?: string | null
           status?: string

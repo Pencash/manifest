@@ -146,6 +146,7 @@ const MemberInvitationsDetail = () => {
       invited: { label: "Invited", className: "bg-blue-500/10 text-blue-700 dark:text-blue-300" },
       confirmed: { label: "Confirmed", className: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
       attended: { label: "Attended", className: "bg-green-500/10 text-green-700 dark:text-green-300" },
+      declined: { label: "Declined", className: "bg-red-500/10 text-red-700 dark:text-red-300" },
     };
 
     const config = statusConfig[status] || { label: status, className: "bg-gray-500/10 text-gray-700" };
@@ -198,6 +199,7 @@ const MemberInvitationsDetail = () => {
     invited: invitations.filter(i => i.status === "invited").length,
     confirmed: invitations.filter(i => i.status === "confirmed").length,
     attended: invitations.filter(i => i.status === "attended").length,
+    declined: invitations.filter(i => i.status === "declined").length,
   };
 
   if (loading) {
@@ -248,11 +250,11 @@ const MemberInvitationsDetail = () => {
         </Card>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10">
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-              <div className="text-sm text-muted-foreground">Total Invitations</div>
+              <div className="text-sm text-muted-foreground">Total</div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-gray-500/10 to-slate-500/10">
@@ -277,6 +279,12 @@ const MemberInvitationsDetail = () => {
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">{stats.attended}</div>
               <div className="text-sm text-muted-foreground">Attended</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-red-500/10 to-rose-500/10">
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-foreground">{stats.declined}</div>
+              <div className="text-sm text-muted-foreground">Declined</div>
             </CardContent>
           </Card>
         </div>
@@ -312,6 +320,7 @@ const MemberInvitationsDetail = () => {
                   <SelectItem value="invited">Invited</SelectItem>
                   <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="attended">Attended</SelectItem>
+                  <SelectItem value="declined">Declined</SelectItem>
                 </SelectContent>
               </Select>
               {services.length > 0 && (

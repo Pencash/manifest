@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,16 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Phone, MessageCircle, Check, UserPlus, Calendar, TrendingUp, Mail } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Check, UserPlus, Calendar, Mail, Trash2, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { BulkActionBar } from "@/components/BulkActionBar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Invitation {
   id: string;
   invitee_name: string;
-  invitee_phone: string;
+  invitee_phone: string | null;
   invitee_email?: string;
   status: string;
   invitation_method?: string;
@@ -38,8 +40,13 @@ const MemberMobilization = () => {
   const navigate = useNavigate();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [servicesLoaded, setServicesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     invitee_name: "",
     invitee_phone: "",
@@ -51,6 +58,7 @@ const MemberMobilization = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<string>("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => {
@@ -65,52 +73,121 @@ const MemberMobilization = () => {
     }
   };
 
+  const loadServices = useCallback(async () => {
+    if (servicesLoaded) return;
+    
+    const { data } = await supabase
+      .from("services")
+      .select("*")
+      .eq("is_published", true)
+      .gte("service_date", new Date().toISOString().split('T')[0])
+      .order("service_date", { ascending: true })
+      .limit(20);
+    
+    if (data) {
+      setServices(data);
+      setServicesLoaded(true);
+    }
+  }, [servicesLoaded]);
+
+  const loadInvitations = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("member_invitations")
+      .select("*, services(name, service_date)")
+      .eq("member_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (data) setInvitations(data);
+  };
+
   const loadData = async () => {
     setLoading(true);
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [invitationsRes, servicesRes] = await Promise.all([
-      supabase
-        .from("member_invitations")
-        .select("*, services(name, service_date)")
-        .eq("member_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("services")
-        .select("*")
-        .eq("is_published", true)
-        .gte("service_date", new Date().toISOString().split('T')[0])
-        .order("service_date", { ascending: true})
-        .limit(20)
-    ]);
-
-    if (invitationsRes.data) setInvitations(invitationsRes.data);
-    if (servicesRes.data) setServices(servicesRes.data);
+    await Promise.all([loadInvitations(), loadServices()]);
     setLoading(false);
+  };
+
+  const checkDuplicateInvitation = async (name: string, serviceId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data } = await supabase
+      .from("member_invitations")
+      .select("id")
+      .eq("member_id", user.id)
+      .eq("invitee_name", name)
+      .eq("target_service_id", serviceId)
+      .limit(1);
+
+    return data && data.length > 0;
   };
 
   const handleAddInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.invitee_name || !formData.invitee_phone) {
-      toast.error("Name and phone are required");
+    if (isSubmitting) return; // Guard against double submission
+    
+    // Validation: Name and target service are required
+    if (!formData.invitee_name.trim()) {
+      toast.error("Name is required");
       return;
     }
+    
+    if (!formData.target_service_id) {
+      toast.error("Please select a target service/event");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check for duplicate
+      const isDuplicate = await checkDuplicateInvitation(
+        formData.invitee_name.trim(), 
+        formData.target_service_id
+      );
+      
+      if (isDuplicate) {
+        toast.warning("You've already invited someone with this name to this event", {
+          description: "Are you sure you want to add another invitation?",
+          action: {
+            label: "Add anyway",
+            onClick: async () => {
+              await insertInvitation(user.id);
+            }
+          }
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      await insertInvitation(user.id);
+    } catch (error: any) {
+      console.error("Error adding invitation:", error);
+      toast.error("Failed to add invitation");
+      setIsSubmitting(false);
+    }
+  };
+
+  const insertInvitation = async (userId: string) => {
+    try {
       const { error } = await supabase.from("member_invitations").insert({
-        member_id: user.id,
-        invitee_name: formData.invitee_name,
-        invitee_phone: formData.invitee_phone,
-        invitee_email: formData.invitee_email || null,
-        target_service_id: formData.target_service_id || null,
+        member_id: userId,
+        invitee_name: formData.invitee_name.trim(),
+        invitee_phone: formData.invitee_phone.trim() || null,
+        invitee_email: formData.invitee_email.trim() || null,
+        target_service_id: formData.target_service_id,
         invitation_method: formData.invitation_method || null,
-        notes: formData.notes || null,
+        notes: formData.notes.trim() || null,
         status: "pending_invite"
       });
 
@@ -126,16 +203,29 @@ const MemberMobilization = () => {
         invitation_method: "",
         notes: "",
       });
-      loadData();
+      await loadInvitations();
     } catch (error: any) {
-      console.error("Error adding invitation:", error);
+      console.error("Error inserting invitation:", error);
       toast.error("Failed to add invitation");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
+    if (updatingStatusId) return; // Prevent double clicks
+    
+    setUpdatingStatusId(id);
+    
+    // Optimistic update
+    const previousInvitations = [...invitations];
+    setInvitations(prev => 
+      prev.map(inv => inv.id === id ? { ...inv, status } : inv)
+    );
+
     try {
       const updates: any = { status };
+      if (status === "invited") updates.invited_at = new Date().toISOString();
       if (status === "confirmed") updates.confirmed_at = new Date().toISOString();
       if (status === "attended") updates.attended_at = new Date().toISOString();
 
@@ -146,11 +236,64 @@ const MemberMobilization = () => {
 
       if (error) throw error;
 
-      toast.success("Status updated successfully");
-      loadData();
+      toast.success("Status updated");
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
+      // Revert optimistic update
+      setInvitations(previousInvitations);
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const handleDeleteInvitation = async () => {
+    if (!deleteConfirmId || isDeleting) return;
+    
+    setIsDeleting(true);
+    const invitationToDelete = invitations.find(i => i.id === deleteConfirmId);
+    
+    // Optimistic update
+    setInvitations(prev => prev.filter(i => i.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
+
+    try {
+      const { error } = await supabase
+        .from("member_invitations")
+        .delete()
+        .eq("id", deleteConfirmId);
+
+      if (error) throw error;
+
+      toast.success("Invitation deleted", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            if (invitationToDelete) {
+              // Re-insert the deleted invitation
+              await supabase.from("member_invitations").insert({
+                id: invitationToDelete.id,
+                member_id: (await supabase.auth.getUser()).data.user?.id,
+                invitee_name: invitationToDelete.invitee_name,
+                invitee_phone: invitationToDelete.invitee_phone,
+                invitee_email: invitationToDelete.invitee_email,
+                target_service_id: invitationToDelete.target_service_id,
+                invitation_method: invitationToDelete.invitation_method,
+                notes: invitationToDelete.notes,
+                status: invitationToDelete.status,
+              });
+              await loadInvitations();
+              toast.success("Invitation restored");
+            }
+          }
+        }
+      });
+    } catch (error: any) {
+      console.error("Error deleting invitation:", error);
+      toast.error("Failed to delete invitation");
+      await loadInvitations(); // Reload to restore state
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -168,16 +311,18 @@ const MemberMobilization = () => {
   };
 
   const handleBulkStatusUpdate = async () => {
-    if (!bulkStatus) {
-      toast.error("Please select a status");
+    if (!bulkStatus || isBulkUpdating) {
+      if (!bulkStatus) toast.error("Please select a status");
       return;
     }
 
+    setIsBulkUpdating(true);
+
     try {
       const updates: any = { status: bulkStatus };
+      if (bulkStatus === "invited") updates.invited_at = new Date().toISOString();
       if (bulkStatus === "confirmed") updates.confirmed_at = new Date().toISOString();
       if (bulkStatus === "attended") updates.attended_at = new Date().toISOString();
-      if (bulkStatus === "invited") updates.invited_at = new Date().toISOString();
 
       const { error } = await supabase
         .from("member_invitations")
@@ -186,14 +331,41 @@ const MemberMobilization = () => {
 
       if (error) throw error;
 
-      toast.success(`Updated ${selectedIds.length} invitation(s) successfully`);
+      toast.success(`Updated ${selectedIds.length} invitation(s)`);
       setBulkStatusDialogOpen(false);
       setSelectedIds([]);
       setBulkStatus("");
-      await loadData();
+      await loadInvitations();
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0 || isBulkUpdating) return;
+    
+    setIsBulkUpdating(true);
+    const count = selectedIds.length;
+
+    try {
+      const { error } = await supabase
+        .from("member_invitations")
+        .delete()
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`Deleted ${count} invitation(s)`);
+      setSelectedIds([]);
+      await loadInvitations();
+    } catch (error: any) {
+      console.error("Error deleting invitations:", error);
+      toast.error("Failed to delete invitations");
+    } finally {
+      setIsBulkUpdating(false);
     }
   };
 
@@ -226,7 +398,42 @@ const MemberMobilization = () => {
     invited: invitations.filter(i => i.status === "invited").length,
     confirmed: invitations.filter(i => i.status === "confirmed").length,
     attended: invitations.filter(i => i.status === "attended").length,
+    declined: invitations.filter(i => i.status === "declined").length,
   };
+
+  const LoadingSkeleton = () => (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="border rounded-lg p-4">
+          <div className="flex items-start gap-4">
+            <Skeleton className="h-5 w-5 rounded" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-40" />
+              <div className="flex gap-2 mt-3">
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const EmptyState = () => (
+    <div className="text-center py-12">
+      <UserPlus className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+      <h3 className="text-lg font-semibold mb-2">No invitations yet</h3>
+      <p className="text-muted-foreground mb-4">
+        Start tracking people you've invited to church services
+      </p>
+      <Button onClick={() => setDialogOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add Your First Invitation
+      </Button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -241,7 +448,7 @@ const MemberMobilization = () => {
         </Button>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{stats.total}</div>
@@ -270,6 +477,12 @@ const MemberMobilization = () => {
             <CardContent className="pt-6">
               <div className="text-2xl font-bold text-green-600">{stats.attended}</div>
               <p className="text-xs text-muted-foreground">Attended</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-red-600">{stats.declined}</div>
+              <p className="text-xs text-muted-foreground">Declined</p>
             </CardContent>
           </Card>
         </div>
@@ -320,32 +533,60 @@ const MemberMobilization = () => {
                   onClick: () => setBulkStatusDialogOpen(true),
                   variant: "default",
                 },
+                {
+                  label: "Delete Selected",
+                  icon: Trash2,
+                  onClick: handleBulkDelete,
+                  variant: "destructive",
+                },
               ]}
             />
 
             <div className="space-y-4">
               {loading ? (
-                <p className="text-center text-muted-foreground py-8">Loading...</p>
+                <LoadingSkeleton />
+              ) : invitations.length === 0 ? (
+                <EmptyState />
               ) : filteredInvitations.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No invitations yet</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No invitations match the selected filter
+                </p>
               ) : (
                 filteredInvitations.map((invitation) => (
-                  <div key={invitation.id} className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
+                  <div 
+                    key={invitation.id} 
+                    className={`border rounded-lg p-4 hover:bg-accent/50 transition-colors ${
+                      updatingStatusId === invitation.id ? 'opacity-70' : ''
+                    }`}
+                  >
                     <div className="flex items-start gap-4">
                       <Checkbox
                         checked={selectedIds.includes(invitation.id)}
                         onCheckedChange={() => toggleSelection(invitation.id)}
+                        disabled={updatingStatusId === invitation.id}
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-semibold">{invitation.invitee_name}</h3>
-                          {getStatusBadge(invitation.status)}
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(invitation.status)}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteConfirmId(invitation.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-3 w-3" />
-                            {invitation.invitee_phone}
-                          </div>
+                          {invitation.invitee_phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3 w-3" />
+                              {invitation.invitee_phone}
+                            </div>
+                          )}
                           {invitation.invitee_email && (
                             <div className="flex items-center gap-2">
                               <Mail className="h-3 w-3" />
@@ -364,19 +605,64 @@ const MemberMobilization = () => {
                         </div>
                         <div className="flex gap-2 mt-3 flex-wrap">
                           {invitation.status === "pending_invite" && (
-                            <Button size="sm" onClick={() => handleUpdateStatus(invitation.id, "invited")}>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleUpdateStatus(invitation.id, "invited")}
+                              disabled={updatingStatusId === invitation.id}
+                            >
+                              {updatingStatusId === invitation.id ? (
+                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              ) : null}
                               Mark as Invited
                             </Button>
                           )}
                           {invitation.status === "invited" && (
-                            <Button size="sm" onClick={() => handleUpdateStatus(invitation.id, "confirmed")}>
-                              Mark as Confirmed
-                            </Button>
+                            <>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleUpdateStatus(invitation.id, "confirmed")}
+                                disabled={updatingStatusId === invitation.id}
+                              >
+                                {updatingStatusId === invitation.id ? (
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                ) : null}
+                                Mark as Confirmed
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950"
+                                onClick={() => handleUpdateStatus(invitation.id, "declined")}
+                                disabled={updatingStatusId === invitation.id}
+                              >
+                                <X className="mr-1 h-3 w-3" />
+                                Declined
+                              </Button>
+                            </>
                           )}
                           {invitation.status === "confirmed" && (
-                            <Button size="sm" onClick={() => handleUpdateStatus(invitation.id, "attended")}>
-                              Mark as Attended
-                            </Button>
+                            <>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleUpdateStatus(invitation.id, "attended")}
+                                disabled={updatingStatusId === invitation.id}
+                              >
+                                {updatingStatusId === invitation.id ? (
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                ) : null}
+                                Mark as Attended
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950"
+                                onClick={() => handleUpdateStatus(invitation.id, "declined")}
+                                disabled={updatingStatusId === invitation.id}
+                              >
+                                <X className="mr-1 h-3 w-3" />
+                                Declined
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -389,7 +675,9 @@ const MemberMobilization = () => {
         </Card>
 
         {/* Add Invitation Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (!isSubmitting) setDialogOpen(open);
+        }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Add New Invitation</DialogTitle>
@@ -405,30 +693,17 @@ const MemberMobilization = () => {
                   onChange={(e) => setFormData({ ...formData, invitee_name: e.target.value })}
                   placeholder="Full name"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
-                <Label>Phone *</Label>
-                <Input
-                  value={formData.invitee_phone}
-                  onChange={(e) => setFormData({ ...formData, invitee_phone: e.target.value })}
-                  placeholder="+265..."
-                  required
-                />
-              </div>
-              <div>
-                <Label>Email (Optional)</Label>
-                <Input
-                  type="email"
-                  value={formData.invitee_email}
-                  onChange={(e) => setFormData({ ...formData, invitee_email: e.target.value })}
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div>
-                <Label>Target Service (Optional)</Label>
-                <Select value={formData.target_service_id} onValueChange={(val) => setFormData({ ...formData, target_service_id: val })}>
-                  <SelectTrigger>
+                <Label>Target Service/Event *</Label>
+                <Select 
+                  value={formData.target_service_id} 
+                  onValueChange={(val) => setFormData({ ...formData, target_service_id: val })}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger className={!formData.target_service_id ? "text-muted-foreground" : ""}>
                     <SelectValue placeholder="Select a service" />
                   </SelectTrigger>
                   <SelectContent>
@@ -439,10 +714,34 @@ const MemberMobilization = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">Required - select the event they're invited to</p>
+              </div>
+              <div>
+                <Label>Phone (Optional)</Label>
+                <Input
+                  value={formData.invitee_phone}
+                  onChange={(e) => setFormData({ ...formData, invitee_phone: e.target.value })}
+                  placeholder="+265..."
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <Label>Email (Optional)</Label>
+                <Input
+                  type="email"
+                  value={formData.invitee_email}
+                  onChange={(e) => setFormData({ ...formData, invitee_email: e.target.value })}
+                  placeholder="email@example.com"
+                  disabled={isSubmitting}
+                />
               </div>
               <div>
                 <Label>Invitation Method</Label>
-                <Select value={formData.invitation_method} onValueChange={(val) => setFormData({ ...formData, invitation_method: val })}>
+                <Select 
+                  value={formData.invitation_method} 
+                  onValueChange={(val) => setFormData({ ...formData, invitation_method: val })}
+                  disabled={isSubmitting}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="How did you invite them?" />
                   </SelectTrigger>
@@ -462,20 +761,37 @@ const MemberMobilization = () => {
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Any additional notes..."
                   rows={3}
+                  disabled={isSubmitting}
                 />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setDialogOpen(false)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </Button>
-                <Button type="submit">Add Invitation</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Invitation"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
         {/* Bulk Status Update Dialog */}
-        <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+        <Dialog open={bulkStatusDialogOpen} onOpenChange={(open) => {
+          if (!isBulkUpdating) setBulkStatusDialogOpen(open);
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Update Status for {selectedIds.length} Invitation(s)</DialogTitle>
@@ -486,7 +802,7 @@ const MemberMobilization = () => {
             <div className="space-y-4 py-4">
               <div>
                 <Label>New Status</Label>
-                <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <Select value={bulkStatus} onValueChange={setBulkStatus} disabled={isBulkUpdating}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -501,15 +817,51 @@ const MemberMobilization = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)} disabled={isBulkUpdating}>
                 Cancel
               </Button>
-              <Button onClick={handleBulkStatusUpdate} disabled={!bulkStatus}>
-                Update Status
+              <Button onClick={handleBulkStatusUpdate} disabled={!bulkStatus || isBulkUpdating}>
+                {isBulkUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Status"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Invitation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this invitation? This action can be undone briefly after deletion.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteInvitation}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
