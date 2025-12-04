@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -50,23 +51,41 @@ const EventsManagement = () => {
   const [user, setUser] = useState<User | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all"); // all, upcoming, past, archived
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
+  
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    name: "",
-    service_type: "other",
+    customName: "", // For "Other" type
+    service_type: "sunday_service",
     service_date: new Date(),
     start_time: "",
     location: "",
     description: "",
   });
+
+  // Auto-generate event name from service type and date
+  const getServiceTypeLabel = (type: string) => 
+    serviceTypes.find(st => st.value === type)?.label || 'Event';
+
+  const generateEventName = (type: string, date: Date, customName?: string) => {
+    if (type === 'other' && customName?.trim()) {
+      return `${customName.trim()} - ${format(date, 'MMMM do, yyyy')}`;
+    }
+    return `${getServiceTypeLabel(type)} - ${format(date, 'MMMM do, yyyy')}`;
+  };
 
   useEffect(() => {
     checkUser();
@@ -92,7 +111,6 @@ const EventsManagement = () => {
       
       setUser(session.user);
 
-      // Load ALL roles for this user (NOT single)
       const { data: rolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("role")
@@ -110,7 +128,6 @@ const EventsManagement = () => {
         return;
       }
 
-      // Role verified - load services
       setLoading(true);
       loadServices().finally(() => setLoading(false));
     } catch (error: any) {
@@ -124,7 +141,7 @@ const EventsManagement = () => {
       const { data, error } = await supabase
         .from("services")
         .select("*")
-        .eq("is_archived", false) // Only load non-archived by default
+        .eq("is_archived", false)
         .order('service_date', { ascending: false });
 
       if (error) throw error;
@@ -138,11 +155,24 @@ const EventsManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation for "Other" type requiring custom name
+    if (formData.service_type === 'other' && !formData.customName.trim()) {
+      toast.error("Please enter a custom event name for 'Other' type");
+      return;
+    }
+    
     try {
-      setLoading(true);
+      setIsSubmitting(true);
+
+      // Auto-generate event name
+      const generatedName = generateEventName(
+        formData.service_type, 
+        formData.service_date,
+        formData.customName
+      );
 
       const serviceData = {
-        name: formData.name,
+        name: generatedName,
         service_type: formData.service_type as "gic" | "ltc" | "men_gather" | "mgp" | "nop" | "other" | "sunday_service" | "thursday_livestream" | "tuesday_fellowship",
         service_date: format(formData.service_date, 'yyyy-MM-dd'),
         start_time: formData.start_time || null,
@@ -159,9 +189,14 @@ const EventsManagement = () => {
         if (error) throw error;
         toast.success("Event updated successfully!");
       } else {
+        // Add created_by and approval_status for new events
         const { error } = await supabase
           .from("services")
-          .insert(serviceData);
+          .insert({
+            ...serviceData,
+            created_by: user?.id,
+            approval_status: 'approved',
+          });
 
         if (error) throw error;
         toast.success("Event created successfully!");
@@ -173,16 +208,28 @@ const EventsManagement = () => {
       await loadServices();
     } catch (error: any) {
       console.error("Error saving service:", error);
-      toast.error("Failed to save event");
+      toast.error(error.message || "Failed to save event");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (service: Service) => {
     setEditingService(service);
+    
+    // Extract custom name from existing name for "Other" type
+    const isOther = service.service_type === 'other';
+    let customName = "";
+    if (isOther) {
+      // Try to extract the custom name part before the date
+      const parts = service.name.split(' - ');
+      if (parts.length > 1) {
+        customName = parts[0];
+      }
+    }
+    
     setFormData({
-      name: service.name,
+      customName,
       service_type: service.service_type,
       service_date: new Date(service.service_date),
       start_time: service.start_time || "",
@@ -192,30 +239,38 @@ const EventsManagement = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (serviceId: string) => {
-    if (!confirm("Are you sure you want to delete this event? This will also delete all associated attendance records.")) {
-      return;
-    }
+  const confirmDelete = (serviceId: string) => {
+    setDeletingServiceId(serviceId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingServiceId) return;
 
     try {
+      setIsDeleting(true);
       const { error } = await supabase
         .from("services")
         .delete()
-        .eq('id', serviceId);
+        .eq('id', deletingServiceId);
 
       if (error) throw error;
       toast.success("Event deleted successfully!");
       await loadServices();
     } catch (error: any) {
       console.error("Error deleting service:", error);
-      toast.error("Failed to delete event");
+      toast.error(error.message || "Failed to delete event");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeletingServiceId(null);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      name: "",
-      service_type: "other",
+      customName: "",
+      service_type: "sunday_service",
       service_date: new Date(),
       start_time: "",
       location: "",
@@ -304,10 +359,8 @@ const EventsManagement = () => {
   };
 
   const filteredServices = services.filter(s => {
-    // Filter by service type
     if (filterType !== 'all' && s.service_type !== filterType) return false;
     
-    // Filter by status
     if (statusFilter === 'upcoming') return getEventStatus(s.service_date) === 'upcoming';
     if (statusFilter === 'past') return getEventStatus(s.service_date) === 'past';
     if (statusFilter === 'today') return getEventStatus(s.service_date) === 'today';
@@ -318,7 +371,7 @@ const EventsManagement = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -354,7 +407,6 @@ const EventsManagement = () => {
 
         {/* Compact Filter Bar */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-card border rounded-lg p-4">
-          {/* Status Filter */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-medium text-muted-foreground">Status:</span>
             <div className="flex gap-1">
@@ -393,10 +445,8 @@ const EventsManagement = () => {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="hidden sm:block h-8 w-[0.1rem] bg-border" />
 
-          {/* Service Type Filter - Dropdown Select */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
             <Select value={filterType} onValueChange={setFilterType}>
@@ -419,7 +469,6 @@ const EventsManagement = () => {
             </Select>
           </div>
 
-          {/* Results Count */}
           <div className="text-sm text-muted-foreground flex-shrink-0">
             {filteredServices.length} event{filteredServices.length !== 1 ? 's' : ''}
           </div>
@@ -491,9 +540,14 @@ const EventsManagement = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(service.id)}
+                        onClick={() => confirmDelete(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
                       >
-                        <Trash className="h-4 w-4" />
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash className="h-4 w-4" />
+                        )}
                       </Button>
                     </>
                   ) : (
@@ -521,9 +575,14 @@ const EventsManagement = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(service.id)}
+                        onClick={() => confirmDelete(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
                       >
-                        <Trash className="h-4 w-4" />
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash className="h-4 w-4" />
+                        )}
                       </Button>
                     </>
                   )}
@@ -543,6 +602,7 @@ const EventsManagement = () => {
         )}
       </div>
 
+      {/* Create/Edit Event Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -550,22 +610,11 @@ const EventsManagement = () => {
               {editingService ? 'Edit Event' : 'Create New Event'}
             </DialogTitle>
             <DialogDescription>
-              Add event details including date, time, and location
+              Select service type and date - name will be auto-generated
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Event Name *</Label>
-              <Input
-                id="name"
-                placeholder="e.g., Sunday Service - Week 1"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="service_type">Service Type *</Label>
               <Select
@@ -584,6 +633,31 @@ const EventsManagement = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Custom name field for "Other" type */}
+            {formData.service_type === 'other' && (
+              <div className="space-y-2">
+                <Label htmlFor="customName">Custom Event Name *</Label>
+                <Input
+                  id="customName"
+                  placeholder="e.g., Youth Conference, Workshop"
+                  value={formData.customName}
+                  onChange={(e) => setFormData({ ...formData, customName: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  This will be combined with the date: "{formData.customName || 'Event'} - {format(formData.service_date, 'MMMM do, yyyy')}"
+                </p>
+              </div>
+            )}
+
+            {/* Preview generated name */}
+            {formData.service_type !== 'other' && (
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">Event name (auto-generated):</p>
+                <p className="font-medium">{generateEventName(formData.service_type, formData.service_date)}</p>
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -654,11 +728,21 @@ const EventsManagement = () => {
                   setEditingService(null);
                   resetForm();
                 }}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Saving..." : editingService ? "Update Event" : "Create Event"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : editingService ? (
+                  "Update Event"
+                ) : (
+                  "Create Event"
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -711,6 +795,35 @@ const EventsManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this event? This will also remove all associated attendance records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Event"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
