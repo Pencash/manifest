@@ -60,7 +60,8 @@ const MemberMobilization = () => {
   const [bulkStatus, setBulkStatus] = useState<string>("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
+  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [myServices, setMyServices] = useState<{id: string; name: string; date: string}[]>([]);
   useEffect(() => {
     checkAuth();
     loadData();
@@ -100,7 +101,26 @@ const MemberMobilization = () => {
       .eq("member_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (data) setInvitations(data);
+    if (data) {
+      setInvitations(data);
+      
+      // Extract unique services from invitations for filter dropdown
+      const serviceMap = new Map<string, {id: string; name: string; date: string}>();
+      data.forEach((inv: any) => {
+        if (inv.target_service_id && inv.services) {
+          serviceMap.set(inv.target_service_id, {
+            id: inv.target_service_id,
+            name: inv.services.name,
+            date: inv.services.service_date
+          });
+        }
+      });
+      // Sort by date descending
+      const sortedServices = Array.from(serviceMap.values()).sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      setMyServices(sortedServices);
+    }
   };
 
   const loadData = async () => {
@@ -386,20 +406,40 @@ const MemberMobilization = () => {
   };
 
   const getFilteredInvitations = () => {
-    if (statusFilter === "all") return invitations;
-    return invitations.filter(inv => inv.status === statusFilter);
+    let filtered = invitations;
+    if (eventFilter !== "all") {
+      filtered = filtered.filter(inv => inv.target_service_id === eventFilter);
+    }
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(inv => inv.status === statusFilter);
+    }
+    return filtered;
   };
 
   const filteredInvitations = getFilteredInvitations();
 
+  // Stats based on event filter (not status filter)
+  const statsBase = eventFilter === "all" 
+    ? invitations 
+    : invitations.filter(inv => inv.target_service_id === eventFilter);
+
   const stats = {
-    total: invitations.length,
-    pending: invitations.filter(i => i.status === "pending_invite").length,
-    invited: invitations.filter(i => i.status === "invited").length,
-    confirmed: invitations.filter(i => i.status === "confirmed").length,
-    attended: invitations.filter(i => i.status === "attended").length,
-    declined: invitations.filter(i => i.status === "declined").length,
+    total: statsBase.length,
+    pending: statsBase.filter(i => i.status === "pending_invite").length,
+    invited: statsBase.filter(i => i.status === "invited").length,
+    confirmed: statsBase.filter(i => i.status === "confirmed").length,
+    attended: statsBase.filter(i => i.status === "attended").length,
+    declined: statsBase.filter(i => i.status === "declined").length,
+    conversionRate: statsBase.length > 0 
+      ? Math.round((statsBase.filter(i => i.status === "attended").length / statsBase.length) * 100)
+      : 0,
   };
+
+  // Get selected event name for display
+  const selectedEventName = eventFilter !== "all" 
+    ? myServices.find(s => s.id === eventFilter)?.name 
+    : null;
+
 
   const LoadingSkeleton = () => (
     <div className="space-y-4">
@@ -447,8 +487,17 @@ const MemberMobilization = () => {
           Back to Dashboard
         </Button>
 
+        {/* Event Filter Header */}
+        {selectedEventName && (
+          <div className="mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <p className="text-sm font-medium">
+              Showing stats for: <span className="text-primary">{selectedEventName}</span>
+            </p>
+          </div>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
               <div className="text-2xl font-bold">{stats.total}</div>
@@ -485,6 +534,12 @@ const MemberMobilization = () => {
               <p className="text-xs text-muted-foreground">Declined</p>
             </CardContent>
           </Card>
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-primary">{stats.conversionRate}%</div>
+              <p className="text-xs text-muted-foreground">Conversion Rate</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Card>
@@ -506,7 +561,20 @@ const MemberMobilization = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="mb-4">
+            <div className="flex flex-wrap gap-4 mb-4">
+              <Select value={eventFilter} onValueChange={setEventFilter}>
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue placeholder="Filter by Event" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  {myServices.map((service) => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name} ({format(new Date(service.date), "MMM d, yyyy")})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue />
