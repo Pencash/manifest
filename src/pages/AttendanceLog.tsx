@@ -184,11 +184,20 @@ const AttendanceLog = () => {
             status: isPresent ? 'present' : 'absent'
           });
         } else if (isPresent) {
-          // Insert new record only if present
+      // Insert new record only if present - include snapshot data for resilience
+          const member = members.find(m => m.id === profileId);
           inserts.push({
             profile_id: profileId,
             service_id: serviceId,
-            status: 'present'
+            status: 'present',
+            snapshot_event_name: service?.name || null,
+            snapshot_event_date: service?.service_date || null,
+            snapshot_event_venue: service?.location || null,
+            snapshot_event_type: service?.service_type || null,
+            snapshot_person_name: member?.full_name || null,
+            snapshot_person_email: member?.email || null,
+            snapshot_person_phone: member?.phone || null,
+            created_by: user?.id || null,
           });
         }
       }
@@ -293,14 +302,22 @@ const AttendanceLog = () => {
 
       if (contactError) throw contactError;
 
-      // Add to attendance as contact
+      // Add to attendance as contact with snapshot data
       if (serviceId) {
         const { error: attendanceError } = await supabase
           .from("attendance")
           .insert({
             contact_id: newContact.id,
             service_id: serviceId,
-            status: 'present'
+            status: 'present',
+            snapshot_event_name: service?.name || null,
+            snapshot_event_date: service?.service_date || null,
+            snapshot_event_venue: service?.location || null,
+            snapshot_event_type: service?.service_type || null,
+            snapshot_person_name: newPersonData.full_name,
+            snapshot_person_email: newPersonData.email,
+            snapshot_person_phone: newPersonData.phone || null,
+            created_by: user?.id || null,
           });
 
         if (attendanceError) throw attendanceError;

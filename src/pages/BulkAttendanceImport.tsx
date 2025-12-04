@@ -105,13 +105,17 @@ const BulkAttendanceImport = () => {
                 .single();
 
               if (existingProfile) {
-                // Add attendance for existing profile
+                // Add attendance for existing profile with snapshot data
                 const { error } = await supabase
                   .from("attendance")
                   .insert({
                     profile_id: existingProfile.id,
                     service_id: serviceId,
-                    status: row.status || 'present'
+                    status: row.status || 'present',
+                    snapshot_person_name: row.full_name,
+                    snapshot_person_email: row.email,
+                    snapshot_person_phone: row.phone || null,
+                    created_by: user?.id || null,
                   });
 
                 if (!error) successCount++;
@@ -125,13 +129,17 @@ const BulkAttendanceImport = () => {
                   .single();
 
                 if (existingContact) {
-                  // Add attendance for existing contact
+                  // Add attendance for existing contact with snapshot data
                   const { error } = await supabase
                     .from("attendance")
                     .insert({
                       contact_id: existingContact.id,
                       service_id: serviceId,
-                      status: row.status || 'present'
+                      status: row.status || 'present',
+                      snapshot_person_name: row.full_name,
+                      snapshot_person_email: row.email,
+                      snapshot_person_phone: row.phone || null,
+                      created_by: user?.id || null,
                     });
 
                   if (!error) successCount++;
@@ -162,7 +170,11 @@ const BulkAttendanceImport = () => {
                     .insert({
                       contact_id: newContact.id,
                       service_id: serviceId,
-                      status: row.status || 'present'
+                      status: row.status || 'present',
+                      snapshot_person_name: row.full_name,
+                      snapshot_person_email: row.email,
+                      snapshot_person_phone: row.phone || null,
+                      created_by: user?.id || null,
                     });
 
                   if (!attendanceError) successCount++;
