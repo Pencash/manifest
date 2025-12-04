@@ -1,0 +1,125 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface Profile {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  member_code: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  profile: Profile | null;
+  role: AppRole | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [role, setRole] = useState<AppRole | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUserData = async (userId: string) => {
+    // Fetch profile and role in parallel
+    const [profileResult, roleResult] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+    ]);
+
+    if (profileResult.data) {
+      setProfile(profileResult.data);
+    }
+
+    if (roleResult.data) {
+      setRole(roleResult.data.role);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchUserData(user.id);
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setRole(null);
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        // Defer data fetching to avoid deadlock
+        if (newSession?.user) {
+          setTimeout(() => {
+            fetchUserData(newSession.user.id).finally(() => setLoading(false));
+          }, 0);
+        } else {
+          setProfile(null);
+          setRole(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+
+      if (existingSession?.user) {
+        fetchUserData(existingSession.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        role,
+        loading,
+        signOut,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
