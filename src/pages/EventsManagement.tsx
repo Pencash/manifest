@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +60,7 @@ const EventsManagement = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showArchived, setShowArchived] = useState(false);
   const [archivedServices, setArchivedServices] = useState<Service[]>([]);
+  const [mobilizationCounts, setMobilizationCounts] = useState<Map<string, number>>(new Map());
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
@@ -133,7 +134,7 @@ const EventsManagement = () => {
       }
 
       setLoading(true);
-      loadServices().finally(() => setLoading(false));
+      Promise.all([loadServices(), loadMobilizationCounts()]).finally(() => setLoading(false));
     } catch (error: any) {
       console.error("Error:", error);
       toast.error("Failed to load profile");
@@ -170,6 +171,27 @@ const EventsManagement = () => {
     } catch (error: any) {
       console.error("Error loading archived services:", error);
       toast.error("Failed to load archived services");
+    }
+  };
+
+  const loadMobilizationCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("member_invitations")
+        .select("target_service_id");
+
+      if (error) throw error;
+
+      // Count invitations per service
+      const counts = new Map<string, number>();
+      data?.forEach(inv => {
+        if (inv.target_service_id) {
+          counts.set(inv.target_service_id, (counts.get(inv.target_service_id) || 0) + 1);
+        }
+      });
+      setMobilizationCounts(counts);
+    } catch (error: any) {
+      console.error("Error loading mobilization counts:", error);
     }
   };
 
@@ -577,10 +599,21 @@ const EventsManagement = () => {
                       </p>
                     )}
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Users className="h-4 w-4" />
-                        <span className="font-semibold">{service.total_attendance}</span>
-                        <span className="text-muted-foreground">attendees</span>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <span className="font-semibold">{service.total_attendance}</span>
+                          <span className="text-muted-foreground">attendees</span>
+                        </div>
+                        {(getEventStatus(service.service_date) === 'upcoming' || getEventStatus(service.service_date) === 'today') && (
+                          <Link 
+                            to={`/admin/mobilization/service/${service.id}`}
+                            className="flex items-center gap-1.5 text-primary hover:underline"
+                          >
+                            <Users className="h-4 w-4" />
+                            <span className="font-semibold">Mobilized {mobilizationCounts.get(service.id) || 0}</span>
+                          </Link>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
