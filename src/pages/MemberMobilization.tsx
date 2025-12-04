@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Phone, Check, UserPlus, Calendar, Mail, Trash2, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Phone, Check, UserPlus, Calendar, Mail, Trash2, X, Loader2, MapPin, Clock, Target } from "lucide-react";
 import { format } from "date-fns";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,6 +62,8 @@ const MemberMobilization = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [myServices, setMyServices] = useState<{id: string; name: string; date: string}[]>([]);
+  const [invitationsPerService, setInvitationsPerService] = useState<Map<string, { total: number; confirmed: number; attended: number }>>(new Map());
+
   useEffect(() => {
     checkAuth();
     loadData();
@@ -106,6 +108,9 @@ const MemberMobilization = () => {
       
       // Extract unique services from invitations for filter dropdown
       const serviceMap = new Map<string, {id: string; name: string; date: string}>();
+      // Calculate invitations per service
+      const perServiceStats = new Map<string, { total: number; confirmed: number; attended: number }>();
+      
       data.forEach((inv: any) => {
         if (inv.target_service_id && inv.services) {
           serviceMap.set(inv.target_service_id, {
@@ -113,8 +118,18 @@ const MemberMobilization = () => {
             name: inv.services.name,
             date: inv.services.service_date
           });
+          
+          // Update per-service stats
+          const current = perServiceStats.get(inv.target_service_id) || { total: 0, confirmed: 0, attended: 0 };
+          current.total++;
+          if (inv.status === 'confirmed') current.confirmed++;
+          if (inv.status === 'attended') current.attended++;
+          perServiceStats.set(inv.target_service_id, current);
         }
       });
+      
+      setInvitationsPerService(perServiceStats);
+      
       // Sort by date descending
       const sortedServices = Array.from(serviceMap.values()).sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -440,6 +455,27 @@ const MemberMobilization = () => {
     ? myServices.find(s => s.id === eventFilter)?.name 
     : null;
 
+  const openInvitationDialog = (preSelectedServiceId?: string) => {
+    if (preSelectedServiceId) {
+      setFormData(prev => ({ ...prev, target_service_id: preSelectedServiceId }));
+    }
+    setDialogOpen(true);
+  };
+
+  const getServiceTypeBadge = (serviceType: string | null) => {
+    const typeLabels: Record<string, string> = {
+      sunday_service: "Sunday Service",
+      tuesday_fellowship: "Tuesday Fellowship",
+      thursday_livestream: "Thursday Livestream",
+      ltc: "LTC",
+      gic: "GIC",
+      nop: "Night of Prayer",
+      men_gather: "Men Gather",
+      mgp: "MGP",
+      other: "Special Event"
+    };
+    return typeLabels[serviceType || 'other'] || "Event";
+  };
 
   const LoadingSkeleton = () => (
     <div className="space-y-4">
@@ -468,7 +504,7 @@ const MemberMobilization = () => {
       <p className="text-muted-foreground mb-4">
         Start tracking people you've invited to church services
       </p>
-      <Button onClick={() => setDialogOpen(true)}>
+      <Button onClick={() => openInvitationDialog()}>
         <Plus className="mr-2 h-4 w-4" />
         Add Your First Invitation
       </Button>
@@ -486,6 +522,98 @@ const MemberMobilization = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
+
+        {/* Upcoming Events Section */}
+        {services.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Upcoming Events
+              </CardTitle>
+              <CardDescription>
+                Choose an event to invite people to
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.slice(0, 6).map((service) => {
+                  const serviceStats = invitationsPerService.get(service.id) || { total: 0, confirmed: 0, attended: 0 };
+                  const isUpcoming = new Date(service.service_date) > new Date();
+                  const isSoon = new Date(service.service_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+                  
+                  return (
+                    <div 
+                      key={service.id}
+                      className={`relative border rounded-lg p-4 transition-all hover:shadow-md ${
+                        isSoon ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'
+                      }`}
+                    >
+                      {isSoon && (
+                        <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs">
+                          Soon
+                        </Badge>
+                      )}
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="font-semibold text-base line-clamp-1">{service.name}</h3>
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            {getServiceTypeBadge(service.service_type)}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-1.5 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{format(new Date(service.service_date), "EEE, MMM d, yyyy")}</span>
+                          </div>
+                          {service.start_time && (
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>{service.start_time}</span>
+                            </div>
+                          )}
+                          {service.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span className="line-clamp-1">{service.location}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex items-center gap-1 text-sm">
+                            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="font-medium">{serviceStats.total}</span>
+                            <span className="text-muted-foreground">invited</span>
+                            {serviceStats.confirmed > 0 && (
+                              <span className="text-green-600 ml-1">({serviceStats.confirmed} confirmed)</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          className="w-full" 
+                          size="sm"
+                          onClick={() => openInvitationDialog(service.id)}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Invite Here
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {services.length > 6 && (
+                <p className="text-center text-sm text-muted-foreground mt-4">
+                  Showing 6 of {services.length} upcoming events
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Event Filter Header */}
         {selectedEventName && (
@@ -554,7 +682,7 @@ const MemberMobilization = () => {
                   Track people you've invited to church services
                 </CardDescription>
               </div>
-              <Button onClick={() => setDialogOpen(true)}>
+              <Button onClick={() => openInvitationDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Invitation
               </Button>
