@@ -1,69 +1,35 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { User } from "@supabase/supabase-js";
 import { hasAdminAccess } from "@/lib/roles";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { user, role, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
+    if (loading) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/admin/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    if (!user) {
       navigate("/admin/auth");
       return;
     }
 
-    setUser(session.user);
-
-    // Load profile
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
-
-    setProfile(profileData);
-
-    // Check admin access
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id);
-
-    const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
-
-    if (!hasAdminAccess(mainRole)) {
+    if (!hasAdminAccess(role)) {
       toast.error("Access denied. Admin privileges required.");
       navigate("/dashboard");
     }
-  };
+  }, [user, role, loading, navigate]);
 
-  if (!user) {
+  if (loading || !user) {
     return null;
   }
 
