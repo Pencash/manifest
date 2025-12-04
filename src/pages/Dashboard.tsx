@@ -1,90 +1,24 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { User } from "@supabase/supabase-js";
-import { HandHeart, MessageSquare, History as HistoryIcon, LogOut, DollarSign, Receipt, FileText, Users } from "lucide-react";
+import { HandHeart, MessageSquare, History as HistoryIcon, LogOut } from "lucide-react";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    checkUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/member/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const checkUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        navigate("/member/auth");
-        return;
-      }
-      
-      setUser(session.user);
-      
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-
-      if (error) throw error;
-      
-      // Check user role from user_roles table
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
-      
-      // Redirect admin/finance users to their dashboard
-      if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
-        navigate("/admin/dashboard");
-        return;
-      }
-      
-      setProfile(profileData);
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      toast.error("Failed to load profile");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRefresh = async () => {
-    await checkUser();
+    await refreshProfile();
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast.success("Signed out successfully");
     navigate("/");
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
