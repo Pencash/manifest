@@ -62,7 +62,7 @@ export const useMobilizationReminder = (userId: string | null) => {
                 duration: 8000,
                 action: {
                   label: "View",
-                  onClick: () => window.location.href = "/dashboard/mobilization"
+                  onClick: () => window.location.href = "/mobilization"
                 }
               }
             );
@@ -73,7 +73,7 @@ export const useMobilizationReminder = (userId: string | null) => {
                 duration: 8000,
                 action: {
                   label: "View",
-                  onClick: () => window.location.href = "/dashboard/mobilization"
+                  onClick: () => window.location.href = "/mobilization"
                 }
               }
             );
