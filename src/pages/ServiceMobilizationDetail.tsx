@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Search, Download, Users, CalendarIcon, MapPin, Clock, UserCheck, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Download, Users, CalendarIcon, MapPin, Clock, UserCheck, Send, CheckCircle, XCircle, Loader2, Target } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { hasAdminAccess } from "@/lib/roles";
 import * as XLSX from "xlsx";
@@ -42,6 +43,11 @@ interface MemberProfile {
   full_name: string;
 }
 
+interface MobilizationTarget {
+  target_invitations: number;
+  target_confirmations: number;
+}
+
 const serviceTypes: { [key: string]: string } = {
   'tuesday_fellowship': 'Tuesday Fellowship',
   'thursday_livestream': 'Thursday Livestream',
@@ -64,6 +70,7 @@ const ServiceMobilizationDetail = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [mobilizerFilter, setMobilizerFilter] = useState("all");
   const [mobilizers, setMobilizers] = useState<MemberProfile[]>([]);
+  const [target, setTarget] = useState<MobilizationTarget | null>(null);
 
   useEffect(() => {
     checkAuthAndLoad();
@@ -123,6 +130,17 @@ const ServiceMobilizationDetail = () => {
     }
 
     setService(serviceData);
+
+    // Load mobilization target
+    const { data: targetData } = await supabase
+      .from("mobilization_targets")
+      .select("target_invitations, target_confirmations")
+      .eq("service_id", serviceId)
+      .maybeSingle();
+
+    if (targetData) {
+      setTarget(targetData);
+    }
 
     // Load invitations for this service
     const { data: invitationsData, error: invitationsError } = await supabase
@@ -271,13 +289,72 @@ const ServiceMobilizationDetail = () => {
                   )}
                 </CardDescription>
               </div>
-              <Button onClick={exportToExcel} variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export to Excel
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => {
+                    const pendingCount = stats.pending + stats.invited;
+                    if (pendingCount === 0) {
+                      toast.info("No pending invitations to remind");
+                    } else {
+                      toast.success(
+                        `${pendingCount} mobilizer${pendingCount > 1 ? "s" : ""} with pending invitations will see a reminder when they log in`,
+                        { duration: 5000 }
+                      );
+                    }
+                  }} 
+                  variant="outline"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Notify Pending
+                </Button>
+                <Button onClick={exportToExcel} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </div>
             </div>
           </CardHeader>
         </Card>
+
+        {/* Target Progress */}
+        {target && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Mobilization Target Progress</span>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Invitations</span>
+                    <span className="font-medium">{stats.total} / {target.target_invitations}</span>
+                  </div>
+                  <Progress 
+                    value={Math.min((stats.total / target.target_invitations) * 100, 100)} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round((stats.total / target.target_invitations) * 100)}% of target
+                  </p>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Confirmations</span>
+                    <span className="font-medium">{stats.confirmed + stats.attended} / {target.target_confirmations}</span>
+                  </div>
+                  <Progress 
+                    value={Math.min(((stats.confirmed + stats.attended) / target.target_confirmations) * 100, 100)} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round(((stats.confirmed + stats.attended) / target.target_confirmations) * 100)}% of target
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
