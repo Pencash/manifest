@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,37 +16,34 @@ import { ArrowLeft, Plus, Phone, Check, UserPlus, Calendar, Mail, Trash2, X, Loa
 import { format } from "date-fns";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Invitation {
-  id: string;
-  invitee_name: string;
-  invitee_phone: string | null;
-  invitee_email?: string;
-  status: string;
-  invitation_method?: string;
-  notes?: string;
-  invited_at?: string;
-  confirmed_at?: string;
-  attended_at?: string;
-  created_at: string;
-  target_service_id?: string;
-  services?: {
-    name: string;
-    service_date: string;
-  };
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  useUpcomingServices, 
+  useInvitations, 
+  useAddInvitation, 
+  useUpdateInvitationStatus, 
+  useDeleteInvitation,
+  useBulkUpdateStatus,
+  useBulkDelete
+} from "@/hooks/useMobilizationData";
 
 const MemberMobilization = () => {
   const navigate = useNavigate();
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [servicesLoaded, setServicesLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  
+  // React Query hooks
+  const { data: services = [], isLoading: servicesLoading } = useUpcomingServices();
+  const { data: invitations = [], isLoading: invitationsLoading } = useInvitations(user?.id);
+  const addInvitationMutation = useAddInvitation();
+  const updateStatusMutation = useUpdateInvitationStatus();
+  const deleteInvitationMutation = useDeleteInvitation();
+  const bulkUpdateMutation = useBulkUpdateStatus();
+  const bulkDeleteMutation = useBulkDelete();
+  
+  const loading = servicesLoading || invitationsLoading;
+
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     invitee_name: "",
     invitee_phone: "",
@@ -58,100 +55,40 @@ const MemberMobilization = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<string>("");
-  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [eventFilter, setEventFilter] = useState<string>("all");
-  const [myServices, setMyServices] = useState<{id: string; name: string; date: string}[]>([]);
   const [upcomingEventTypeFilter, setUpcomingEventTypeFilter] = useState<string>("all");
   const [selectedUpcomingEvent, setSelectedUpcomingEvent] = useState<string>("");
-  const [invitationsPerService, setInvitationsPerService] = useState<Map<string, { total: number; confirmed: number; attended: number }>>(new Map());
 
-  useEffect(() => {
-    checkAuth();
-    loadData();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/member/auth");
-    }
-  };
-
-  const loadServices = useCallback(async () => {
-    if (servicesLoaded) return;
+  // Computed values
+  const { myServices, invitationsPerService } = useMemo(() => {
+    const serviceMap = new Map<string, {id: string; name: string; date: string}>();
+    const perServiceStats = new Map<string, { total: number; confirmed: number; attended: number }>();
     
-    const { data } = await supabase
-      .from("services")
-      .select("*")
-      .eq("is_published", true)
-      .gte("service_date", new Date().toISOString().split('T')[0])
-      .order("service_date", { ascending: true })
-      .limit(20);
+    invitations.forEach((inv: any) => {
+      if (inv.target_service_id && inv.services) {
+        serviceMap.set(inv.target_service_id, {
+          id: inv.target_service_id,
+          name: inv.services.name,
+          date: inv.services.service_date
+        });
+        
+        const current = perServiceStats.get(inv.target_service_id) || { total: 0, confirmed: 0, attended: 0 };
+        current.total++;
+        if (inv.status === 'confirmed') current.confirmed++;
+        if (inv.status === 'attended') current.attended++;
+        perServiceStats.set(inv.target_service_id, current);
+      }
+    });
     
-    if (data) {
-      setServices(data);
-      setServicesLoaded(true);
-    }
-  }, [servicesLoaded]);
-
-  const loadInvitations = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("member_invitations")
-      .select("*, services(name, service_date)")
-      .eq("member_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setInvitations(data);
-      
-      // Extract unique services from invitations for filter dropdown
-      const serviceMap = new Map<string, {id: string; name: string; date: string}>();
-      // Calculate invitations per service
-      const perServiceStats = new Map<string, { total: number; confirmed: number; attended: number }>();
-      
-      data.forEach((inv: any) => {
-        if (inv.target_service_id && inv.services) {
-          serviceMap.set(inv.target_service_id, {
-            id: inv.target_service_id,
-            name: inv.services.name,
-            date: inv.services.service_date
-          });
-          
-          // Update per-service stats
-          const current = perServiceStats.get(inv.target_service_id) || { total: 0, confirmed: 0, attended: 0 };
-          current.total++;
-          if (inv.status === 'confirmed') current.confirmed++;
-          if (inv.status === 'attended') current.attended++;
-          perServiceStats.set(inv.target_service_id, current);
-        }
-      });
-      
-      setInvitationsPerService(perServiceStats);
-      
-      // Sort by date descending
-      const sortedServices = Array.from(serviceMap.values()).sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setMyServices(sortedServices);
-    }
-  };
-
-  const loadData = async () => {
-    setLoading(true);
+    const sortedServices = Array.from(serviceMap.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await Promise.all([loadInvitations(), loadServices()]);
-    setLoading(false);
-  };
+    return { myServices: sortedServices, invitationsPerService: perServiceStats };
+  }, [invitations]);
 
   const checkDuplicateInvitation = async (name: string, serviceId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
     const { data } = await supabase
@@ -168,9 +105,8 @@ const MemberMobilization = () => {
   const handleAddInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting) return; // Guard against double submission
+    if (addInvitationMutation.isPending) return;
     
-    // Validation: Name and target service are required
     if (!formData.invitee_name.trim()) {
       toast.error("Name is required");
       return;
@@ -181,54 +117,43 @@ const MemberMobilization = () => {
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // Check for duplicate
-      const isDuplicate = await checkDuplicateInvitation(
-        formData.invitee_name.trim(), 
-        formData.target_service_id
-      );
-      
-      if (isDuplicate) {
-        toast.warning("You've already invited someone with this name to this event", {
-          description: "Are you sure you want to add another invitation?",
-          action: {
-            label: "Add anyway",
-            onClick: async () => {
-              await insertInvitation(user.id);
-            }
-          }
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      await insertInvitation(user.id);
-    } catch (error: any) {
-      console.error("Error adding invitation:", error);
-      toast.error("Failed to add invitation");
-      setIsSubmitting(false);
+    if (!user) {
+      toast.error("Not authenticated");
+      return;
     }
+
+    const isDuplicate = await checkDuplicateInvitation(
+      formData.invitee_name.trim(), 
+      formData.target_service_id
+    );
+    
+    if (isDuplicate) {
+      toast.warning("You've already invited someone with this name to this event", {
+        description: "Are you sure you want to add another invitation?",
+        action: {
+          label: "Add anyway",
+          onClick: () => insertInvitation()
+        }
+      });
+      return;
+    }
+
+    await insertInvitation();
   };
 
-  const insertInvitation = async (userId: string) => {
+  const insertInvitation = async () => {
+    if (!user) return;
+    
     try {
-      const { error } = await supabase.from("member_invitations").insert({
-        member_id: userId,
+      await addInvitationMutation.mutateAsync({
+        userId: user.id,
         invitee_name: formData.invitee_name.trim(),
         invitee_phone: formData.invitee_phone.trim() || null,
         invitee_email: formData.invitee_email.trim() || null,
         target_service_id: formData.target_service_id,
         invitation_method: formData.invitation_method || null,
         notes: formData.notes.trim() || null,
-        status: "pending_invite"
       });
-
-      if (error) throw error;
 
       toast.success("Invitation added successfully!");
       setDialogOpen(false);
@@ -240,77 +165,42 @@ const MemberMobilization = () => {
         invitation_method: "",
         notes: "",
       });
-      await loadInvitations();
     } catch (error: any) {
-      console.error("Error inserting invitation:", error);
+      console.error("Error adding invitation:", error);
       toast.error("Failed to add invitation");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
-    if (updatingStatusId) return; // Prevent double clicks
-    
-    setUpdatingStatusId(id);
-    
-    // Optimistic update
-    const previousInvitations = [...invitations];
-    setInvitations(prev => 
-      prev.map(inv => inv.id === id ? { ...inv, status } : inv)
-    );
+    if (!user || updateStatusMutation.isPending) return;
 
     try {
-      const updates: any = { status };
-      if (status === "invited") updates.invited_at = new Date().toISOString();
-      if (status === "confirmed") updates.confirmed_at = new Date().toISOString();
-      if (status === "attended") updates.attended_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from("member_invitations")
-        .update(updates)
-        .eq("id", id);
-
-      if (error) throw error;
-
+      await updateStatusMutation.mutateAsync({ id, status, userId: user.id });
       toast.success("Status updated");
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
-      // Revert optimistic update
-      setInvitations(previousInvitations);
-    } finally {
-      setUpdatingStatusId(null);
     }
   };
 
   const handleDeleteInvitation = async () => {
-    if (!deleteConfirmId || isDeleting) return;
+    if (!deleteConfirmId || !user || deleteInvitationMutation.isPending) return;
     
-    setIsDeleting(true);
     const invitationToDelete = invitations.find(i => i.id === deleteConfirmId);
-    
-    // Optimistic update
-    setInvitations(prev => prev.filter(i => i.id !== deleteConfirmId));
+    const idToDelete = deleteConfirmId;
     setDeleteConfirmId(null);
 
     try {
-      const { error } = await supabase
-        .from("member_invitations")
-        .delete()
-        .eq("id", deleteConfirmId);
-
-      if (error) throw error;
+      await deleteInvitationMutation.mutateAsync({ id: idToDelete, userId: user.id });
 
       toast.success("Invitation deleted", {
         action: {
           label: "Undo",
           onClick: async () => {
             if (invitationToDelete) {
-              // Re-insert the deleted invitation
               await supabase.from("member_invitations").insert({
                 id: invitationToDelete.id,
-                member_id: (await supabase.auth.getUser()).data.user?.id,
+                member_id: user.id,
                 invitee_name: invitationToDelete.invitee_name,
                 invitee_phone: invitationToDelete.invitee_phone,
                 invitee_email: invitationToDelete.invitee_email,
@@ -319,7 +209,6 @@ const MemberMobilization = () => {
                 notes: invitationToDelete.notes,
                 status: invitationToDelete.status,
               });
-              await loadInvitations();
               toast.success("Invitation restored");
             }
           }
@@ -328,9 +217,6 @@ const MemberMobilization = () => {
     } catch (error: any) {
       console.error("Error deleting invitation:", error);
       toast.error("Failed to delete invitation");
-      await loadInvitations(); // Reload to restore state
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -348,61 +234,35 @@ const MemberMobilization = () => {
   };
 
   const handleBulkStatusUpdate = async () => {
-    if (!bulkStatus || isBulkUpdating) {
+    if (!bulkStatus || !user || bulkUpdateMutation.isPending) {
       if (!bulkStatus) toast.error("Please select a status");
       return;
     }
 
-    setIsBulkUpdating(true);
-
     try {
-      const updates: any = { status: bulkStatus };
-      if (bulkStatus === "invited") updates.invited_at = new Date().toISOString();
-      if (bulkStatus === "confirmed") updates.confirmed_at = new Date().toISOString();
-      if (bulkStatus === "attended") updates.attended_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from("member_invitations")
-        .update(updates)
-        .in("id", selectedIds);
-
-      if (error) throw error;
-
+      await bulkUpdateMutation.mutateAsync({ ids: selectedIds, status: bulkStatus, userId: user.id });
       toast.success(`Updated ${selectedIds.length} invitation(s)`);
       setBulkStatusDialogOpen(false);
       setSelectedIds([]);
       setBulkStatus("");
-      await loadInvitations();
     } catch (error: any) {
       console.error("Error updating status:", error);
       toast.error("Failed to update status");
-    } finally {
-      setIsBulkUpdating(false);
     }
   };
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0 || isBulkUpdating) return;
+    if (selectedIds.length === 0 || !user || bulkDeleteMutation.isPending) return;
     
-    setIsBulkUpdating(true);
     const count = selectedIds.length;
 
     try {
-      const { error } = await supabase
-        .from("member_invitations")
-        .delete()
-        .in("id", selectedIds);
-
-      if (error) throw error;
-
+      await bulkDeleteMutation.mutateAsync({ ids: selectedIds, userId: user.id });
       toast.success(`Deleted ${count} invitation(s)`);
       setSelectedIds([]);
-      await loadInvitations();
     } catch (error: any) {
       console.error("Error deleting invitations:", error);
       toast.error("Failed to delete invitations");
-    } finally {
-      setIsBulkUpdating(false);
     }
   };
 
@@ -435,7 +295,6 @@ const MemberMobilization = () => {
 
   const filteredInvitations = getFilteredInvitations();
 
-  // Stats based on event filter (not status filter)
   const statsBase = eventFilter === "all" 
     ? invitations 
     : invitations.filter(inv => inv.target_service_id === eventFilter);
@@ -452,7 +311,6 @@ const MemberMobilization = () => {
       : 0,
   };
 
-  // Get selected event name for display
   const selectedEventName = eventFilter !== "all" 
     ? myServices.find(s => s.id === eventFilter)?.name 
     : null;
@@ -479,7 +337,40 @@ const MemberMobilization = () => {
     return typeLabels[serviceType || 'other'] || "Event";
   };
 
-  const LoadingSkeleton = () => (
+  // Skeleton Components
+  const QuickInviteSkeleton = () => (
+    <Card className="mb-6">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-5" />
+          <Skeleton className="h-5 w-24" />
+        </div>
+        <Skeleton className="h-4 w-40 mt-1" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Skeleton className="h-10 w-full sm:w-[180px]" />
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-full sm:w-[120px]" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const StatsSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <Card key={i}>
+          <CardContent className="pt-6">
+            <Skeleton className="h-8 w-12 mb-1" />
+            <Skeleton className="h-3 w-16" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const InvitationListSkeleton = () => (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
         <div key={i} className="border rounded-lg p-4">
@@ -525,17 +416,16 @@ const MemberMobilization = () => {
           Back to Dashboard
         </Button>
 
-        {/* Quick Invite Section - Compact Filter View */}
-        {services.length > 0 && (() => {
-          // Get unique event types
+        {/* Quick Invite Section */}
+        {servicesLoading ? (
+          <QuickInviteSkeleton />
+        ) : services.length > 0 && (() => {
           const eventTypes = Array.from(new Set(services.map(s => s.service_type).filter(Boolean)));
           
-          // Filter services by type
           const filteredServices = upcomingEventTypeFilter === "all" 
             ? services 
             : services.filter(s => s.service_type === upcomingEventTypeFilter);
           
-          // Get selected service details
           const selectedService = selectedUpcomingEvent 
             ? services.find(s => s.id === selectedUpcomingEvent) 
             : null;
@@ -558,11 +448,10 @@ const MemberMobilization = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Filter Row */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Select value={upcomingEventTypeFilter} onValueChange={(val) => {
                     setUpcomingEventTypeFilter(val);
-                    setSelectedUpcomingEvent(""); // Reset selection when filter changes
+                    setSelectedUpcomingEvent("");
                   }}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Event Type" />
@@ -613,7 +502,6 @@ const MemberMobilization = () => {
                   </Button>
                 </div>
                 
-                {/* Quick Info Strip */}
                 {selectedService && (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/50 rounded-lg border text-sm">
                     <div className="flex items-center gap-1.5">
@@ -646,7 +534,6 @@ const MemberMobilization = () => {
                   </div>
                 )}
                 
-                {/* Empty state when no event selected */}
                 {!selectedUpcomingEvent && (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     Select an event above to see details and start inviting
@@ -657,7 +544,6 @@ const MemberMobilization = () => {
           );
         })()}
 
-        {/* Event Filter Header */}
         {selectedEventName && (
           <div className="mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
             <p className="text-sm font-medium">
@@ -667,50 +553,54 @@ const MemberMobilization = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">{stats.invited}</div>
-              <p className="text-xs text-muted-foreground">Invited</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-purple-600">{stats.confirmed}</div>
-              <p className="text-xs text-muted-foreground">Confirmed</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">{stats.attended}</div>
-              <p className="text-xs text-muted-foreground">Attended</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-red-600">{stats.declined}</div>
-              <p className="text-xs text-muted-foreground">Declined</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-primary">{stats.conversionRate}%</div>
-              <p className="text-xs text-muted-foreground">Conversion Rate</p>
-            </CardContent>
-          </Card>
-        </div>
+        {invitationsLoading ? (
+          <StatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-blue-600">{stats.invited}</div>
+                <p className="text-xs text-muted-foreground">Invited</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-purple-600">{stats.confirmed}</div>
+                <p className="text-xs text-muted-foreground">Confirmed</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-green-600">{stats.attended}</div>
+                <p className="text-xs text-muted-foreground">Attended</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-red-600">{stats.declined}</div>
+                <p className="text-xs text-muted-foreground">Declined</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-primary">{stats.conversionRate}%</div>
+                <p className="text-xs text-muted-foreground">Conversion Rate</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -782,7 +672,7 @@ const MemberMobilization = () => {
 
             <div className="space-y-4">
               {loading ? (
-                <LoadingSkeleton />
+                <InvitationListSkeleton />
               ) : invitations.length === 0 ? (
                 <EmptyState />
               ) : filteredInvitations.length === 0 ? (
@@ -794,14 +684,14 @@ const MemberMobilization = () => {
                   <div 
                     key={invitation.id} 
                     className={`border rounded-lg p-4 hover:bg-accent/50 transition-colors ${
-                      updatingStatusId === invitation.id ? 'opacity-70' : ''
+                      updateStatusMutation.isPending && updateStatusMutation.variables?.id === invitation.id ? 'opacity-70' : ''
                     }`}
                   >
                     <div className="flex items-start gap-4">
                       <Checkbox
                         checked={selectedIds.includes(invitation.id)}
                         onCheckedChange={() => toggleSelection(invitation.id)}
-                        disabled={updatingStatusId === invitation.id}
+                        disabled={updateStatusMutation.isPending && updateStatusMutation.variables?.id === invitation.id}
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
@@ -846,9 +736,9 @@ const MemberMobilization = () => {
                             <Button 
                               size="sm" 
                               onClick={() => handleUpdateStatus(invitation.id, "invited")}
-                              disabled={updatingStatusId === invitation.id}
+                              disabled={updateStatusMutation.isPending}
                             >
-                              {updatingStatusId === invitation.id ? (
+                              {updateStatusMutation.isPending && updateStatusMutation.variables?.id === invitation.id ? (
                                 <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                               ) : null}
                               Mark as Invited
@@ -859,9 +749,9 @@ const MemberMobilization = () => {
                               <Button 
                                 size="sm" 
                                 onClick={() => handleUpdateStatus(invitation.id, "confirmed")}
-                                disabled={updatingStatusId === invitation.id}
+                                disabled={updateStatusMutation.isPending}
                               >
-                                {updatingStatusId === invitation.id ? (
+                                {updateStatusMutation.isPending && updateStatusMutation.variables?.id === invitation.id ? (
                                   <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                 ) : null}
                                 Mark as Confirmed
@@ -871,7 +761,7 @@ const MemberMobilization = () => {
                                 variant="outline"
                                 className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950"
                                 onClick={() => handleUpdateStatus(invitation.id, "declined")}
-                                disabled={updatingStatusId === invitation.id}
+                                disabled={updateStatusMutation.isPending}
                               >
                                 <X className="mr-1 h-3 w-3" />
                                 Declined
@@ -882,23 +772,26 @@ const MemberMobilization = () => {
                             <>
                               <Button 
                                 size="sm" 
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-700"
                                 onClick={() => handleUpdateStatus(invitation.id, "attended")}
-                                disabled={updatingStatusId === invitation.id}
+                                disabled={updateStatusMutation.isPending}
                               >
-                                {updatingStatusId === invitation.id ? (
+                                {updateStatusMutation.isPending && updateStatusMutation.variables?.id === invitation.id ? (
                                   <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                 ) : null}
-                                Mark as Attended
+                                <Check className="mr-1 h-3 w-3" />
+                                Mark Attended
                               </Button>
                               <Button 
                                 size="sm" 
                                 variant="outline"
                                 className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950"
                                 onClick={() => handleUpdateStatus(invitation.id, "declined")}
-                                disabled={updatingStatusId === invitation.id}
+                                disabled={updateStatusMutation.isPending}
                               >
                                 <X className="mr-1 h-3 w-3" />
-                                Declined
+                                No Show
                               </Button>
                             </>
                           )}
@@ -913,106 +806,101 @@ const MemberMobilization = () => {
         </Card>
 
         {/* Add Invitation Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          if (!isSubmitting) setDialogOpen(open);
-        }}>
-          <DialogContent className="max-w-md">
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Add New Invitation</DialogTitle>
               <DialogDescription>
-                Record someone you've invited to a church service
+                Track someone you're inviting to church
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddInvitation} className="space-y-4">
-              <div>
-                <Label>Name *</Label>
-                <Input
-                  value={formData.invitee_name}
-                  onChange={(e) => setFormData({ ...formData, invitee_name: e.target.value })}
-                  placeholder="Full name"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <Label>Target Service/Event *</Label>
-                <Select 
-                  value={formData.target_service_id} 
-                  onValueChange={(val) => setFormData({ ...formData, target_service_id: val })}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className={!formData.target_service_id ? "text-muted-foreground" : ""}>
-                    <SelectValue placeholder="Select a service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name} - {format(new Date(service.service_date), "PPP")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">Required - select the event they're invited to</p>
-              </div>
-              <div>
-                <Label>Phone (Optional)</Label>
-                <Input
-                  value={formData.invitee_phone}
-                  onChange={(e) => setFormData({ ...formData, invitee_phone: e.target.value })}
-                  placeholder="+265..."
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <Label>Email (Optional)</Label>
-                <Input
-                  type="email"
-                  value={formData.invitee_email}
-                  onChange={(e) => setFormData({ ...formData, invitee_email: e.target.value })}
-                  placeholder="email@example.com"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <Label>Invitation Method</Label>
-                <Select 
-                  value={formData.invitation_method} 
-                  onValueChange={(val) => setFormData({ ...formData, invitation_method: val })}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="How did you invite them?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="in_person">In Person</SelectItem>
-                    <SelectItem value="phone_call">Phone Call</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Notes</Label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Any additional notes..."
-                  rows={3}
-                  disabled={isSubmitting}
-                />
+            <form onSubmit={handleAddInvitation}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.invitee_name}
+                    onChange={(e) => setFormData({ ...formData, invitee_name: e.target.value })}
+                    placeholder="Person's name"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.invitee_phone}
+                    onChange={(e) => setFormData({ ...formData, invitee_phone: e.target.value })}
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.invitee_email}
+                    onChange={(e) => setFormData({ ...formData, invitee_email: e.target.value })}
+                    placeholder="Email address"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="service">Target Service/Event *</Label>
+                  <Select
+                    value={formData.target_service_id}
+                    onValueChange={(value) => setFormData({ ...formData, target_service_id: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select service/event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.name} ({format(new Date(service.service_date), "MMM d, yyyy")})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="method">Invitation Method</Label>
+                  <Select
+                    value={formData.invitation_method}
+                    onValueChange={(value) => setFormData({ ...formData, invitation_method: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="How did you invite?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in_person">In Person</SelectItem>
+                      <SelectItem value="phone_call">Phone Call</SelectItem>
+                      <SelectItem value="text_message">Text Message</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="social_media">Social Media</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Any additional notes..."
+                    rows={3}
+                  />
+                </div>
               </div>
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setDialogOpen(false)}
-                  disabled={isSubmitting}
-                >
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                <Button type="submit" disabled={addInvitationMutation.isPending}>
+                  {addInvitationMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Adding...
@@ -1027,45 +915,40 @@ const MemberMobilization = () => {
         </Dialog>
 
         {/* Bulk Status Update Dialog */}
-        <Dialog open={bulkStatusDialogOpen} onOpenChange={(open) => {
-          if (!isBulkUpdating) setBulkStatusDialogOpen(open);
-        }}>
-          <DialogContent>
+        <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+          <DialogContent className="sm:max-w-[350px]">
             <DialogHeader>
-              <DialogTitle>Update Status for {selectedIds.length} Invitation(s)</DialogTitle>
+              <DialogTitle>Update Status</DialogTitle>
               <DialogDescription>
-                Select a new status to apply to all selected invitations
+                Change status for {selectedIds.length} selected invitation(s)
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label>New Status</Label>
-                <Select value={bulkStatus} onValueChange={setBulkStatus} disabled={isBulkUpdating}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending_invite">Pending Invite</SelectItem>
-                    <SelectItem value="invited">Invited</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="attended">Attended</SelectItem>
-                    <SelectItem value="declined">Declined</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="py-4">
+              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending_invite">Pending Invite</SelectItem>
+                  <SelectItem value="invited">Invited</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                  <SelectItem value="attended">Attended</SelectItem>
+                  <SelectItem value="declined">Declined</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)} disabled={isBulkUpdating}>
+              <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleBulkStatusUpdate} disabled={!bulkStatus || isBulkUpdating}>
-                {isBulkUpdating ? (
+              <Button onClick={handleBulkStatusUpdate} disabled={bulkUpdateMutation.isPending}>
+                {bulkUpdateMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Updating...
                   </>
                 ) : (
-                  "Update Status"
+                  "Update"
                 )}
               </Button>
             </DialogFooter>
@@ -1076,26 +959,18 @@ const MemberMobilization = () => {
         <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Invitation?</AlertDialogTitle>
+              <AlertDialogTitle>Delete Invitation</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete this invitation? This action can be undone briefly after deletion.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleDeleteInvitation}
-                disabled={isDeleting}
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleDeleteInvitation}
               >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete"
-                )}
+                Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

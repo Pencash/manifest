@@ -1,13 +1,25 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { HandHeart, MessageSquare, History as HistoryIcon, LogOut } from "lucide-react";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchUpcomingServices } from "@/hooks/useMobilizationData";
 
 const Dashboard = () => {
   const { user, profile, signOut, refreshProfile } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Prefetch services data for MemberMobilization page
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['upcoming-services'],
+      queryFn: fetchUpcomingServices,
+    });
+  }, [queryClient]);
   const navigate = useNavigate();
 
   const handleRefresh = async () => {
