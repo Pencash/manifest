@@ -5,9 +5,7 @@ import { HandHeart, Heart, MessageSquare, Shield, UserPlus, LogIn } from "lucide
 import { ThemeToggle } from "@/components/ThemeToggle";
 const Landing = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+  return <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10">
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
@@ -17,33 +15,19 @@ const Landing = () => {
             Manifest Malawi
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 text-balance">
-            A secure and transparent way to give, share testimonies, and connect with your church
+            ​Join us and become an active participant of Manifest activities and service to God and one another                                        
           </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  onClick={() => navigate("/member/auth?mode=signup")}
-                  className="w-full sm:min-w-[12.5rem]"
-                >
+                <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")} className="w-full sm:min-w-[12.5rem]">
                   <UserPlus className="mr-2 h-5 w-5" />
                   Create Member Account
                 </Button>
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  onClick={() => navigate("/member/auth?mode=login")}
-                  className="w-full sm:min-w-[12.5rem]"
-                >
+                <Button size="lg" variant="secondary" onClick={() => navigate("/member/auth?mode=login")} className="w-full sm:min-w-[12.5rem]">
                   <LogIn className="mr-2 h-5 w-5" />
                   Member Login
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => navigate("/admin/auth")}
-                  className="w-full sm:min-w-[12.5rem]"
-                >
+                <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")} className="w-full sm:min-w-[12.5rem]">
                   <Shield className="mr-2 h-5 w-5" />
                   Admin/Finance
                 </Button>
@@ -174,8 +158,6 @@ const Landing = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
