@@ -7,6 +7,7 @@ import { User } from "@supabase/supabase-js";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileFAB } from "@/components/MobileFAB";
 import { HandHeart, MessageSquare, Heart } from "lucide-react";
+import { useMobilizationReminder } from "@/hooks/useMobilizationReminder";
 
 interface MemberLayoutProps {
   children: ReactNode;
@@ -17,6 +18,9 @@ const MemberLayout = ({ children }: MemberLayoutProps) => {
   const [profile, setProfile] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Show mobilization reminder on login
+  useMobilizationReminder(user?.id ?? null);
 
   useEffect(() => {
     checkAuth();

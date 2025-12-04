@@ -61,6 +61,7 @@ const EventsManagement = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [archivedServices, setArchivedServices] = useState<Service[]>([]);
   const [mobilizationCounts, setMobilizationCounts] = useState<Map<string, number>>(new Map());
+  const [mobilizationTargets, setMobilizationTargets] = useState<Map<string, { invitations: number; confirmations: number }>>(new Map());
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
@@ -134,7 +135,7 @@ const EventsManagement = () => {
       }
 
       setLoading(true);
-      Promise.all([loadServices(), loadMobilizationCounts()]).finally(() => setLoading(false));
+      Promise.all([loadServices(), loadMobilizationCounts(), loadMobilizationTargets()]).finally(() => setLoading(false));
     } catch (error: any) {
       console.error("Error:", error);
       toast.error("Failed to load profile");
@@ -178,20 +179,45 @@ const EventsManagement = () => {
     try {
       const { data, error } = await supabase
         .from("member_invitations")
-        .select("target_service_id");
+        .select("target_service_id, status");
 
       if (error) throw error;
 
-      // Count invitations per service
+      // Count invitations and confirmations per service
       const counts = new Map<string, number>();
+      const confirmedCounts = new Map<string, number>();
       data?.forEach(inv => {
         if (inv.target_service_id) {
           counts.set(inv.target_service_id, (counts.get(inv.target_service_id) || 0) + 1);
+          if (inv.status === 'confirmed' || inv.status === 'attended') {
+            confirmedCounts.set(inv.target_service_id, (confirmedCounts.get(inv.target_service_id) || 0) + 1);
+          }
         }
       });
       setMobilizationCounts(counts);
     } catch (error: any) {
       console.error("Error loading mobilization counts:", error);
+    }
+  };
+
+  const loadMobilizationTargets = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("mobilization_targets")
+        .select("service_id, target_invitations, target_confirmations");
+
+      if (error) throw error;
+
+      const targets = new Map<string, { invitations: number; confirmations: number }>();
+      data?.forEach(target => {
+        targets.set(target.service_id, {
+          invitations: target.target_invitations,
+          confirmations: target.target_confirmations
+        });
+      });
+      setMobilizationTargets(targets);
+    } catch (error: any) {
+      console.error("Error loading mobilization targets:", error);
     }
   };
 
@@ -611,7 +637,12 @@ const EventsManagement = () => {
                             className="flex items-center gap-1.5 text-primary hover:underline"
                           >
                             <Users className="h-4 w-4" />
-                            <span className="font-semibold">Mobilized {mobilizationCounts.get(service.id) || 0}</span>
+                            <span className="font-semibold">
+                              Mobilized {mobilizationCounts.get(service.id) || 0}
+                              {mobilizationTargets.get(service.id) && (
+                                <span className="text-muted-foreground">/{mobilizationTargets.get(service.id)?.invitations}</span>
+                              )}
+                            </span>
                           </Link>
                         )}
                       </div>
