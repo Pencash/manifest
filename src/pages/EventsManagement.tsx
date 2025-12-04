@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2, Archive, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -32,6 +32,8 @@ interface Service {
   description: string | null;
   total_attendance: number;
   is_published: boolean;
+  is_archived: boolean;
+  deleted_at: string | null;
   created_at: string;
 }
 
@@ -56,6 +58,8 @@ const EventsManagement = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedServices, setArchivedServices] = useState<Service[]>([]);
   const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
@@ -141,7 +145,8 @@ const EventsManagement = () => {
       const { data, error } = await supabase
         .from("services")
         .select("*")
-        .eq("is_archived", false)
+        .or("is_archived.eq.false,is_archived.is.null")
+        .is("deleted_at", null)
         .order('service_date', { ascending: false });
 
       if (error) throw error;
@@ -149,6 +154,42 @@ const EventsManagement = () => {
     } catch (error: any) {
       console.error("Error loading services:", error);
       toast.error("Failed to load services");
+    }
+  };
+
+  const loadArchivedServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .eq("is_archived", true)
+        .order('service_date', { ascending: false });
+
+      if (error) throw error;
+      setArchivedServices(data || []);
+    } catch (error: any) {
+      console.error("Error loading archived services:", error);
+      toast.error("Failed to load archived services");
+    }
+  };
+
+  const handleRestore = async (serviceId: string) => {
+    try {
+      const { error } = await supabase
+        .from("services")
+        .update({ 
+          is_archived: false,
+          deleted_at: null 
+        })
+        .eq('id', serviceId);
+
+      if (error) throw error;
+      toast.success("Event restored successfully!");
+      await loadServices();
+      await loadArchivedServices();
+    } catch (error: any) {
+      console.error("Error restoring service:", error);
+      toast.error("Failed to restore event");
     }
   };
 
@@ -350,12 +391,16 @@ const EventsManagement = () => {
     try {
       const { error } = await supabase
         .from("services")
-        .update({ is_archived: archive })
+        .update({ 
+          is_archived: archive,
+          deleted_at: archive ? new Date().toISOString() : null
+        })
         .eq('id', serviceId);
 
       if (error) throw error;
       toast.success(archive ? "Event archived successfully!" : "Event restored successfully!");
       await loadServices();
+      if (showArchived) await loadArchivedServices();
     } catch (error: any) {
       console.error("Error archiving service:", error);
       toast.error("Failed to archive event");
@@ -415,8 +460,8 @@ const EventsManagement = () => {
             <span className="text-sm font-medium text-muted-foreground">Status:</span>
             <div className="flex gap-1">
               <Button
-                variant={statusFilter === 'all' ? 'default' : 'ghost'}
-                onClick={() => setStatusFilter('all')}
+                variant={statusFilter === 'all' && !showArchived ? 'default' : 'ghost'}
+                onClick={() => { setStatusFilter('all'); setShowArchived(false); }}
                 size="sm"
                 className="h-8"
               >
@@ -424,7 +469,7 @@ const EventsManagement = () => {
               </Button>
               <Button
                 variant={statusFilter === 'upcoming' ? 'default' : 'ghost'}
-                onClick={() => setStatusFilter('upcoming')}
+                onClick={() => { setStatusFilter('upcoming'); setShowArchived(false); }}
                 size="sm"
                 className="h-8"
               >
@@ -432,7 +477,7 @@ const EventsManagement = () => {
               </Button>
               <Button
                 variant={statusFilter === 'today' ? 'default' : 'ghost'}
-                onClick={() => setStatusFilter('today')}
+                onClick={() => { setStatusFilter('today'); setShowArchived(false); }}
                 size="sm"
                 className="h-8"
               >
@@ -440,11 +485,24 @@ const EventsManagement = () => {
               </Button>
               <Button
                 variant={statusFilter === 'past' ? 'default' : 'ghost'}
-                onClick={() => setStatusFilter('past')}
+                onClick={() => { setStatusFilter('past'); setShowArchived(false); }}
                 size="sm"
                 className="h-8"
               >
                 Past
+              </Button>
+              <Button
+                variant={showArchived ? 'default' : 'ghost'}
+                onClick={() => { 
+                  setShowArchived(true); 
+                  setStatusFilter('all');
+                  loadArchivedServices();
+                }}
+                size="sm"
+                className="h-8"
+              >
+                <Archive className="h-3 w-3 mr-1" />
+                Archived
               </Button>
             </div>
           </div>
@@ -474,135 +532,204 @@ const EventsManagement = () => {
           </div>
 
           <div className="text-sm text-muted-foreground flex-shrink-0">
-            {filteredServices.length} event{filteredServices.length !== 1 ? 's' : ''}
+            {showArchived ? archivedServices.length : filteredServices.length} event{(showArchived ? archivedServices.length : filteredServices.length) !== 1 ? 's' : ''}
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((service) => (
-            <Card key={service.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {getServiceTypeBadge(service.service_type)}
-                      {getStatusBadge(service.service_date)}
-                      {!service.is_published && (
-                        <Badge variant="outline">Draft</Badge>
+        {/* Active Events Grid */}
+        {!showArchived && (
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredServices.map((service) => (
+                <Card key={service.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getServiceTypeBadge(service.service_type)}
+                          {getStatusBadge(service.service_date)}
+                          {!service.is_published && (
+                            <Badge variant="outline">Draft</Badge>
+                          )}
+                        </div>
+                        <CardTitle className="text-xl">{service.name}</CardTitle>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      <div className="space-y-1 mt-2">
+                        <p className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4" />
+                          {format(new Date(service.service_date), 'PPP')}
+                        </p>
+                        {service.start_time && (
+                          <p className="text-sm">Time: {service.start_time}</p>
+                        )}
+                        {service.location && (
+                          <p className="text-sm">Location: {service.location}</p>
+                        )}
+                      </div>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {service.description && (
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        {service.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4" />
+                        <span className="font-semibold">{service.total_attendance}</span>
+                        <span className="text-muted-foreground">attendees</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {getEventStatus(service.service_date) !== 'past' ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                          >
+                            <Users className="h-4 w-4 mr-1" />
+                            Log Attendance
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(service)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => confirmDelete(service.id)}
+                            disabled={isDeleting && deletingServiceId === service.id}
+                          >
+                            {isDeleting && deletingServiceId === service.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Archive className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => {
+                              setRescheduleServiceId(service.id);
+                              setRescheduleDate(new Date(service.service_date));
+                              setIsRescheduleDialogOpen(true);
+                            }}
+                          >
+                            <CalendarIcon className="h-4 w-4 mr-1" />
+                            Reschedule
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleArchive(service.id, true)}
+                          >
+                            <Archive className="h-4 w-4 mr-1" />
+                            Archive
+                          </Button>
+                        </>
                       )}
                     </div>
-                    <CardTitle className="text-xl">{service.name}</CardTitle>
-                  </div>
-                </div>
-                <CardDescription>
-                  <div className="space-y-1 mt-2">
-                    <p className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4" />
-                      {format(new Date(service.service_date), 'PPP')}
-                    </p>
-                    {service.start_time && (
-                      <p className="text-sm">Time: {service.start_time}</p>
-                    )}
-                    {service.location && (
-                      <p className="text-sm">Location: {service.location}</p>
-                    )}
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {service.description && (
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {service.description}
-                  </p>
-                )}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4" />
-                    <span className="font-semibold">{service.total_attendance}</span>
-                    <span className="text-muted-foreground">attendees</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {getEventStatus(service.service_date) !== 'past' ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
-                      >
-                        <Users className="h-4 w-4 mr-1" />
-                        Log Attendance
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(service)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => confirmDelete(service.id)}
-                        disabled={isDeleting && deletingServiceId === service.id}
-                      >
-                        {isDeleting && deletingServiceId === service.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setRescheduleServiceId(service.id);
-                          setRescheduleDate(new Date(service.service_date));
-                          setIsRescheduleDialogOpen(true);
-                        }}
-                      >
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        Reschedule
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleArchive(service.id, true)}
-                      >
-                        Archive
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => confirmDelete(service.id)}
-                        disabled={isDeleting && deletingServiceId === service.id}
-                      >
-                        {isDeleting && deletingServiceId === service.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
-        {filteredServices.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <CalendarIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No events found for this filter</p>
-            </CardContent>
-          </Card>
+            {filteredServices.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <CalendarIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No events found for this filter</p>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* Archived Events Grid */}
+        {showArchived && (
+          <>
+            <div className="mb-4 p-4 bg-muted/50 rounded-lg border">
+              <p className="text-sm text-muted-foreground">
+                <Archive className="h-4 w-4 inline mr-2" />
+                Archived events are preserved for historical records. Attendance data is retained even after archiving.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {archivedServices.map((service) => (
+                <Card key={service.id} className="hover:shadow-lg transition-shadow opacity-75">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getServiceTypeBadge(service.service_type)}
+                          <Badge variant="secondary" className="bg-muted">
+                            <Archive className="h-3 w-3 mr-1" />
+                            Archived
+                          </Badge>
+                        </div>
+                        <CardTitle className="text-xl">{service.name}</CardTitle>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      <div className="space-y-1 mt-2">
+                        <p className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4" />
+                          {format(new Date(service.service_date), 'PPP')}
+                        </p>
+                        {service.start_time && (
+                          <p className="text-sm">Time: {service.start_time}</p>
+                        )}
+                        {service.location && (
+                          <p className="text-sm">Location: {service.location}</p>
+                        )}
+                      </div>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4" />
+                        <span className="font-semibold">{service.total_attendance}</span>
+                        <span className="text-muted-foreground">attendees</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleRestore(service.id)}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {archivedServices.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Archive className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No archived events</p>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </div>
 
@@ -800,13 +927,13 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Archive Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogTitle>Archive Event</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this event? This will also remove all associated attendance records. This action cannot be undone.
+              Are you sure you want to archive this event? The event and all attendance records will be preserved for historical reporting. You can restore it later from the Archived tab.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -814,15 +941,17 @@ const EventsManagement = () => {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  Archiving...
                 </>
               ) : (
-                "Delete Event"
+                <>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive Event
+                </>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

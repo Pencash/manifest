@@ -1066,6 +1066,8 @@ export type Database = {
       }
     }
     Functions: {
+      archive_old_services: { Args: { days_old?: number }; Returns: number }
+      backfill_attendance_snapshots: { Args: never; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
