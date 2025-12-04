@@ -62,6 +62,8 @@ const MemberMobilization = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [myServices, setMyServices] = useState<{id: string; name: string; date: string}[]>([]);
+  const [upcomingEventTypeFilter, setUpcomingEventTypeFilter] = useState<string>("all");
+  const [selectedUpcomingEvent, setSelectedUpcomingEvent] = useState<string>("");
   const [invitationsPerService, setInvitationsPerService] = useState<Map<string, { total: number; confirmed: number; attended: number }>>(new Map());
 
   useEffect(() => {
@@ -523,97 +525,137 @@ const MemberMobilization = () => {
           Back to Dashboard
         </Button>
 
-        {/* Upcoming Events Section */}
-        {services.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Upcoming Events
-              </CardTitle>
-              <CardDescription>
-                Choose an event to invite people to
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {services.slice(0, 6).map((service) => {
-                  const serviceStats = invitationsPerService.get(service.id) || { total: 0, confirmed: 0, attended: 0 };
-                  const isUpcoming = new Date(service.service_date) > new Date();
-                  const isSoon = new Date(service.service_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        {/* Quick Invite Section - Compact Filter View */}
+        {services.length > 0 && (() => {
+          // Get unique event types
+          const eventTypes = Array.from(new Set(services.map(s => s.service_type).filter(Boolean)));
+          
+          // Filter services by type
+          const filteredServices = upcomingEventTypeFilter === "all" 
+            ? services 
+            : services.filter(s => s.service_type === upcomingEventTypeFilter);
+          
+          // Get selected service details
+          const selectedService = selectedUpcomingEvent 
+            ? services.find(s => s.id === selectedUpcomingEvent) 
+            : null;
+          const selectedStats = selectedService 
+            ? invitationsPerService.get(selectedService.id) || { total: 0, confirmed: 0, attended: 0 }
+            : null;
+          const isSoon = selectedService 
+            ? new Date(selectedService.service_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            : false;
+
+          return (
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Target className="h-5 w-5" />
+                  Quick Invite
+                </CardTitle>
+                <CardDescription>
+                  Select an event and start inviting
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Filter Row */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select value={upcomingEventTypeFilter} onValueChange={(val) => {
+                    setUpcomingEventTypeFilter(val);
+                    setSelectedUpcomingEvent(""); // Reset selection when filter changes
+                  }}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Event Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {eventTypes.map((type) => (
+                        <SelectItem key={type} value={type || "other"}>
+                          {getServiceTypeBadge(type)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   
-                  return (
-                    <div 
-                      key={service.id}
-                      className={`relative border rounded-lg p-4 transition-all hover:shadow-md ${
-                        isSoon ? 'border-primary/50 bg-primary/5' : 'hover:border-primary/30'
-                      }`}
-                    >
+                  <Select value={selectedUpcomingEvent} onValueChange={setSelectedUpcomingEvent}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select an event..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredServices.map((service) => {
+                        const stats = invitationsPerService.get(service.id) || { total: 0, confirmed: 0, attended: 0 };
+                        return (
+                          <SelectItem key={service.id} value={service.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{service.name}</span>
+                              <span className="text-muted-foreground">
+                                ({format(new Date(service.service_date), "MMM d")})
+                              </span>
+                              {stats.total > 0 && (
+                                <Badge variant="secondary" className="text-xs ml-1">
+                                  {stats.total} invited
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button 
+                    onClick={() => selectedUpcomingEvent && openInvitationDialog(selectedUpcomingEvent)}
+                    disabled={!selectedUpcomingEvent}
+                    className="w-full sm:w-auto"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Invite Here
+                  </Button>
+                </div>
+                
+                {/* Quick Info Strip */}
+                {selectedService && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3 bg-muted/50 rounded-lg border text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{format(new Date(selectedService.service_date), "EEEE, MMM d, yyyy")}</span>
                       {isSoon && (
-                        <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs">
-                          Soon
-                        </Badge>
+                        <Badge className="bg-primary text-primary-foreground text-xs ml-1">Soon</Badge>
                       )}
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <h3 className="font-semibold text-base line-clamp-1">{service.name}</h3>
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            {getServiceTypeBadge(service.service_type)}
-                          </Badge>
-                        </div>
-                        
-                        <div className="space-y-1.5 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>{format(new Date(service.service_date), "EEE, MMM d, yyyy")}</span>
-                          </div>
-                          {service.start_time && (
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>{service.start_time}</span>
-                            </div>
-                          )}
-                          {service.location && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-3.5 w-3.5" />
-                              <span className="line-clamp-1">{service.location}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center justify-between pt-2 border-t">
-                          <div className="flex items-center gap-1 text-sm">
-                            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-medium">{serviceStats.total}</span>
-                            <span className="text-muted-foreground">invited</span>
-                            {serviceStats.confirmed > 0 && (
-                              <span className="text-green-600 ml-1">({serviceStats.confirmed} confirmed)</span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          className="w-full" 
-                          size="sm"
-                          onClick={() => openInvitationDialog(service.id)}
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Invite Here
-                        </Button>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-              {services.length > 6 && (
-                <p className="text-center text-sm text-muted-foreground mt-4">
-                  Showing 6 of {services.length} upcoming events
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                    {selectedService.start_time && (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span>{selectedService.start_time}</span>
+                      </div>
+                    )}
+                    {selectedService.location && (
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{selectedService.location}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      <Target className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{selectedStats?.total || 0}</span>
+                      <span className="text-muted-foreground">invited</span>
+                      {selectedStats && selectedStats.confirmed > 0 && (
+                        <span className="text-green-600">• {selectedStats.confirmed} confirmed</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Empty state when no event selected */}
+                {!selectedUpcomingEvent && (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Select an event above to see details and start inviting
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Event Filter Header */}
         {selectedEventName && (
