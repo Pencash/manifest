@@ -11,9 +11,18 @@ import { hasAdminAccess } from "@/lib/roles";
 import { useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 
+interface Service {
+  id: string;
+  name: string;
+  service_type: string;
+  service_date: string;
+  location: string | null;
+}
+
 const BulkAttendanceImport = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
   const [user, setUser] = useState<User | null>(null);
+  const [service, setService] = useState<Service | null>(null);
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -49,6 +58,17 @@ const BulkAttendanceImport = () => {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
+      }
+
+      // Load service details for snapshot data
+      if (serviceId) {
+        const { data: serviceData } = await supabase
+          .from("services")
+          .select("id, name, service_type, service_date, location")
+          .eq("id", serviceId)
+          .single();
+        
+        setService(serviceData);
       }
 
       setLoading(false);
@@ -105,13 +125,17 @@ const BulkAttendanceImport = () => {
                 .single();
 
               if (existingProfile) {
-                // Add attendance for existing profile with snapshot data
+                // Add attendance for existing profile with full snapshot data
                 const { error } = await supabase
                   .from("attendance")
                   .insert({
                     profile_id: existingProfile.id,
                     service_id: serviceId,
                     status: row.status || 'present',
+                    snapshot_event_name: service?.name || null,
+                    snapshot_event_date: service?.service_date || null,
+                    snapshot_event_venue: service?.location || null,
+                    snapshot_event_type: service?.service_type || null,
                     snapshot_person_name: row.full_name,
                     snapshot_person_email: row.email,
                     snapshot_person_phone: row.phone || null,
@@ -129,13 +153,17 @@ const BulkAttendanceImport = () => {
                   .single();
 
                 if (existingContact) {
-                  // Add attendance for existing contact with snapshot data
+                  // Add attendance for existing contact with full snapshot data
                   const { error } = await supabase
                     .from("attendance")
                     .insert({
                       contact_id: existingContact.id,
                       service_id: serviceId,
                       status: row.status || 'present',
+                      snapshot_event_name: service?.name || null,
+                      snapshot_event_date: service?.service_date || null,
+                      snapshot_event_venue: service?.location || null,
+                      snapshot_event_type: service?.service_type || null,
                       snapshot_person_name: row.full_name,
                       snapshot_person_email: row.email,
                       snapshot_person_phone: row.phone || null,
@@ -171,6 +199,10 @@ const BulkAttendanceImport = () => {
                       contact_id: newContact.id,
                       service_id: serviceId,
                       status: row.status || 'present',
+                      snapshot_event_name: service?.name || null,
+                      snapshot_event_date: service?.service_date || null,
+                      snapshot_event_venue: service?.location || null,
+                      snapshot_event_type: service?.service_type || null,
                       snapshot_person_name: row.full_name,
                       snapshot_person_email: row.email,
                       snapshot_person_phone: row.phone || null,
