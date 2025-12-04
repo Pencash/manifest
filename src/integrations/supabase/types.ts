@@ -16,31 +16,64 @@ export type Database = {
     Tables: {
       attendance: {
         Row: {
+          attended_at: string | null
           contact_id: string | null
           count: number | null
           created_at: string
+          created_by: string | null
           id: string
           profile_id: string | null
           service_id: string
+          snapshot_event_date: string | null
+          snapshot_event_name: string | null
+          snapshot_event_type: string | null
+          snapshot_event_venue: string | null
+          snapshot_person_email: string | null
+          snapshot_person_name: string | null
+          snapshot_person_phone: string | null
           status: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
+          attended_at?: string | null
           contact_id?: string | null
           count?: number | null
           created_at?: string
+          created_by?: string | null
           id?: string
           profile_id?: string | null
           service_id: string
+          snapshot_event_date?: string | null
+          snapshot_event_name?: string | null
+          snapshot_event_type?: string | null
+          snapshot_event_venue?: string | null
+          snapshot_person_email?: string | null
+          snapshot_person_name?: string | null
+          snapshot_person_phone?: string | null
           status?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
+          attended_at?: string | null
           contact_id?: string | null
           count?: number | null
           created_at?: string
+          created_by?: string | null
           id?: string
           profile_id?: string | null
           service_id?: string
+          snapshot_event_date?: string | null
+          snapshot_event_name?: string | null
+          snapshot_event_type?: string | null
+          snapshot_event_venue?: string | null
+          snapshot_person_email?: string | null
+          snapshot_person_name?: string | null
+          snapshot_person_phone?: string | null
           status?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -48,6 +81,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -794,6 +834,7 @@ export type Database = {
           approval_status: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           description: string | null
           id: string
           is_archived: boolean | null
@@ -809,6 +850,7 @@ export type Database = {
           approval_status?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean | null
@@ -824,6 +866,7 @@ export type Database = {
           approval_status?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           is_archived?: boolean | null
@@ -976,7 +1019,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      attendance_with_context: {
+        Row: {
+          attended_at: string | null
+          contact_id: string | null
+          count: number | null
+          created_at: string | null
+          created_by: string | null
+          event_date: string | null
+          event_name: string | null
+          event_type: string | null
+          event_venue: string | null
+          id: string | null
+          person_email: string | null
+          person_name: string | null
+          person_phone: string | null
+          profile_id: string | null
+          service_id: string | null
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_role: {
