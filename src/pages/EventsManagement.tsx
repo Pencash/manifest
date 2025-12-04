@@ -249,17 +249,21 @@ const EventsManagement = () => {
 
     try {
       setIsDeleting(true);
+      // Soft delete: set deleted_at and is_archived instead of hard delete
       const { error } = await supabase
         .from("services")
-        .delete()
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          is_archived: true 
+        })
         .eq('id', deletingServiceId);
 
       if (error) throw error;
-      toast.success("Event deleted successfully!");
+      toast.success("Event archived successfully!");
       await loadServices();
     } catch (error: any) {
-      console.error("Error deleting service:", error);
-      toast.error(error.message || "Failed to delete event");
+      console.error("Error archiving service:", error);
+      toast.error(error.message || "Failed to archive event");
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);

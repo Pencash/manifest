@@ -139,15 +139,16 @@ const AttendanceReport = () => {
       if (error) throw error;
 
       const reportPromises = (services || []).map(async (service) => {
+        // Use attendance_with_context view for resilient reporting with snapshot fallbacks
         const { data: attendance } = await supabase
-          .from("attendance")
-          .select("*, contacts(contact_type)")
+          .from("attendance_with_context")
+          .select("*")
           .eq("service_id", service.id)
           .eq("status", "present");
 
         const profileCount = attendance?.filter(a => a.profile_id).length || 0;
         
-        const contactIds = attendance?.filter(a => a.contact_id).map(a => a.contact_id) || [];
+        const contactIds = attendance?.filter(a => a.contact_id).map(a => a.contact_id).filter(Boolean) || [];
         
         let visitorCount = 0;
         let bornAgainCount = 0;
@@ -162,12 +163,15 @@ const AttendanceReport = () => {
           bornAgainCount = contacts?.filter(c => c.contact_type === 'born_again').length || 0;
         }
 
+        // Count orphaned records (no profile_id or contact_id but have snapshot data)
+        const orphanedCount = attendance?.filter(a => !a.profile_id && !a.contact_id && a.person_name).length || 0;
+
         return {
           service_name: service.name,
           service_date: service.service_date,
-          total_attendance: service.total_attendance || 0,
+          total_attendance: (attendance?.length || 0),
           profile_count: profileCount,
-          contact_count: visitorCount,
+          contact_count: visitorCount + orphanedCount,
           born_again_count: bornAgainCount
         };
       });

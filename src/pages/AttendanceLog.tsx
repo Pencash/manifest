@@ -172,19 +172,19 @@ const AttendanceLog = () => {
       
       const updates = [];
       const inserts = [];
-      const deletes = [];
 
       for (const [profileId, isPresent] of attendance.entries()) {
         const existingId = existingAttendance.get(profileId);
 
         if (existingId) {
-          // Update existing record
+          // Update existing record - mark as absent instead of deleting
           updates.push({
             id: existingId,
-            status: isPresent ? 'present' : 'absent'
+            status: isPresent ? 'present' : 'absent',
+            updated_by: user?.id || null
           });
         } else if (isPresent) {
-      // Insert new record only if present - include snapshot data for resilience
+          // Insert new record only if present - include snapshot data for resilience
           const member = members.find(m => m.id === profileId);
           inserts.push({
             profile_id: profileId,
@@ -202,19 +202,16 @@ const AttendanceLog = () => {
         }
       }
 
-      // Handle deletions (unmarked members who had records)
-      for (const [profileId, recordId] of existingAttendance.entries()) {
-        if (!attendance.get(profileId)) {
-          deletes.push(recordId);
-        }
-      }
-
-      // Execute updates
+      // Execute updates (including marking absent - no more destructive deletes)
       if (updates.length > 0) {
         for (const update of updates) {
           const { error } = await supabase
             .from("attendance")
-            .update({ status: update.status })
+            .update({ 
+              status: update.status,
+              updated_by: update.updated_by,
+              updated_at: new Date().toISOString()
+            })
             .eq('id', update.id);
 
           if (error) throw error;
@@ -226,16 +223,6 @@ const AttendanceLog = () => {
         const { error } = await supabase
           .from("attendance")
           .insert(inserts);
-
-        if (error) throw error;
-      }
-
-      // Execute deletes
-      if (deletes.length > 0) {
-        const { error } = await supabase
-          .from("attendance")
-          .delete()
-          .in('id', deletes);
 
         if (error) throw error;
       }
