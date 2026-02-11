@@ -12,7 +12,6 @@ interface RoleNotificationRequest {
   name: string;
   newRole: string;
   userId: string;
-  assignedBy: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -21,37 +20,100 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, name, newRole, userId, assignedBy }: RoleNotificationRequest = await req.json();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const authHeader = req.headers.get("Authorization");
+
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+    });
+
+    const {
+      data: { user },
+      error: userError,
+    } = await userClient.auth.getUser();
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: rolesData, error: rolesError } = await userClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    if (rolesError) {
+      return new Response(JSON.stringify({ error: "Role check failed" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const isAllowed = (rolesData || []).some((entry) =>
+      ["admin", "pastor", "finance"].includes(entry.role),
+    );
+
+    if (!isAllowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const payload: RoleNotificationRequest = await req.json();
+    const { email, name, newRole, userId } = payload;
+
+    if (!email || !name || !newRole || !userId) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     console.log(`Role changed for ${name} (${email}) to ${newRole}`);
 
-    // Log to audit_logs table for security tracking
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    await supabaseClient.from('audit_logs').insert({
-      user_id: assignedBy,
-      action: 'role_notification_sent',
-      table_name: 'user_roles',
+    const { error: auditError } = await adminClient.from("audit_logs").insert({
+      user_id: user.id,
+      action: "role_notification_sent",
+      table_name: "user_roles",
       record_id: userId,
       new_values: {
         email,
         name,
         newRole,
-        notifiedAt: new Date().toISOString()
-      }
+        notifiedAt: new Date().toISOString(),
+      },
     });
 
-    // Note: To actually send emails, you would need to integrate with a service like Resend
-    // For now, this logs the notification
-    // If you want email notifications, you'll need to add the RESEND_API_KEY secret
-    
+    if (auditError) {
+      console.error("Failed to insert audit log:", auditError);
+      return new Response(JSON.stringify({ error: "Failed to write audit log" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        message: "Notification logged successfully"
+        message: "Notification logged successfully",
       }),
       {
         status: 200,
@@ -59,17 +121,14 @@ const handler = async (req: Request): Promise<Response> => {
           "Content-Type": "application/json",
           ...corsHeaders,
         },
-      }
+      },
     );
   } catch (error: any) {
     console.error("Error in send-role-notification function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 

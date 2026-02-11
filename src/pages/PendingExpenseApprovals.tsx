@@ -27,7 +27,7 @@ interface ExpenseRequest {
   priority: string;
   status: string;
   created_at: string;
-  profiles: { full_name: string; email: string };
+  profiles: { full_name: string; email: string | null };
   expense_categories: { name: string; code: string };
   services: { name: string } | null;
 }
@@ -75,31 +75,44 @@ export default function PendingExpenseApprovals() {
     try {
       const { data: requestsData, error } = await supabase
         .from("expense_requests")
-        .select("*")
+        .select("id, request_number, amount, currency, description, justification, priority, status, created_at, requester_id, category_id, service_id")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Fetch related data separately
-      const requestsWithProfiles = await Promise.all(
-        (requestsData || []).map(async (req) => {
-          const [profileRes, categoryRes, serviceRes] = await Promise.all([
-            supabase.from("profiles").select("full_name, email").eq("id", req.requester_id).single(),
-            supabase.from("expense_categories").select("name, code").eq("id", req.category_id).single(),
-            req.service_id ? supabase.from("services").select("name").eq("id", req.service_id).maybeSingle() : Promise.resolve({ data: null })
-          ]);
+      const requesterIds = [...new Set((requestsData || []).map((req) => req.requester_id).filter(Boolean))];
+      const categoryIds = [...new Set((requestsData || []).map((req) => req.category_id).filter(Boolean))];
+      const serviceIds = [...new Set((requestsData || []).map((req) => req.service_id).filter(Boolean))];
 
-          return {
-            ...req,
-            profiles: profileRes.data || { full_name: "Unknown", email: "" },
-            expense_categories: categoryRes.data || { name: "Unknown", code: "" },
-            services: serviceRes.data
-          };
-        })
-      );
+      const [profilesRes, categoriesRes, servicesRes] = await Promise.all([
+        requesterIds.length
+          ? supabase.from("profiles").select("id, full_name, email").in("id", requesterIds)
+          : Promise.resolve({ data: [], error: null }),
+        categoryIds.length
+          ? supabase.from("expense_categories").select("id, name, code").in("id", categoryIds)
+          : Promise.resolve({ data: [], error: null }),
+        serviceIds.length
+          ? supabase.from("services").select("id, name").in("id", serviceIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      setRequests(requestsWithProfiles);
+      if (profilesRes.error) throw profilesRes.error;
+      if (categoriesRes.error) throw categoriesRes.error;
+      if (servicesRes.error) throw servicesRes.error;
+
+      const profilesMap = new Map((profilesRes.data || []).map((profile) => [profile.id, profile]));
+      const categoriesMap = new Map((categoriesRes.data || []).map((category) => [category.id, category]));
+      const servicesMap = new Map((servicesRes.data || []).map((service) => [service.id, service]));
+
+      const hydratedRequests = (requestsData || []).map((req) => ({
+        ...req,
+        profiles: profilesMap.get(req.requester_id) || { full_name: "Unknown", email: "" },
+        expense_categories: categoriesMap.get(req.category_id) || { name: "Unknown", code: "" },
+        services: req.service_id ? servicesMap.get(req.service_id) || null : null,
+      }));
+
+      setRequests(hydratedRequests);
     } catch (error: any) {
       toast.error("Failed to load pending requests");
       console.error(error);
