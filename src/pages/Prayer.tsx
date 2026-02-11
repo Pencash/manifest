@@ -64,9 +64,9 @@ const Prayer = () => {
         .from("prayer_requests")
         .insert({
           profile_id: user.id,
-          title: formData.title || null,
+          title: formData.title.trim() || null,
           service_id: formData.serviceId || null,
-          body: formData.body,
+          body: formData.body.trim(),
           visibility: formData.visibility,
           is_anonymous_to_congregation: formData.isAnonymous,
         });
@@ -120,8 +120,9 @@ const Prayer = () => {
                   type="text"
                   placeholder="Brief title for your prayer request"
                   value={formData.title}
+                  maxLength={200}
                   onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
+                    setFormData({ ...formData, title: e.target.value.slice(0, 200) })
                   }
                 />
               </div>
@@ -154,11 +155,13 @@ const Prayer = () => {
                   placeholder="Share your prayer request..."
                   value={formData.body}
                   onChange={(e) =>
-                    setFormData({ ...formData, body: e.target.value })
+                    setFormData({ ...formData, body: e.target.value.slice(0, 5000) })
                   }
+                  maxLength={5000}
                   required
                   rows={8}
                 />
+                <p className="text-xs text-muted-foreground text-right">{formData.body.length}/5000</p>
               </div>
 
               <div className="space-y-2">
