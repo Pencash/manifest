@@ -106,8 +106,8 @@ export default function ExpenseRequest() {
         category_id: formData.category_id,
         service_id: formData.service_id || null,
         amount: parseFloat(formData.amount),
-        description: formData.description,
-        justification: formData.justification,
+        description: formData.description.trim(),
+        justification: formData.justification.trim(),
         priority: formData.priority,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
         status: isDraft ? "draft" : "pending",
@@ -243,11 +243,13 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 2000) })}
                   placeholder="What is being purchased?"
+                  maxLength={2000}
                   rows={3}
                   required
                 />
+                <p className="text-xs text-muted-foreground text-right">{formData.description.length}/2000</p>
               </div>
 
               <div className="space-y-2">
@@ -255,11 +257,13 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="justification"
                   value={formData.justification}
-                  onChange={(e) => setFormData({ ...formData, justification: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, justification: e.target.value.slice(0, 2000) })}
                   placeholder="Why is this expense needed?"
+                  maxLength={2000}
                   rows={3}
                   required
                 />
+                <p className="text-xs text-muted-foreground text-right">{formData.justification.length}/2000</p>
               </div>
 
               <div className="flex gap-4 pt-4">
