@@ -15,7 +15,7 @@ const Landing = () => {
             Manifest Malawi
           </h1>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 text-balance">
-            ​Join us and become an active participant of Manifest activities and service to God and one another                                        
+            Join us and become an active participant of Manifest activities and service to God and one another
           </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -147,7 +147,7 @@ const Landing = () => {
                 Join thousands of members using our platform to support Phaneroo's mission
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")}> 
+                <Button size="lg" onClick={() => navigate("/member/auth?mode=signup")}>
                   Create Member Account
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => navigate("/admin/auth")}>
