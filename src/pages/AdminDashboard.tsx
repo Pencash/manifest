@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
-import * as XLSX from "xlsx";
 import { hasAdminAccess } from "@/lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,7 +50,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     checkUser();
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate("/admin/auth");
@@ -80,7 +79,7 @@ const AdminDashboard = () => {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("full_name")
         .eq("id", session.user.id)
         .single();
 
@@ -156,33 +155,42 @@ const AdminDashboard = () => {
       const [
         givingsRes,
         prevGivingsRes,
-        profilesRes,
+        activeMembersRes,
+        newMembersRes,
         pendingGivingsRes,
         pendingExpensesRes,
         pendingServicesRes,
+        attendanceCountRes,
         attendanceRes,
-        testimoniesRes,
-        prayersRes,
+        testimoniesCountRes,
+        prayersCountRes,
+        recentGivingsRes,
+        recentTestimoniesRes,
+        recentPrayersRes,
       ] = await Promise.all([
         givingsQuery,
         prevGivingsQuery,
-        supabase.from("profiles").select("id, created_at").eq("is_active", true),
-        supabase.from("givings").select("id").eq("status", "pending"),
-        supabase.from("expense_requests").select("id").in("status", ["pending_approval", "draft"]),
-        supabase.from("services").select("id").eq("approval_status", "pending_admin_approval"),
-        supabase.from("attendance").select("id, service_id, services(service_type)").eq("status", "present"),
-        supabase.from("testimonies").select("id, created_at"),
-        supabase.from("prayer_requests").select("id, created_at"),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
+        start
+          ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString())
+          : Promise.resolve({ count: 0, error: null }),
+        supabase.from("givings").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("expense_requests").select("id", { count: "exact", head: true }).in("status", ["pending_approval", "draft"]),
+        supabase.from("services").select("id", { count: "exact", head: true }).eq("approval_status", "pending_admin_approval"),
+        supabase.from("attendance").select("id", { count: "exact", head: true }).eq("status", "present"),
+        supabase.from("attendance").select("services(service_type)").eq("status", "present"),
+        supabase.from("testimonies").select("id", { count: "exact", head: true }),
+        supabase.from("prayer_requests").select("id", { count: "exact", head: true }),
+        supabase.from("givings").select("amount, created_at").eq("status", "verified").order("created_at", { ascending: false }).limit(5),
+        supabase.from("testimonies").select("created_at").order("created_at", { ascending: false }).limit(3),
+        supabase.from("prayer_requests").select("created_at").order("created_at", { ascending: false }).limit(2),
       ]);
 
       const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
       const previousGivings = prevGivingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
 
-      const activeMembers = profilesRes.data?.length || 0;
-      const newMembers = profilesRes.data?.filter(p => {
-        if (!start) return false;
-        return new Date(p.created_at) >= start;
-      }).length || 0;
+      const activeMembers = activeMembersRes.count || 0;
+      const newMembers = newMembersRes.count || 0;
 
       const givingsByType: { [key: string]: number } = {};
       givingsRes.data?.forEach(g => {
@@ -211,7 +219,7 @@ const AdminDashboard = () => {
 
       const recentActivity: { type: string; message: string; time: string }[] = [];
       
-      const recentGivings = givingsRes.data?.slice(-5) || [];
+      const recentGivings = recentGivingsRes.data || [];
       recentGivings.forEach(g => {
         recentActivity.push({
           type: "giving",
@@ -220,7 +228,7 @@ const AdminDashboard = () => {
         });
       });
 
-      const recentTestimonies = testimoniesRes.data?.slice(-3) || [];
+      const recentTestimonies = recentTestimoniesRes.data || [];
       recentTestimonies.forEach(t => {
         recentActivity.push({
           type: "testimony",
@@ -229,7 +237,7 @@ const AdminDashboard = () => {
         });
       });
 
-      const recentPrayers = prayersRes.data?.slice(-2) || [];
+      const recentPrayers = recentPrayersRes.data || [];
       recentPrayers.forEach(p => {
         recentActivity.push({
           type: "prayer",
@@ -249,13 +257,13 @@ const AdminDashboard = () => {
         previousGivings,
         activeMembers,
         newMembers,
-        pendingGivings: pendingGivingsRes.data?.length || 0,
-        pendingExpenses: pendingExpensesRes.data?.length || 0,
-        pendingServices: pendingServicesRes.data?.length || 0,
-        totalAttendance: attendanceRes.data?.length || 0,
-        avgAttendance: attendanceRes.data?.length ? Math.round(attendanceRes.data.length / Math.max(Object.keys(givingsTrendMap).length, 1)) : 0,
-        testimonies: testimoniesRes.data?.length || 0,
-        prayers: prayersRes.data?.length || 0,
+        pendingGivings: pendingGivingsRes.count || 0,
+        pendingExpenses: pendingExpensesRes.count || 0,
+        pendingServices: pendingServicesRes.count || 0,
+        totalAttendance: attendanceCountRes.count || 0,
+        avgAttendance: (attendanceCountRes.count || 0) ? Math.round((attendanceCountRes.count || 0) / Math.max(Object.keys(givingsTrendMap).length, 1)) : 0,
+        testimonies: testimoniesCountRes.count || 0,
+        prayers: prayersCountRes.count || 0,
         givingsByType: Object.entries(givingsByType).map(([name, value]) => ({ name, value })),
         givingsTrend: Object.entries(givingsTrendMap).map(([date, values]) => ({ date, ...values })),
         attendanceByType: Object.entries(attendanceByType).map(([name, count]) => ({ name: formatServiceType(name), count })),
@@ -334,6 +342,7 @@ const AdminDashboard = () => {
         Status: g.status
       })) || [];
 
+      const XLSX = await import("xlsx");
       const ws = XLSX.utils.json_to_sheet(formattedData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Givings");
