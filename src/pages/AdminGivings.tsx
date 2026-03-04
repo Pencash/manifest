@@ -11,12 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Download, Check, X, Copy, Smartphone, Banknote, Wallet, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
+import { Download, Check, X, Copy, Smartphone, Banknote, Wallet, AlertCircle, CalendarIcon } from "lucide-react";
+import { format, isSameDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatAmount } from "@/lib/utils";
+import { cn, formatAmount } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import * as XLSX from "xlsx";
 
 interface Giving {
@@ -54,6 +56,7 @@ export default function AdminGivings() {
   const [loading, setLoading] = useState(true);
   const [givingTypes, setGivingTypes] = useState<{ id: string; name: string }[]>([]);
   const [members, setMembers] = useState<{ id: string; full_name: string; email: string | null; phone: string | null }[]>([]);
+  const [events, setEvents] = useState<{ id: string; name: string; service_date: string; is_archived: boolean | null }[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [submittingOffline, setSubmittingOffline] = useState(false);
   const [offlineForm, setOfflineForm] = useState({
@@ -63,6 +66,8 @@ export default function AdminGivings() {
     currency: "MWK",
     paymentMethod: "",
     paymentReference: "",
+    receivedDate: new Date(),
+    serviceId: "",
     note: "",
   });
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -110,6 +115,7 @@ export default function AdminGivings() {
 
     await loadMetadata();
     loadMembers();
+    loadEvents();
     loadGivings();
   };
 
@@ -217,6 +223,22 @@ export default function AdminGivings() {
       toast.error("Failed to load members list");
     } finally {
       setLoadingMembers(false);
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, service_date, is_archived")
+        .order("service_date", { ascending: false });
+
+      if (error) throw error;
+
+      setEvents(data || []);
+    } catch (error: any) {
+      console.error("Error loading events:", error);
+      toast.error("Failed to load events");
     }
   };
 
@@ -403,6 +425,9 @@ export default function AdminGivings() {
     setSubmittingOffline(true);
 
     try {
+      const receivedAt = new Date(offlineForm.receivedDate);
+      receivedAt.setHours(12, 0, 0, 0);
+
       const { error: givingError } = await supabase.from("givings").insert({
         profile_id: offlineForm.memberId,
         giving_type_id: offlineForm.givingTypeId,
@@ -410,7 +435,9 @@ export default function AdminGivings() {
         currency: offlineForm.currency,
         payment_method: offlineForm.paymentMethod,
         payment_reference: offlineForm.paymentReference || null,
+        service_id: offlineForm.serviceId || null,
         note: offlineForm.note || null,
+        created_at: receivedAt.toISOString(),
         status: "verified",
         is_anonymous: false,
       });
@@ -425,6 +452,8 @@ export default function AdminGivings() {
         currency: offlineForm.currency,
         paymentMethod: "",
         paymentReference: "",
+        receivedDate: new Date(),
+        serviceId: "",
         note: "",
       });
       loadGivings();
@@ -446,6 +475,9 @@ export default function AdminGivings() {
   }
 
   const pendingGivings = givings.filter(g => g.status === "pending");
+  const dateMatchedEvents = events.filter((event) => isSameDay(new Date(event.service_date), offlineForm.receivedDate));
+  const prioritizedEvents = [...dateMatchedEvents, ...events.filter((event) => !dateMatchedEvents.some((matched) => matched.id === event.id))];
+  const selectedEvent = events.find((event) => event.id === offlineForm.serviceId);
 
   return (
     <div className="space-y-6">
@@ -543,6 +575,67 @@ export default function AdminGivings() {
                     <SelectItem value="card">Card / POS</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date Received *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !offlineForm.receivedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(offlineForm.receivedDate, "PPP")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={offlineForm.receivedDate}
+                      onSelect={(date) => date && setOfflineForm({ ...offlineForm, receivedDate: date })}
+                      initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={new Date().getFullYear() - 10}
+                      toYear={new Date().getFullYear() + 10}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="relatedEvent">Related Event (Optional)</Label>
+                <Select
+                  value={offlineForm.serviceId || "none"}
+                  onValueChange={(value) => setOfflineForm({ ...offlineForm, serviceId: value === "none" ? "" : value })}
+                >
+                  <SelectTrigger id="relatedEvent">
+                    <SelectValue placeholder="Link to an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No related event</SelectItem>
+                    {prioritizedEvents.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.name} — {format(new Date(event.service_date), "PPP")}
+                        {event.is_archived ? " (Archived)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {dateMatchedEvents.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {dateMatchedEvents.length} event(s) match the selected date and appear first.
+                  </p>
+                )}
+                {selectedEvent && !isSameDay(new Date(selectedEvent.service_date), offlineForm.receivedDate) && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected event date: {format(new Date(selectedEvent.service_date), "PPP")}
+                  </p>
+                )}
               </div>
             </div>
 
