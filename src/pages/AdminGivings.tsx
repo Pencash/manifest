@@ -603,6 +603,7 @@ export default function AdminGivings() {
                       captionLayout="dropdown-buttons"
                       fromYear={new Date().getFullYear() - 10}
                       toYear={new Date().getFullYear() + 10}
+                      className="p-4 pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
