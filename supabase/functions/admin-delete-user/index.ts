@@ -1,44 +1,33 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const getSupabaseClient = (req: Request) =>
-  createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    {
-      global: {
-        headers: { Authorization: req.headers.get("Authorization")! },
-      },
-    }
-  );
+import { getCorsHeaders, getRequestUser, assertRequiredFields } from "../_shared/security.ts";
 
 type DeleteRequest = {
   userId?: string;
 };
 
 serve(async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const supabaseClient = getSupabaseClient(req);
-
   try {
-    const { data: authData, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !authData?.user) {
-      return new Response(JSON.stringify({ message: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { user } = await getRequestUser(req);
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        global: {
+          headers: { Authorization: req.headers.get("Authorization")! },
+        },
+      },
+    );
 
     const { data: isAdmin, error: roleError } = await supabaseClient.rpc("has_role", {
-      _user_id: authData.user.id,
+      _user_id: user.id,
       _role: "admin",
     });
 
@@ -51,23 +40,17 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const { userId }: DeleteRequest = await req.json();
+    const payload: DeleteRequest = await req.json();
+    assertRequiredFields(payload, ["userId"]);
 
-    if (!userId) {
-      return new Response(JSON.stringify({ message: "User ID is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (userId === authData.user.id) {
+    if (payload.userId === user.id) {
       return new Response(JSON.stringify({ message: "You cannot delete your own account" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId);
+    const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(payload.userId!);
 
     if (deleteError) throw deleteError;
 
@@ -76,9 +59,12 @@ serve(async (req: Request): Promise<Response> => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    const message = error?.message ?? "Internal server error";
+    const status = message === "Unauthorized" || message === "Missing authorization header" ? 401 : 500;
+
     console.error("Error deleting user:", error);
-    return new Response(JSON.stringify({ message: error?.message ?? "Internal server error" }), {
-      status: 500,
+    return new Response(JSON.stringify({ message }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle, DollarSign } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { formatAmount } from "@/lib/utils";
+import { useFundingAvailability } from "@/hooks/useFundingAvailability";
 
 interface FundingAvailabilityProps {
   selectedCategoryId?: string;
@@ -12,135 +11,24 @@ interface FundingAvailabilityProps {
   requestedAmount?: number;
 }
 
-export default function FundingAvailability({ 
-  selectedCategoryId, 
+export default function FundingAvailability({
+  selectedCategoryId,
   selectedServiceId,
-  requestedAmount = 0 
+  requestedAmount = 0,
 }: FundingAvailabilityProps) {
-  const [loading, setLoading] = useState(true);
-  const [totalOfferings, setTotalOfferings] = useState(0);
-  const [serviceOfferings, setServiceOfferings] = useState(0);
-  const [generalOfferings, setGeneralOfferings] = useState(0);
-  const [allocatedExpenses, setAllocatedExpenses] = useState(0);
-  const [availableFunds, setAvailableFunds] = useState(0);
+  const { data, isLoading } = useFundingAvailability({ selectedCategoryId, selectedServiceId });
 
-  useEffect(() => {
-    loadFundingData();
-  }, [selectedCategoryId, selectedServiceId]);
-
-  const loadFundingData = async () => {
-    try {
-      setLoading(true);
-
-      // Step 1: Get the "Offering" giving type ID
-      const { data: offeringType } = await supabase
-        .from("giving_types")
-        .select("id")
-        .eq("name", "Offering")
-        .maybeSingle();
-
-      if (!offeringType) {
-        console.error("Offering type not found");
-        setLoading(false);
-        return;
-      }
-
-      const offeringTypeId = offeringType.id;
-
-      // Step 2: Get total verified Offerings (excluding restricted types)
-      const { data: totalOfferingsData } = await supabase
-        .from("givings")
-        .select("amount")
-        .eq("status", "verified")
-        .eq("giving_type_id", offeringTypeId);
-
-      const total = totalOfferingsData?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-      setTotalOfferings(total);
-
-      // Step 3: Get service-specific and general Offerings
-      let serviceTotal = 0;
-      let generalTotal = 0;
-      let availableForExpense = 0;
-
-      if (selectedServiceId) {
-        // Get service-specific Offerings
-        const { data: serviceData } = await supabase
-          .from("givings")
-          .select("amount")
-          .eq("status", "verified")
-          .eq("giving_type_id", offeringTypeId)
-          .eq("service_id", selectedServiceId);
-
-        serviceTotal = serviceData?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-        setServiceOfferings(serviceTotal);
-
-        // Get general Offerings (no service_id)
-        const { data: generalData } = await supabase
-          .from("givings")
-          .select("amount")
-          .eq("status", "verified")
-          .eq("giving_type_id", offeringTypeId)
-          .is("service_id", null);
-
-        generalTotal = generalData?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-        setGeneralOfferings(generalTotal);
-
-        // Available for service expense = service Offerings + general Offerings
-        availableForExpense = serviceTotal + generalTotal;
-      } else {
-        // For general expenses, only general Offerings are available
-        const { data: generalData } = await supabase
-          .from("givings")
-          .select("amount")
-          .eq("status", "verified")
-          .eq("giving_type_id", offeringTypeId)
-          .is("service_id", null);
-
-        generalTotal = generalData?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-        setGeneralOfferings(generalTotal);
-        setServiceOfferings(0);
-
-        availableForExpense = generalTotal;
-      }
-
-      // Step 4: Get allocated expenses
-      let expenseQuery = supabase
-        .from("expense_requests")
-        .select("amount")
-        .in("status", ["approved", "paid"]);
-
-      if (selectedServiceId) {
-        // For service expenses, only count expenses for this service
-        expenseQuery = expenseQuery.eq("service_id", selectedServiceId);
-      } else {
-        // For general expenses, count all general expenses (no service)
-        expenseQuery = expenseQuery.is("service_id", null);
-      }
-
-      if (selectedCategoryId) {
-        expenseQuery = expenseQuery.eq("category_id", selectedCategoryId);
-      }
-
-      const { data: expenseData } = await expenseQuery;
-      const allocated = expenseData?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-      setAllocatedExpenses(allocated);
-
-      // Calculate available funds
-      const available = availableForExpense - allocated;
-      setAvailableFunds(available);
-
-    } catch (error) {
-      console.error("Failed to load funding data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const totalOfferings = data?.totalOfferings ?? 0;
+  const serviceOfferings = data?.serviceOfferings ?? 0;
+  const generalOfferings = data?.generalOfferings ?? 0;
+  const allocatedExpenses = data?.allocatedExpenses ?? 0;
+  const availableFunds = data?.availableFunds ?? 0;
 
   const utilizationPercent = totalOfferings > 0 ? (allocatedExpenses / totalOfferings) * 100 : 0;
   const isSufficient = availableFunds >= requestedAmount;
   const shortfall = requestedAmount - availableFunds;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -171,7 +59,7 @@ export default function FundingAvailability({
             <p className="text-lg font-semibold">{formatAmount(totalOfferings)}</p>
             <p className="text-xs text-muted-foreground mt-1">Excludes Tithes/First Fruits/Seed/Pledges</p>
           </div>
-          
+
           {selectedServiceId && (
             <>
               <div>
@@ -184,21 +72,21 @@ export default function FundingAvailability({
               </div>
             </>
           )}
-          
+
           {!selectedServiceId && (
             <div>
               <p className="text-sm text-muted-foreground">General Offerings</p>
               <p className="text-lg font-semibold">{formatAmount(generalOfferings)}</p>
             </div>
           )}
-          
+
           <div>
             <p className="text-sm text-muted-foreground">Allocated</p>
             <p className="text-lg font-semibold">{formatAmount(allocatedExpenses)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Available for This Expense</p>
-            <p className={`text-lg font-semibold ${availableFunds < 0 ? 'text-destructive' : 'text-primary'}`}>
+            <p className={`text-lg font-semibold ${availableFunds < 0 ? "text-destructive" : "text-primary"}`}>
               {formatAmount(availableFunds)}
             </p>
           </div>
@@ -219,30 +107,28 @@ export default function FundingAvailability({
 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Budget Utilization</span>
-            <span className="font-medium">{utilizationPercent.toFixed(1)}%</span>
+            <span>Fund Utilization</span>
+            <span>{utilizationPercent.toFixed(1)}%</span>
           </div>
-          <Progress value={utilizationPercent} className="h-2" />
+          <Progress value={Math.min(utilizationPercent, 100)} className="h-2" />
         </div>
 
         {requestedAmount > 0 && (
-          <Alert variant={isSufficient ? "default" : "destructive"}>
+          <Alert className={isSufficient ? "border-green-500" : "border-destructive"}>
             {isSufficient ? (
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle className="h-4 w-4 text-green-600" />
             ) : (
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4 text-destructive" />
             )}
             <AlertDescription>
               {isSufficient ? (
-                <>
-                  <strong>Sufficient funding available.</strong> Your request of {formatAmount(requestedAmount)} can be covered by available funds.
-                </>
+                <span className="text-green-700 dark:text-green-400">
+                  Sufficient funds available for this request ({formatAmount(requestedAmount)}).
+                </span>
               ) : (
-                <>
-                  <strong>Funding shortfall: {formatAmount(shortfall)}</strong>
-                  <br />
-                  This expense exceeds available funds. Approval may require additional funding or budget reallocation.
-                </>
+                <span className="text-destructive">
+                  Insufficient funds. Shortfall: {formatAmount(shortfall)}
+                </span>
               )}
             </AlertDescription>
           </Alert>

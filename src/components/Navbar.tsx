@@ -3,7 +3,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { NavItem } from "@/config/navigation";
 import { NotificationBadge } from "@/components/NotificationBadge";
 import { Menu, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { subscribeToNotificationRefresh } from "@/lib/notification-events";
@@ -18,36 +18,7 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navItems, setNavItems] = useState<NavItem[]>(items);
 
-  useEffect(() => {
-    loadNotificationCounts();
-    
-    // Set up realtime subscriptions for updates
-    const givingsChannel = supabase
-      .channel('givings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
-      .subscribe();
-
-    const expensesChannel = supabase
-      .channel('expenses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
-      .subscribe();
-
-    const servicesChannel = supabase
-      .channel('services-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
-      .subscribe();
-
-    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
-
-    return () => {
-      supabase.removeChannel(givingsChannel);
-      supabase.removeChannel(expensesChannel);
-      supabase.removeChannel(servicesChannel);
-      unsubscribeFromEvents();
-    };
-  }, []);
-
-  const loadNotificationCounts = async () => {
+  const loadNotificationCounts = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -104,7 +75,36 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
       console.error("Error loading notification counts:", error);
       setNavItems(items);
     }
-  };
+  }, [items]);
+
+  useEffect(() => {
+    loadNotificationCounts();
+    
+    // Set up realtime subscriptions for updates
+    const givingsChannel = supabase
+      .channel('givings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('expenses-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
+      .subscribe();
+
+    const servicesChannel = supabase
+      .channel('services-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
+      .subscribe();
+
+    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
+
+    return () => {
+      supabase.removeChannel(givingsChannel);
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(servicesChannel);
+      unsubscribeFromEvents();
+    };
+  }, [loadNotificationCounts]);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

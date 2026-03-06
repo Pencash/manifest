@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronDown, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -40,48 +40,7 @@ export function AppSidebar() {
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
 
-  // Load user info
-  useEffect(() => {
-    loadUserInfo();
-  }, []);
-
-  // Close the mobile sidebar when the route changes so the content is visible.
-  useEffect(() => {
-    if (isMobile && openMobile) {
-      setOpenMobile(false);
-    }
-  }, [location.pathname]); // Only trigger on route changes, not on sidebar state changes
-
-  // Load notification counts with realtime updates
-  useEffect(() => {
-    loadNotificationCounts();
-    
-    const givingsChannel = supabase
-      .channel('givings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
-      .subscribe();
-
-    const expensesChannel = supabase
-      .channel('expenses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
-      .subscribe();
-
-    const servicesChannel = supabase
-      .channel('services-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
-      .subscribe();
-
-    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
-
-    return () => {
-      supabase.removeChannel(givingsChannel);
-      supabase.removeChannel(expensesChannel);
-      supabase.removeChannel(servicesChannel);
-      unsubscribeFromEvents();
-    };
-  }, []);
-
-  const loadUserInfo = async () => {
+  const loadUserInfo = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -95,9 +54,9 @@ export function AppSidebar() {
       setUserName(profileData.full_name);
     }
     setUserEmail(user.email || "");
-  };
+  }, []);
 
-  const loadNotificationCounts = async () => {
+  const loadNotificationCounts = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -167,7 +126,48 @@ export function AppSidebar() {
       console.error("Error loading notification counts:", error);
       setNavItems(adminNavItems);
     }
-  };
+  }, []);
+
+  // Load user info
+  useEffect(() => {
+    loadUserInfo();
+  }, [loadUserInfo]);
+
+  // Close the mobile sidebar when the route changes so the content is visible.
+  useEffect(() => {
+    if (isMobile && openMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, location.pathname, openMobile, setOpenMobile]);
+
+  // Load notification counts with realtime updates
+  useEffect(() => {
+    loadNotificationCounts();
+    
+    const givingsChannel = supabase
+      .channel('givings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('expenses-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
+      .subscribe();
+
+    const servicesChannel = supabase
+      .channel('services-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
+      .subscribe();
+
+    const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
+
+    return () => {
+      supabase.removeChannel(givingsChannel);
+      supabase.removeChannel(expensesChannel);
+      supabase.removeChannel(servicesChannel);
+      unsubscribeFromEvents();
+    };
+  }, [loadNotificationCounts]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

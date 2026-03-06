@@ -1,11 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { assertRequiredFields, getCorsHeaders, getRequestUser } from "../_shared/security.ts";
 
 interface RoleNotificationRequest {
   email: string;
@@ -15,42 +10,14 @@ interface RoleNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const authHeader = req.headers.get("Authorization");
-
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const { user, userClient } = await getRequestUser(req);
 
     const { data: rolesData, error: rolesError } = await userClient
       .from("user_roles")
@@ -76,16 +43,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const payload: RoleNotificationRequest = await req.json();
-    const { email, name, newRole, userId } = payload;
+    assertRequiredFields(payload, ["email", "name", "newRole", "userId"]);
 
-    if (!email || !name || !newRole || !userId) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    console.log(`Role changed for ${name} (${email}) to ${newRole}`);
+    console.log(`Role changed for ${payload.name} (${payload.email}) to ${payload.newRole}`);
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -93,11 +56,11 @@ const handler = async (req: Request): Promise<Response> => {
       user_id: user.id,
       action: "role_notification_sent",
       table_name: "user_roles",
-      record_id: userId,
+      record_id: payload.userId,
       new_values: {
-        email,
-        name,
-        newRole,
+        email: payload.email,
+        name: payload.name,
+        newRole: payload.newRole,
         notifiedAt: new Date().toISOString(),
       },
     });
@@ -124,9 +87,12 @@ const handler = async (req: Request): Promise<Response> => {
       },
     );
   } catch (error: any) {
+    const message = error?.message ?? "Internal server error";
+    const status = message === "Unauthorized" || message === "Missing authorization header" ? 401 : 500;
+
     console.error("Error in send-role-notification function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: message }), {
+      status,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }

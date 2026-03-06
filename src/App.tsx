@@ -9,6 +9,8 @@ import SupabaseEnvAlert from "./components/SupabaseEnvAlert";
 import { getMissingSupabaseEnvVars } from "./lib/env";
 import { PageMetadataManager } from "./components/PageMetadataManager";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "@/components/routing/ProtectedRoute";
+import { RoleRoute } from "@/components/routing/RoleRoute";
 
 // Lazy load layouts
 const MemberLayout = lazy(() => import("./layouts/MemberLayout"));
@@ -89,35 +91,35 @@ const App = () => {
                 <Route path="/member/auth" element={<MemberAuth />} />
 
                 {/* Member Routes */}
-                <Route path="/dashboard" element={<MemberLayout><Dashboard /></MemberLayout>} />
-                <Route path="/give" element={<MemberLayout><Give /></MemberLayout>} />
-                <Route path="/history" element={<MemberLayout><History /></MemberLayout>} />
-                <Route path="/testimony" element={<MemberLayout><Testimony /></MemberLayout>} />
-                <Route path="/prayer" element={<MemberLayout><Prayer /></MemberLayout>} />
-                <Route path="/mobilization" element={<MemberLayout><MemberMobilization /></MemberLayout>} />
-                <Route path="/settings" element={<MemberLayout><Settings /></MemberLayout>} />
+                <Route path="/dashboard" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Dashboard /></MemberLayout></ProtectedRoute>} />
+                <Route path="/give" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Give /></MemberLayout></ProtectedRoute>} />
+                <Route path="/history" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><History /></MemberLayout></ProtectedRoute>} />
+                <Route path="/testimony" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Testimony /></MemberLayout></ProtectedRoute>} />
+                <Route path="/prayer" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Prayer /></MemberLayout></ProtectedRoute>} />
+                <Route path="/mobilization" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><MemberMobilization /></MemberLayout></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Settings /></MemberLayout></ProtectedRoute>} />
 
                 {/* Admin Routes */}
-                <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-                <Route path="/admin/events" element={<AdminLayout><EventsManagement /></AdminLayout>} />
-                <Route path="/admin/pending-services" element={<AdminLayout><AdminPendingServices /></AdminLayout>} />
-                <Route path="/admin/attendance/:serviceId" element={<AdminLayout><AttendanceLog /></AdminLayout>} />
-                <Route path="/admin/attendance/:serviceId/bulk-import" element={<AdminLayout><BulkAttendanceImport /></AdminLayout>} />
-                <Route path="/admin/reports/attendance" element={<AdminLayout><AttendanceReport /></AdminLayout>} />
-                <Route path="/admin/reports/financial" element={<AdminLayout><FinancialReports /></AdminLayout>} />
-                <Route path="/admin/givings" element={<AdminLayout><AdminGivings /></AdminLayout>} />
-                <Route path="/admin/expenses/request" element={<AdminLayout><ExpenseRequest /></AdminLayout>} />
-                <Route path="/admin/expenses/all" element={<AdminLayout><AdminExpenseRequests /></AdminLayout>} />
-                <Route path="/admin/expenses/categories" element={<AdminLayout><ExpenseCategories /></AdminLayout>} />
-                <Route path="/admin/expenses/pending" element={<AdminLayout><PendingExpenseApprovals /></AdminLayout>} />
-                <Route path="/admin/reminders" element={<AdminLayout><EventReminders /></AdminLayout>} />
-                <Route path="/admin/visitor-followup" element={<AdminLayout><VisitorFollowup /></AdminLayout>} />
-                <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
-                <Route path="/admin/mobilization" element={<AdminLayout><MobilizationReport /></AdminLayout>} />
-                <Route path="/admin/mobilization/member/:memberId" element={<AdminLayout><MemberInvitationsDetail /></AdminLayout>} />
-                <Route path="/admin/mobilization/service/:serviceId" element={<AdminLayout><ServiceMobilizationDetail /></AdminLayout>} />
-                <Route path="/admin/conversions" element={<AdminLayout><ConversionDashboard /></AdminLayout>} />
-                <Route path="/admin/audit-logs" element={<AdminLayout><AuditLogs /></AdminLayout>} />
+                <Route path="/admin/dashboard" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminDashboard /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/events" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><EventsManagement /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/pending-services" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminPendingServices /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/attendance/:serviceId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AttendanceLog /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/attendance/:serviceId/bulk-import" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><BulkAttendanceImport /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/reports/attendance" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AttendanceReport /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/reports/financial" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialReports /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/givings" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminGivings /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/expenses/request" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseRequest /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/expenses/all" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequests /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/expenses/categories" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseCategories /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/expenses/pending" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><PendingExpenseApprovals /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/reminders" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><EventReminders /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/visitor-followup" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><VisitorFollowup /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/users" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><UserManagement /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/mobilization" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><MobilizationReport /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/mobilization/member/:memberId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><MemberInvitationsDetail /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/mobilization/service/:serviceId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ServiceMobilizationDetail /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/conversions" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ConversionDashboard /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/audit-logs" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AuditLogs /></AdminLayout></RoleRoute>} />
 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
