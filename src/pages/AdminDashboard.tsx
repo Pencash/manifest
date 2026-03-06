@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -47,26 +47,7 @@ const AdminDashboard = () => {
   const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    checkUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/admin/auth");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (user) {
-      loadMetrics();
-    }
-  }, [user, timePeriod]);
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -106,7 +87,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   const getDateRange = (period: TimePeriod) => {
     const now = new Date();
@@ -136,7 +117,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     try {
       setLoading(true);
       const { start, end } = getDateRange(timePeriod);
@@ -275,7 +256,7 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timePeriod]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -295,6 +276,25 @@ const AdminDashboard = () => {
   const formatServiceType = (type: string): string => {
     return type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
+
+  useEffect(() => {
+    checkUser();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        navigate("/admin/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [checkUser, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      loadMetrics();
+    }
+  }, [loadMetrics, user]);
 
   const formatTimeAgo = (date: Date): string => {
     const now = new Date();

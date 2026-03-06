@@ -1,73 +1,83 @@
-# Welcome to your Lovable project
+# Phaneroo Connect
 
-## Project info
+Phaneroo Connect is a role-based church operations platform for member engagement and admin workflows. It supports offerings/givings, expenses, mobilization, attendance, reminders, and reporting.
 
-**URL**: https://lovable.dev/projects/6925966f-c0b8-491d-89cf-f819e13594bf
+## Tech stack
 
-## How can I edit this code?
+- React + TypeScript + Vite
+- Tailwind + shadcn/ui
+- Supabase (Auth, Postgres, RLS, Edge Functions)
+- TanStack React Query
 
-There are several ways of editing your application.
+## Local setup
 
-**Use Lovable**
+### 1) Prerequisites
+- Node.js 22+
+- npm
+- Supabase project credentials
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6925966f-c0b8-491d-89cf-f819e13594bf) and start prompting.
+### 2) Install dependencies
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+npm install
+```
 
-**Use your preferred IDE**
+### 3) Configure environment
+Create a `.env` file in the repo root:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+For edge functions, configure secrets in Supabase:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ALLOWED_ORIGINS` (comma-separated production/staging origins)
 
-Follow these steps:
+### 4) Run development server
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Useful commands
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run lint      # eslint checks
+npm run test      # node:test unit tests
+npm run build     # production build
+npm run preview   # preview build output
+```
 
-**Use GitHub Codespaces**
+## Architecture overview
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- `src/App.tsx` defines route tree and applies centralized route guards.
+- `src/contexts/AuthContext.tsx` is the main authentication/profile/role source.
+- `src/components/routing/*` contains access guards (`ProtectedRoute`, `RoleRoute`).
+- `src/hooks/*` contains feature data hooks (including React Query-based fetchers).
+- `src/pages/*` contains route-level screens.
+- `supabase/migrations/*` contains schema/policy history.
+- `supabase/functions/*` contains edge functions and shared security helpers.
 
-## What technologies are used for this project?
+## Data & security model (high-level)
 
-This project is built with:
+- Frontend authenticates users through Supabase Auth.
+- Role checks are enforced in UI guards and backend edge functions.
+- Database authorization is enforced with Supabase RLS policies.
+- Edge functions use Authorization headers + role verification and environment-based CORS restrictions.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## CI quality gates
 
-## How can I deploy this project?
+GitHub Actions runs:
+1. `npm ci`
+2. `npm run lint`
+3. `npm run test`
+4. `npm run build`
 
-Simply open [Lovable](https://lovable.dev/projects/6925966f-c0b8-491d-89cf-f819e13594bf) and click on Share -> Publish.
+## Deployment notes
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Apply migrations in order from `supabase/migrations`.
+- Deploy edge functions after secrets are set.
+- Verify `ALLOWED_ORIGINS` matches deployed frontend domains.
