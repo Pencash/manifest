@@ -41,10 +41,10 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
         .or("status.eq.pending,services.approval_status.eq.pending_admin_approval");
 
       // Count pending expense requests
-      const { data: pendingExpenses } = await supabase
+      const { count: pendingExpensesCount } = await supabase
         .from("expense_requests")
-        .select("id")
-        .in("status", ["pending_approval", "draft"]);
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
 
       // Count pending service events
       const { data: pendingServices } = await supabase
@@ -53,7 +53,7 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
         .eq("approval_status", "pending_admin_approval");
 
       const pendingGivingsCount = pendingGivings?.length || 0;
-      const pendingExpensesCount = pendingExpenses?.length || 0;
+      const pendingExpensesCountValue = pendingExpensesCount || 0;
       const pendingServicesCount = pendingServices?.length || 0;
 
       // Update navigation items with counts
@@ -62,7 +62,7 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
           return { ...item, notificationCount: pendingGivingsCount };
         }
         if (item.path === "/admin/expenses/pending") {
-          return { ...item, notificationCount: pendingExpensesCount };
+          return { ...item, notificationCount: pendingExpensesCountValue };
         }
         if (item.path === "/admin/pending-services") {
           return { ...item, notificationCount: pendingServicesCount };

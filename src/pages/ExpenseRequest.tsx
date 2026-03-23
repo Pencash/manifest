@@ -1,21 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess } from "@/lib/roles";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import FundingAvailability from "@/components/FundingAvailability";
+import { ServiceSelector } from "@/components/ServiceSelector";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Upload } from "lucide-react";
-import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { hasAdminAccess, type AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-import FundingAvailability from "@/components/FundingAvailability";
-import { ServiceSelector } from "@/components/ServiceSelector";
+import { toast } from "sonner";
 
 interface ExpenseCategory {
   id: string;
@@ -23,18 +23,13 @@ interface ExpenseCategory {
   code: string;
 }
 
-interface Service {
-  id: string;
-  name: string;
-  service_date: string;
-}
-
 export default function ExpenseRequest() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [currentRole, setCurrentRole] = useState<AppRole | null>(null);
+  const [requestDate, setRequestDate] = useState<Date>(new Date());
   const [dueDate, setDueDate] = useState<Date>();
   const [selectedServiceName, setSelectedServiceName] = useState("");
   const [formData, setFormData] = useState({
@@ -51,13 +46,15 @@ export default function ExpenseRequest() {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session) {
       navigate("/admin/auth");
       return;
     }
 
-    // Check admin access
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -70,6 +67,7 @@ export default function ExpenseRequest() {
       return;
     }
 
+    setCurrentRole(roleData.role as AppRole);
     loadData();
   };
 
@@ -77,14 +75,18 @@ export default function ExpenseRequest() {
     try {
       const [categoriesRes, servicesRes] = await Promise.all([
         supabase.from("expense_categories").select("id, name, code").eq("is_active", true).order("name"),
-        supabase.from("services").select("id, name, service_date").eq("is_published", true).order("service_date", { ascending: false }).limit(20)
+        supabase
+          .from("services")
+          .select("id, name, service_date")
+          .eq("is_published", true)
+          .order("service_date", { ascending: false })
+          .limit(20),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
       if (servicesRes.error) throw servicesRes.error;
 
       setCategories(categoriesRes.data || []);
-      setServices(servicesRes.data || []);
     } catch (error: any) {
       toast.error("Failed to load form data");
       console.error(error);
@@ -98,10 +100,16 @@ export default function ExpenseRequest() {
     setSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("expense_requests").insert({
+      const requestTimestamp = new Date(requestDate);
+      requestTimestamp.setHours(12, 0, 0, 0);
+
+      const insertPayload: Record<string, unknown> = {
         requester_id: user.id,
         category_id: formData.category_id,
         service_id: formData.service_id || null,
@@ -111,7 +119,13 @@ export default function ExpenseRequest() {
         priority: formData.priority,
         due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
         status: isDraft ? "draft" : "pending",
-      });
+      };
+
+      if (currentRole === "finance") {
+        insertPayload.created_at = requestTimestamp.toISOString();
+      }
+
+      const { error } = await supabase.from("expense_requests").insert(insertPayload);
 
       if (error) throw error;
 
@@ -139,12 +153,12 @@ export default function ExpenseRequest() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
-         <div>
+        <div>
           <h1 className="text-3xl font-bold text-foreground">New Expense Request</h1>
           <p className="text-muted-foreground">Submit an expense request for approval</p>
         </div>
 
-        <FundingAvailability 
+        <FundingAvailability
           selectedCategoryId={formData.category_id}
           selectedServiceId={formData.service_id}
           requestedAmount={parseFloat(formData.amount) || 0}
@@ -153,7 +167,9 @@ export default function ExpenseRequest() {
         <Card>
           <CardHeader>
             <CardTitle>Expense Details</CardTitle>
-            <CardDescription>Fill in the details for your expense request</CardDescription>
+            <CardDescription>
+              Fill in the details for your expense request{currentRole === "finance" ? " and backdate it when needed." : "."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
@@ -174,22 +190,6 @@ export default function ExpenseRequest() {
                   </Select>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Link to Service/Event (Optional)</Label>
-                  <ServiceSelector
-                    onServiceSelect={(serviceId, serviceName) => {
-                      setFormData({ ...formData, service_id: serviceId });
-                      setSelectedServiceName(serviceName);
-                    }}
-                    selectedServiceId={formData.service_id}
-                  />
-                  {formData.service_id && selectedServiceName && (
-                    <p className="text-sm text-muted-foreground">
-                      Selected: {selectedServiceName}
-                    </p>
-                  )}
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount (MWK) *</Label>
                   <Input
@@ -202,6 +202,20 @@ export default function ExpenseRequest() {
                     placeholder="0.00"
                     required
                   />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Link to Service/Event (Optional)</Label>
+                  <ServiceSelector
+                    onServiceSelect={(serviceId, serviceName) => {
+                      setFormData({ ...formData, service_id: serviceId });
+                      setSelectedServiceName(serviceName);
+                    }}
+                    selectedServiceId={formData.service_id}
+                  />
+                  {formData.service_id && selectedServiceName && (
+                    <p className="text-sm text-muted-foreground">Selected: {selectedServiceName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -219,7 +233,38 @@ export default function ExpenseRequest() {
                   </Select>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                {currentRole === "finance" && (
+                  <div className="space-y-2">
+                    <Label>Request Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn("w-full justify-start text-left font-normal", !requestDate && "text-muted-foreground")}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {requestDate ? format(requestDate, "PPP") : "Pick a request date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={requestDate}
+                          onSelect={(date) => date && setRequestDate(date)}
+                          disabled={(date) => date > new Date()}
+                          captionLayout="dropdown-buttons"
+                          fromYear={new Date().getFullYear() - 10}
+                          toYear={new Date().getFullYear()}
+                          initialFocus
+                          className="p-4 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground">Finance users can backdate requests, but future request dates are blocked.</p>
+                  </div>
+                )}
+
+                <div className={cn("space-y-2", currentRole === "finance" ? "md:col-span-2" : "md:col-span-2")}>
                   <Label>Due Date (Optional)</Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -228,7 +273,7 @@ export default function ExpenseRequest() {
                         className={cn("w-full justify-start text-left font-normal", !dueDate && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? format(dueDate, "PPP") : "Pick a date"}
+                        {dueDate ? format(dueDate, "PPP") : "Pick a due date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

@@ -1,35 +1,55 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess } from "@/lib/roles";
-import { triggerNotificationRefresh } from "@/lib/notification-events";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import { Download, Check, X, Copy, Smartphone, Banknote, Wallet, AlertCircle, CalendarIcon } from "lucide-react";
 import { format, isSameDay } from "date-fns";
+import {
+  AlertCircle,
+  Banknote,
+  CalendarIcon,
+  Check,
+  Copy,
+  Download,
+  Pencil,
+  Smartphone,
+  Trash2,
+  Wallet,
+  X,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
+import { hasAdminAccess, type AppRole } from "@/lib/roles";
+import { cn, formatAmount } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn, formatAmount } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import * as XLSX from "xlsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface Giving {
   id: string;
   amount: number;
+  created_at: string;
   currency: string;
+  entry_source: string;
+  giving_type_id: string;
+  is_anonymous: boolean;
+  note: string | null;
   payment_method: string;
   payment_reference: string | null;
-  status: string;
+  profile_id: string;
+  recorded_by: string | null;
   rejection_reason: string | null;
-  created_at: string;
+  requires_admin_verification: boolean;
+  service_id: string | null;
+  status: string;
   profiles: { full_name: string; email: string };
   giving_types: { name: string };
   services: { name: string; service_date: string; approval_status?: string } | null;
@@ -50,26 +70,31 @@ const REJECTION_REASONS = [
   "Other",
 ];
 
+const createInitialOfflineForm = () => ({
+  memberId: "",
+  givingTypeId: "",
+  amount: "",
+  currency: "MWK",
+  paymentMethod: "",
+  paymentReference: "",
+  receivedDate: new Date(),
+  serviceId: "",
+  note: "",
+});
+
 export default function AdminGivings() {
   const navigate = useNavigate();
   const [givings, setGivings] = useState<Giving[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentRole, setCurrentRole] = useState<AppRole | null>(null);
   const [givingTypes, setGivingTypes] = useState<{ id: string; name: string }[]>([]);
   const [members, setMembers] = useState<{ id: string; full_name: string; email: string | null; phone: string | null }[]>([]);
   const [events, setEvents] = useState<{ id: string; name: string; service_date: string; is_archived: boolean | null }[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [submittingOffline, setSubmittingOffline] = useState(false);
-  const [offlineForm, setOfflineForm] = useState({
-    memberId: "",
-    givingTypeId: "",
-    amount: "",
-    currency: "MWK",
-    paymentMethod: "",
-    paymentReference: "",
-    receivedDate: new Date(),
-    serviceId: "",
-    note: "",
-  });
+  const [editingGivingId, setEditingGivingId] = useState<string | null>(null);
+  const [offlineForm, setOfflineForm] = useState(createInitialOfflineForm());
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<string>("all");
   const [selectedGivings, setSelectedGivings] = useState<string[]>([]);
@@ -94,8 +119,16 @@ export default function AdminGivings() {
     }
   }, [filterStatus, filterPaymentMethod]);
 
+  const resetOfflineForm = () => {
+    setOfflineForm(createInitialOfflineForm());
+    setEditingGivingId(null);
+  };
+
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session) {
       navigate("/admin/auth");
       return;
@@ -112,6 +145,9 @@ export default function AdminGivings() {
       navigate("/dashboard");
       return;
     }
+
+    setCurrentUserId(session.user.id);
+    setCurrentRole(roleData.role as AppRole);
 
     await loadMetadata();
     loadMembers();
@@ -139,7 +175,6 @@ export default function AdminGivings() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       if (data) {
@@ -155,25 +190,17 @@ export default function AdminGivings() {
               ...giving,
               profiles: profile || { full_name: "Anonymous", email: "N/A" },
             };
-          })
+          }),
         );
-        setGivings(givingsWithProfiles as any);
+
+        setGivings(givingsWithProfiles as Giving[]);
       }
 
-      const allData = await supabase
-        .from("givings")
-        .select("amount, status");
-
+      const allData = await supabase.from("givings").select("amount, status");
       if (allData.data) {
-        const verified = allData.data
-          .filter(g => g.status === "verified")
-          .reduce((sum, g) => sum + Number(g.amount), 0);
-        const pending = allData.data
-          .filter(g => g.status === "pending")
-          .reduce((sum, g) => sum + Number(g.amount), 0);
-        const rejected = allData.data
-          .filter(g => g.status === "rejected")
-          .reduce((sum, g) => sum + Number(g.amount), 0);
+        const verified = allData.data.filter((g) => g.status === "verified").reduce((sum, g) => sum + Number(g.amount), 0);
+        const pending = allData.data.filter((g) => g.status === "pending").reduce((sum, g) => sum + Number(g.amount), 0);
+        const rejected = allData.data.filter((g) => g.status === "rejected").reduce((sum, g) => sum + Number(g.amount), 0);
 
         setStats({
           verified,
@@ -192,14 +219,8 @@ export default function AdminGivings() {
 
   const loadMetadata = async () => {
     try {
-      const { data, error } = await supabase
-        .from("giving_types")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-
+      const { data, error } = await supabase.from("giving_types").select("id, name").eq("is_active", true).order("name");
       if (error) throw error;
-
       setGivingTypes(data || []);
     } catch (error: any) {
       console.error("Error loading giving types:", error);
@@ -210,13 +231,8 @@ export default function AdminGivings() {
   const loadMembers = async () => {
     try {
       setLoadingMembers(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone")
-        .order("full_name", { ascending: true });
-
+      const { data, error } = await supabase.from("profiles").select("id, full_name, email, phone").order("full_name", { ascending: true });
       if (error) throw error;
-
       setMembers(data || []);
     } catch (error: any) {
       console.error("Error loading members:", error);
@@ -228,13 +244,8 @@ export default function AdminGivings() {
 
   const loadEvents = async () => {
     try {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, service_date, is_archived")
-        .order("service_date", { ascending: false });
-
+      const { data, error } = await supabase.from("services").select("id, name, service_date, is_archived").order("service_date", { ascending: false });
       if (error) throw error;
-
       setEvents(data || []);
     } catch (error: any) {
       console.error("Error loading events:", error);
@@ -242,16 +253,41 @@ export default function AdminGivings() {
     }
   };
 
-  const handleVerifyPayment = async (givingIds: string[]) => {
-    try {
-      const { error } = await supabase
-        .from("givings")
-        .update({ status: "verified" })
-        .in("id", givingIds);
+  const canManagePendingFinanceOfflineGiving = (giving: Giving) => {
+    return (
+      currentRole === "finance" &&
+      currentUserId === giving.recorded_by &&
+      giving.entry_source === "offline" &&
+      giving.requires_admin_verification &&
+      giving.status === "pending"
+    );
+  };
 
+  const canVerifyPendingGiving = (giving: Giving) => {
+    if (giving.status !== "pending") return false;
+    if (currentRole === "admin") return true;
+    if (currentRole === "finance") return !giving.requires_admin_verification;
+    return false;
+  };
+
+  const verifiablePendingGivings = givings.filter((giving) => canVerifyPendingGiving(giving));
+
+  const handleVerifyPayment = async (givingIds: string[]) => {
+    const allowedIds = givingIds.filter((id) => {
+      const giving = givings.find((item) => item.id === id);
+      return giving ? canVerifyPendingGiving(giving) : false;
+    });
+
+    if (allowedIds.length === 0) {
+      toast.error("You can only verify records that are eligible for your role.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("givings").update({ status: "verified", rejection_reason: null }).in("id", allowedIds);
       if (error) throw error;
 
-      toast.success(`${givingIds.length} payment(s) verified successfully`);
+      toast.success(`${allowedIds.length} payment(s) verified successfully`);
       setSelectedGivings([]);
       loadGivings();
       triggerNotificationRefresh();
@@ -271,8 +307,13 @@ export default function AdminGivings() {
   const handleRejectPayment = async () => {
     if (!rejectGivingId) return;
 
-    const finalReason = rejectionReason === "Other" ? customReason : rejectionReason;
+    const giving = givings.find((item) => item.id === rejectGivingId);
+    if (!giving || !canVerifyPendingGiving(giving)) {
+      toast.error("You can only reject records that are eligible for your role.");
+      return;
+    }
 
+    const finalReason = rejectionReason === "Other" ? customReason : rejectionReason;
     if (!finalReason) {
       toast.error("Please provide a rejection reason");
       return;
@@ -281,9 +322,9 @@ export default function AdminGivings() {
     try {
       const { error } = await supabase
         .from("givings")
-        .update({ 
+        .update({
           status: "rejected",
-          rejection_reason: finalReason
+          rejection_reason: finalReason,
         })
         .eq("id", rejectGivingId);
 
@@ -306,20 +347,16 @@ export default function AdminGivings() {
   };
 
   const toggleSelectGiving = (givingId: string) => {
-    setSelectedGivings(prev =>
-      prev.includes(givingId)
-        ? prev.filter(id => id !== givingId)
-        : [...prev, givingId]
-    );
+    setSelectedGivings((prev) => (prev.includes(givingId) ? prev.filter((id) => id !== givingId) : [...prev, givingId]));
   };
 
   const toggleSelectAll = () => {
-    const pendingGivings = givings.filter(g => g.status === "pending");
-    if (selectedGivings.length === pendingGivings.length) {
+    if (selectedGivings.length === verifiablePendingGivings.length) {
       setSelectedGivings([]);
-    } else {
-      setSelectedGivings(pendingGivings.map(g => g.id));
+      return;
     }
+
+    setSelectedGivings(verifiablePendingGivings.map((giving) => giving.id));
   };
 
   const getPaymentMethodIcon = (method: string) => {
@@ -349,14 +386,16 @@ export default function AdminGivings() {
   };
 
   const exportToExcel = () => {
-    const exportData = givings.map(g => ({
+    const exportData = givings.map((g) => ({
       Date: format(new Date(g.created_at), "yyyy-MM-dd HH:mm"),
       Giver: g.profiles.full_name,
       Type: g.giving_types.name,
       Amount: g.amount,
       "Payment Method": g.payment_method?.replace("_", " "),
       "Transaction Code": g.payment_reference || "N/A",
+      Source: g.entry_source,
       Status: g.status,
+      "Needs Admin Verification": g.requires_admin_verification ? "Yes" : "No",
       "Rejection Reason": g.rejection_reason || "N/A",
     }));
 
@@ -392,6 +431,48 @@ export default function AdminGivings() {
     }));
   };
 
+  const handleEditOfflineGiving = (giving: Giving) => {
+    setEditingGivingId(giving.id);
+    setOfflineForm({
+      memberId: giving.profile_id,
+      givingTypeId: giving.giving_type_id,
+      amount: Number(giving.amount).toFixed(2),
+      currency: giving.currency,
+      paymentMethod: giving.payment_method,
+      paymentReference: giving.payment_reference || "",
+      receivedDate: new Date(giving.created_at),
+      serviceId: giving.service_id || "",
+      note: giving.note || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteOfflineGiving = async (giving: Giving) => {
+    if (!canManagePendingFinanceOfflineGiving(giving)) {
+      toast.error("You can only delete your own pending offline records awaiting admin verification.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete the offline giving for ${giving.profiles.full_name} (${formatAmount(Number(giving.amount), giving.currency)})?`);
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase.from("givings").delete().eq("id", giving.id);
+      if (error) throw error;
+
+      if (editingGivingId === giving.id) {
+        resetOfflineForm();
+      }
+
+      toast.success("Offline giving deleted");
+      loadGivings();
+      triggerNotificationRefresh();
+    } catch (error: any) {
+      console.error("Error deleting offline giving:", error);
+      toast.error(error.message || "Failed to delete giving");
+    }
+  };
+
   const handleOfflineGivingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -416,8 +497,10 @@ export default function AdminGivings() {
       return;
     }
 
-    if ((offlineForm.paymentMethod === "mobile_money" || offlineForm.paymentMethod === "bank_transfer") &&
-      (!offlineForm.paymentReference || offlineForm.paymentReference.length < 4)) {
+    if (
+      (offlineForm.paymentMethod === "mobile_money" || offlineForm.paymentMethod === "bank_transfer") &&
+      (!offlineForm.paymentReference || offlineForm.paymentReference.length < 4)
+    ) {
       toast.error("Payment reference is required for mobile money or bank transfers");
       return;
     }
@@ -425,10 +508,17 @@ export default function AdminGivings() {
     setSubmittingOffline(true);
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) throw new Error("Not authenticated");
+
       const receivedAt = new Date(offlineForm.receivedDate);
       receivedAt.setHours(12, 0, 0, 0);
 
-      const { error: givingError } = await supabase.from("givings").insert({
+      const isFinanceOfflineRecord = currentRole === "finance";
+      const payload = {
         profile_id: offlineForm.memberId,
         giving_type_id: offlineForm.givingTypeId,
         amount: amountValue,
@@ -438,24 +528,27 @@ export default function AdminGivings() {
         service_id: offlineForm.serviceId || null,
         note: offlineForm.note || null,
         created_at: receivedAt.toISOString(),
-        status: "verified",
+        status: isFinanceOfflineRecord ? "pending" : "verified",
         is_anonymous: false,
-      });
+        entry_source: "offline",
+        recorded_by: user.id,
+        requires_admin_verification: isFinanceOfflineRecord,
+        rejection_reason: null,
+      };
 
-      if (givingError) throw givingError;
+      if (editingGivingId) {
+        const { error: updateError } = await supabase.from("givings").update(payload).eq("id", editingGivingId);
+        if (updateError) throw updateError;
 
-      toast.success("Offline giving recorded successfully");
-      setOfflineForm({
-        memberId: "",
-        givingTypeId: "",
-        amount: "",
-        currency: offlineForm.currency,
-        paymentMethod: "",
-        paymentReference: "",
-        receivedDate: new Date(),
-        serviceId: "",
-        note: "",
-      });
+        toast.success("Offline giving updated. It still requires admin verification.");
+      } else {
+        const { error: givingError } = await supabase.from("givings").insert(payload);
+        if (givingError) throw givingError;
+
+        toast.success(isFinanceOfflineRecord ? "Offline giving recorded and sent for admin verification" : "Offline giving recorded successfully");
+      }
+
+      resetOfflineForm();
       loadGivings();
       triggerNotificationRefresh();
     } catch (error: any) {
@@ -474,7 +567,6 @@ export default function AdminGivings() {
     );
   }
 
-  const pendingGivings = givings.filter(g => g.status === "pending");
   const dateMatchedEvents = events.filter((event) => isSameDay(new Date(event.service_date), offlineForm.receivedDate));
   const prioritizedEvents = [...dateMatchedEvents, ...events.filter((event) => !dateMatchedEvents.some((matched) => matched.id === event.id))];
   const selectedEvent = events.find((event) => event.id === offlineForm.serviceId);
@@ -483,8 +575,11 @@ export default function AdminGivings() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Record Offline Giving</CardTitle>
-          <p className="text-sm text-muted-foreground">Capture cash or manual contributions for members without app access.</p>
+          <CardTitle>{editingGivingId ? "Edit Offline Giving" : "Record Offline Giving"}</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Capture cash or manual contributions for members without app access.
+            {currentRole === "finance" ? " Finance-recorded offline givings stay pending until an admin verifies them." : ""}
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleOfflineGivingSubmit} className="space-y-4">
@@ -506,7 +601,7 @@ export default function AdminGivings() {
                       </SelectItem>
                     ))}
                     {!members.length && !loadingMembers && (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no-members" disabled>
                         No registered members found
                       </SelectItem>
                     )}
@@ -514,23 +609,22 @@ export default function AdminGivings() {
                 </Select>
                 {offlineForm.memberId && (
                   <p className="text-xs text-muted-foreground">
-                    Selected member contact: {members.find((m) => m.id === offlineForm.memberId)?.email || "No email"}
-                    {" "}| {members.find((m) => m.id === offlineForm.memberId)?.phone || "No phone"}
+                    Selected member contact: {members.find((m) => m.id === offlineForm.memberId)?.email || "No email"} |{" "}
+                    {members.find((m) => m.id === offlineForm.memberId)?.phone || "No phone"}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="givingType">Purpose of Giving *</Label>
-                <Select
-                  value={offlineForm.givingTypeId}
-                  onValueChange={(value) => setOfflineForm({ ...offlineForm, givingTypeId: value })}
-                >
+                <Select value={offlineForm.givingTypeId} onValueChange={(value) => setOfflineForm({ ...offlineForm, givingTypeId: value })}>
                   <SelectTrigger id="givingType">
                     <SelectValue placeholder="Select purpose" />
                   </SelectTrigger>
                   <SelectContent>
                     {givingTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -553,18 +647,11 @@ export default function AdminGivings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <Input
-                  id="currency"
-                  value={offlineForm.currency}
-                  onChange={(e) => setOfflineForm({ ...offlineForm, currency: e.target.value })}
-                />
+                <Input id="currency" value={offlineForm.currency} onChange={(e) => setOfflineForm({ ...offlineForm, currency: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="paymentMethod">Mode of Giving *</Label>
-                <Select
-                  value={offlineForm.paymentMethod}
-                  onValueChange={(value) => setOfflineForm({ ...offlineForm, paymentMethod: value })}
-                >
+                <Select value={offlineForm.paymentMethod} onValueChange={(value) => setOfflineForm({ ...offlineForm, paymentMethod: value })}>
                   <SelectTrigger id="paymentMethod">
                     <SelectValue placeholder="Select mode" />
                   </SelectTrigger>
@@ -585,10 +672,7 @@ export default function AdminGivings() {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !offlineForm.receivedDate && "text-muted-foreground"
-                      )}
+                      className={cn("w-full justify-start text-left font-normal", !offlineForm.receivedDate && "text-muted-foreground")}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {format(offlineForm.receivedDate, "PPP")}
@@ -628,14 +712,10 @@ export default function AdminGivings() {
                   </SelectContent>
                 </Select>
                 {dateMatchedEvents.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {dateMatchedEvents.length} event(s) match the selected date and appear first.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{dateMatchedEvents.length} event(s) match the selected date and appear first.</p>
                 )}
                 {selectedEvent && !isSameDay(new Date(selectedEvent.service_date), offlineForm.receivedDate) && (
-                  <p className="text-xs text-muted-foreground">
-                    Selected event date: {format(new Date(selectedEvent.service_date), "PPP")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Selected event date: {format(new Date(selectedEvent.service_date), "PPP")}</p>
                 )}
               </div>
             </div>
@@ -652,22 +732,11 @@ export default function AdminGivings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={members.find((m) => m.id === offlineForm.memberId)?.email || ""}
-                  readOnly
-                  placeholder="Member email"
-                />
+                <Input id="email" type="email" value={members.find((m) => m.id === offlineForm.memberId)?.email || ""} readOnly placeholder="Member email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={members.find((m) => m.id === offlineForm.memberId)?.phone || ""}
-                  readOnly
-                  placeholder="Member phone"
-                />
+                <Input id="phone" value={members.find((m) => m.id === offlineForm.memberId)?.phone || ""} readOnly placeholder="Member phone" />
               </div>
             </div>
 
@@ -682,9 +751,14 @@ export default function AdminGivings() {
               />
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              {editingGivingId && (
+                <Button type="button" variant="outline" onClick={resetOfflineForm}>
+                  Cancel Edit
+                </Button>
+              )}
               <Button type="submit" disabled={submittingOffline}>
-                {submittingOffline ? "Saving..." : "Record Giving"}
+                {submittingOffline ? "Saving..." : editingGivingId ? "Update Giving" : "Record Giving"}
               </Button>
             </div>
           </form>
@@ -777,11 +851,8 @@ export default function AdminGivings() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">
-                  {pendingGivings.length > 0 && (
-                    <Checkbox
-                      checked={selectedGivings.length === pendingGivings.length}
-                      onCheckedChange={toggleSelectAll}
-                    />
+                  {verifiablePendingGivings.length > 0 && (
+                    <Checkbox checked={selectedGivings.length === verifiablePendingGivings.length} onCheckedChange={toggleSelectAll} />
                   )}
                 </TableHead>
                 <TableHead>Status</TableHead>
@@ -795,73 +866,95 @@ export default function AdminGivings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {givings.map((giving) => (
-                <TableRow key={giving.id} className={getRowClass(giving.status)}>
-                  <TableCell>
-                    {giving.status === "pending" && (
-                      <Checkbox
-                        checked={selectedGivings.includes(giving.id)}
-                        onCheckedChange={() => toggleSelectGiving(giving.id)}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusColors[giving.status as keyof typeof statusColors]}>
-                      {giving.status}
-                    </Badge>
-                    {giving.rejection_reason && (
-                      <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
-                        <AlertCircle className="h-3 w-3" />
-                        {giving.rejection_reason}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getPaymentMethodIcon(giving.payment_method)}
-                      <span className="capitalize">{giving.payment_method?.replace("_", " ")}</span>
-                    </div>
-                    {giving.payment_reference && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <code className="text-xs bg-muted px-1">{giving.payment_reference}</code>
-                        <Button size="sm" variant="ghost" onClick={() => copyToClipboard(giving.payment_reference!)} className="h-5 w-5 p-0">
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
-                  <TableCell>{giving.profiles.full_name}</TableCell>
-                  <TableCell>{giving.giving_types.name}</TableCell>
-                  <TableCell>
-                    {giving.services ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{giving.services.name}</span>
-                        {giving.services.approval_status === "pending_admin_approval" && (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
-                            Pending
+              {givings.map((giving) => {
+                const canVerify = canVerifyPendingGiving(giving);
+                const canManagePendingOffline = canManagePendingFinanceOfflineGiving(giving);
+
+                return (
+                  <TableRow key={giving.id} className={getRowClass(giving.status)}>
+                    <TableCell>
+                      {canVerify && (
+                        <Checkbox checked={selectedGivings.includes(giving.id)} onCheckedChange={() => toggleSelectGiving(giving.id)} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusColors[giving.status as keyof typeof statusColors]}>{giving.status}</Badge>
+                      {giving.requires_admin_verification && giving.status === "pending" && (
+                        <div className="mt-2">
+                          <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-700 bg-amber-500/10">
+                            Awaiting admin verification
                           </Badge>
+                        </div>
+                      )}
+                      {giving.rejection_reason && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                          {giving.rejection_reason}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getPaymentMethodIcon(giving.payment_method)}
+                        <span className="capitalize">{giving.payment_method?.replace("_", " ")}</span>
+                      </div>
+                      {giving.payment_reference && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <code className="text-xs bg-muted px-1">{giving.payment_reference}</code>
+                          <Button size="sm" variant="ghost" onClick={() => copyToClipboard(giving.payment_reference!)} className="h-5 w-5 p-0">
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {giving.entry_source === "offline" && (
+                        <div className="text-xs text-muted-foreground mt-1">Offline record</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
+                    <TableCell>{giving.profiles.full_name}</TableCell>
+                    <TableCell>{giving.giving_types.name}</TableCell>
+                    <TableCell>
+                      {giving.services ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{giving.services.name}</span>
+                          {giving.services.approval_status === "pending_admin_approval" && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">General</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{format(new Date(giving.created_at), "MMM dd")}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">
+                        {canVerify && (
+                          <>
+                            <Button size="sm" onClick={() => handleVerifyPayment([giving.id])} className="bg-green-600">
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => openRejectDialog(giving.id)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {canManagePendingOffline && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => handleEditOfflineGiving(giving)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleDeleteOfflineGiving(giving)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">General</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{format(new Date(giving.created_at), "MMM dd")}</TableCell>
-                  <TableCell>
-                    {giving.status === "pending" && (
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={() => handleVerifyPayment([giving.id])} className="bg-green-600">
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => openRejectDialog(giving.id)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -880,7 +973,9 @@ export default function AdminGivings() {
               </SelectTrigger>
               <SelectContent>
                 {REJECTION_REASONS.map((reason) => (
-                  <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                  <SelectItem key={reason} value={reason}>
+                    {reason}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -889,8 +984,12 @@ export default function AdminGivings() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleRejectPayment}>Reject</Button>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRejectPayment}>
+              Reject
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
