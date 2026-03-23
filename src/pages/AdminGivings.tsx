@@ -82,6 +82,20 @@ const createInitialOfflineForm = () => ({
   note: "",
 });
 
+const OFFLINE_GIVING_SCHEMA_OPTIONAL_COLUMNS = ["entry_source", "recorded_by", "requires_admin_verification"] as const;
+
+const extractMissingGivingColumn = (error: { message?: string; details?: string } | null) => {
+  const errorText = `${error?.message || ""} ${error?.details || ""}`;
+  const match = errorText.match(/Could not find the '([^']+)' column of 'givings' in the schema cache/i);
+
+  if (!match) return null;
+
+  const missingColumn = match[1];
+  return OFFLINE_GIVING_SCHEMA_OPTIONAL_COLUMNS.includes(missingColumn as (typeof OFFLINE_GIVING_SCHEMA_OPTIONAL_COLUMNS)[number])
+    ? missingColumn
+    : null;
+};
+
 export default function AdminGivings() {
   const navigate = useNavigate();
   const [givings, setGivings] = useState<Giving[]>([]);
@@ -518,7 +532,7 @@ export default function AdminGivings() {
       receivedAt.setHours(12, 0, 0, 0);
 
       const isFinanceOfflineRecord = currentRole === "finance";
-      const payload = {
+      const payload: Record<string, string | number | boolean | null> = {
         profile_id: offlineForm.memberId,
         giving_type_id: offlineForm.givingTypeId,
         amount: amountValue,
@@ -536,16 +550,52 @@ export default function AdminGivings() {
         rejection_reason: null,
       };
 
+      let saveError: { message?: string; details?: string } | null = null;
+      const payloadToSave = { ...payload };
+      let usedLegacySchemaFallback = false;
+
+      for (let attempt = 0; attempt <= OFFLINE_GIVING_SCHEMA_OPTIONAL_COLUMNS.length; attempt += 1) {
+        if (editingGivingId) {
+          const { error: updateError } = await supabase.from("givings").update(payloadToSave).eq("id", editingGivingId);
+          saveError = updateError;
+        } else {
+          const { error: givingError } = await supabase.from("givings").insert(payloadToSave);
+          saveError = givingError;
+        }
+
+        if (!saveError) {
+          break;
+        }
+
+        const missingColumn = extractMissingGivingColumn(saveError);
+        if (!missingColumn || !(missingColumn in payloadToSave)) {
+          throw saveError;
+        }
+
+        delete payloadToSave[missingColumn];
+        usedLegacySchemaFallback = true;
+      }
+
+      if (saveError) {
+        throw saveError;
+      }
+
+      if (usedLegacySchemaFallback) {
+        toast.warning("Offline giving saved with legacy database fields. Apply the latest Supabase migrations to restore the full verification workflow.");
+      }
+
       if (editingGivingId) {
-        const { error: updateError } = await supabase.from("givings").update(payload).eq("id", editingGivingId);
-        if (updateError) throw updateError;
-
-        toast.success("Offline giving updated. It still requires admin verification.");
+        toast.success(
+          isFinanceOfflineRecord && !usedLegacySchemaFallback
+            ? "Offline giving updated. It still requires admin verification."
+            : "Offline giving updated successfully",
+        );
       } else {
-        const { error: givingError } = await supabase.from("givings").insert(payload);
-        if (givingError) throw givingError;
-
-        toast.success(isFinanceOfflineRecord ? "Offline giving recorded and sent for admin verification" : "Offline giving recorded successfully");
+        toast.success(
+          isFinanceOfflineRecord && !usedLegacySchemaFallback
+            ? "Offline giving recorded and sent for admin verification"
+            : "Offline giving recorded successfully",
+        );
       }
 
       resetOfflineForm();
