@@ -42,8 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const payload: RoleNotificationRequest = await req.json();
-    assertRequiredFields(payload, ["email", "name", "newRole", "userId"]);
+    const payload = await req.json() as RoleNotificationRequest;
+    assertRequiredFields(payload as unknown as Record<string, unknown>, ["email", "name", "newRole", "userId"]);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
