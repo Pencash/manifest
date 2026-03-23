@@ -73,7 +73,7 @@ export const useFundingAvailability = ({ selectedCategoryId, selectedServiceId }
       let expenseQuery = supabase
         .from("expense_requests")
         .select("amount")
-        .in("status", ["approved", "paid"]);
+        .in("status", ["approved", "partially_paid", "paid"]);
 
       expenseQuery = selectedServiceId
         ? expenseQuery.eq("service_id", selectedServiceId)
