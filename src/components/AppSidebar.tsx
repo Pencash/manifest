@@ -81,10 +81,10 @@ export function AppSidebar() {
       console.log("📊 Pending Givings Query Result:", { count: pendingGivingsCount });
 
       // Count pending expense requests
-      const { data: pendingExpenses } = await supabase
+      const { count: pendingExpensesCount } = await supabase
         .from("expense_requests")
-        .select("id")
-        .in("status", ["pending_approval", "draft"]);
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
 
       // Count pending service events
       const { data: pendingServices } = await supabase
@@ -93,7 +93,7 @@ export function AppSidebar() {
         .eq("approval_status", "pending_admin_approval");
 
       const givingsCount = pendingGivingsCount || 0;
-      const expensesCount = pendingExpenses?.length || 0;
+      const expensesCount = pendingExpensesCount || 0;
       const servicesCount = pendingServices?.length || 0;
 
       console.log("📊 Notification Counts:", {
