@@ -156,7 +156,7 @@ const AdminDashboard = () => {
           ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString())
           : Promise.resolve({ count: 0, error: null }),
         supabase.from("givings").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("expense_requests").select("id", { count: "exact", head: true }).in("status", ["pending_approval", "draft"]),
+        supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("services").select("id", { count: "exact", head: true }).eq("approval_status", "pending_admin_approval"),
         supabase.from("attendance").select("id", { count: "exact", head: true }).eq("status", "present"),
         supabase.from("attendance").select("services(service_type)").eq("status", "present"),
