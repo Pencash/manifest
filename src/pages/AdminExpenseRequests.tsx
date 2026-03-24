@@ -141,7 +141,7 @@ export default function AdminExpenseRequests() {
           ? supabase.from("profiles").select("id, full_name, email").in("id", requesterIds)
           : Promise.resolve({ data: [], error: null }),
         requestIds.length
-          ? supabase.from("expense_payments").select("expense_request_id, amount, status").in("expense_request_id", requestIds)
+          ? (supabase.from("expense_payments" as any) as any).select("expense_request_id, amount, status").in("expense_request_id", requestIds)
           : Promise.resolve({ data: [], error: null }),
       ]);
 

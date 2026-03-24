@@ -125,7 +125,7 @@ export default function ExpenseRequest() {
         insertPayload.created_at = requestTimestamp.toISOString();
       }
 
-      const { error } = await supabase.from("expense_requests").insert(insertPayload);
+      const { error } = await supabase.from("expense_requests").insert(insertPayload as any);
 
       if (error) throw error;
 
