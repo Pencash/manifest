@@ -30,6 +30,7 @@ export default function AdminExpenseRequests() {
       navigate("/admin/auth");
       return;
     }
+  }, [filterStatus]);
 
     const { data: roleData } = await supabase
       .from("user_roles")

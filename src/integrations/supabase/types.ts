@@ -553,7 +553,6 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
-          entry_source: string
           giving_type_id: string
           id: string
           is_anonymous: boolean
@@ -561,9 +560,7 @@ export type Database = {
           payment_method: string
           payment_reference: string | null
           profile_id: string
-          recorded_by: string | null
           rejection_reason: string | null
-          requires_admin_verification: boolean
           service_id: string | null
           status: string
         }
@@ -571,7 +568,6 @@ export type Database = {
           amount: number
           created_at?: string
           currency?: string
-          entry_source?: string
           giving_type_id: string
           id?: string
           is_anonymous?: boolean
@@ -579,9 +575,7 @@ export type Database = {
           payment_method: string
           payment_reference?: string | null
           profile_id: string
-          recorded_by?: string | null
           rejection_reason?: string | null
-          requires_admin_verification?: boolean
           service_id?: string | null
           status?: string
         }
@@ -589,7 +583,6 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
-          entry_source?: string
           giving_type_id?: string
           id?: string
           is_anonymous?: boolean
@@ -597,9 +590,7 @@ export type Database = {
           payment_method?: string
           payment_reference?: string | null
           profile_id?: string
-          recorded_by?: string | null
           rejection_reason?: string | null
-          requires_admin_verification?: boolean
           service_id?: string | null
           status?: string
         }
