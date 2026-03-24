@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { formatAmount } from "@/lib/utils";
 import { BulkActionBar } from "@/components/BulkActionBar";
@@ -327,6 +327,14 @@ export default function PendingExpenseApprovals() {
                         {format(new Date(request.created_at), "PPP")}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/admin/expenses/${request.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
                         <Button
                           size="sm"
                           variant="default"

@@ -46,6 +46,7 @@ const ExpenseCategories = lazy(() => import("./pages/ExpenseCategories"));
 const ExpenseRequest = lazy(() => import("./pages/ExpenseRequest"));
 const AdminExpenseRequests = lazy(() => import("./pages/AdminExpenseRequests"));
 const PendingExpenseApprovals = lazy(() => import("./pages/PendingExpenseApprovals"));
+const AdminExpenseRequestDetails = lazy(() => import("./pages/AdminExpenseRequestDetails"));
 const AdminGivings = lazy(() => import("./pages/AdminGivings"));
 const MobilizationReport = lazy(() => import("./pages/MobilizationReport"));
 const MemberInvitationsDetail = lazy(() => import("./pages/MemberInvitationsDetail"));
@@ -110,6 +111,7 @@ const App = () => {
                 <Route path="/admin/givings" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminGivings /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/request" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseRequest /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/all" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequests /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/expenses/:expenseId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequestDetails /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/categories" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseCategories /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/pending" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><PendingExpenseApprovals /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/reminders" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><EventReminders /></AdminLayout></RoleRoute>} />
