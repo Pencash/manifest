@@ -63,6 +63,16 @@ const getPaymentState = (row: ExpenseRequestRow) => {
   return "paid" as const;
 };
 
+const isMissingExpensePaymentsTableError = (error: { message?: string; details?: string; code?: string } | null) => {
+  if (!error) return false;
+  if (error.code === "42P01") return true;
+
+  const errorText = `${error.message || ""} ${error.details || ""}`;
+  return /could not find the table ['"]?public\.expense_payments['"]? in the schema cache/i.test(errorText)
+    || /relation ['"]?public\.expense_payments['"]? does not exist/i.test(errorText)
+    || /relation ['"]?expense_payments['"]? does not exist/i.test(errorText);
+};
+
 export default function AdminExpenseRequests() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<ExpenseRequestRow[]>([]);
@@ -146,14 +156,16 @@ export default function AdminExpenseRequests() {
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
-      if (paymentsRes.error) throw paymentsRes.error;
+      if (paymentsRes.error && !isMissingExpensePaymentsTableError(paymentsRes.error)) throw paymentsRes.error;
 
       const profilesMap = new Map(
         (profilesRes.data || []).map((profile) => [profile.id, { full_name: profile.full_name || "Unknown user", email: profile.email }]),
       );
 
       const paymentsByRequest = new Map<string, Array<{ amount: number; status: string }>>();
-      (paymentsRes.data || []).forEach((payment) => {
+      const safePaymentsData = paymentsRes.error ? [] : (paymentsRes.data || []);
+
+      safePaymentsData.forEach((payment) => {
         const existing = paymentsByRequest.get(payment.expense_request_id) || [];
         existing.push({ amount: Number(payment.amount), status: payment.status });
         paymentsByRequest.set(payment.expense_request_id, existing);

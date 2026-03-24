@@ -19,6 +19,16 @@ import type {
   ReceiptRecord,
 } from "@/lib/expense-detail-types";
 
+const isMissingExpensePaymentsTableError = (error: { message?: string; details?: string; code?: string } | null) => {
+  if (!error) return false;
+  if (error.code === "42P01") return true;
+
+  const errorText = `${error.message || ""} ${error.details || ""}`;
+  return /could not find the table ['"]?public\.expense_payments['"]? in the schema cache/i.test(errorText)
+    || /relation ['"]?public\.expense_payments['"]? does not exist/i.test(errorText)
+    || /relation ['"]?expense_payments['"]? does not exist/i.test(errorText);
+};
+
 export function useExpenseRequestDetail(expenseId: string | undefined) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -66,6 +76,8 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       if (!expenseData) throw new Error("Expense request not found");
 
       // expense_payments table exists at DB level but may not be in generated types yet
+      setExpense(expenseData as unknown as ExpenseRequestDetail);
+
       const paymentsQuery = supabase.from("expense_payments" as any)
         .select("id, expense_request_id, amount, payment_date, payment_method, payment_reference, payee_name, notes, status, recorded_by, created_at")
         .eq("expense_request_id", expenseId)
@@ -78,14 +90,16 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       ]);
 
       if (approvalsError) throw approvalsError;
-      if (paymentsError) throw paymentsError;
+      if (paymentsError && !isMissingExpensePaymentsTableError(paymentsError)) throw paymentsError;
       if (receiptsError) throw receiptsError;
 
       const profileIds = new Set<string>();
       profileIds.add(expenseData.requester_id);
       if (expenseData.paid_by) profileIds.add(expenseData.paid_by);
       (approvalsData || []).forEach((a: any) => profileIds.add(a.approver_id));
-      ((paymentsData || []) as any[]).forEach((p: any) => profileIds.add(p.recorded_by));
+      const safePaymentsData = paymentsError ? [] : (paymentsData || []);
+
+      (safePaymentsData as any[]).forEach((p: any) => profileIds.add(p.recorded_by));
       (receiptsData || []).forEach((r: any) => profileIds.add(r.uploaded_by));
 
       const { data: profilesData, error: profilesError } = profileIds.size
@@ -99,11 +113,10 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       );
 
       setProfilesMap(nextProfilesMap);
-      setExpense(expenseData as unknown as ExpenseRequestDetail);
       setRequesterProfile(nextProfilesMap[expenseData.requester_id] || { full_name: "Unknown user", email: null });
       setPaidByProfile(expenseData.paid_by ? nextProfilesMap[expenseData.paid_by] || { full_name: "Unknown user", email: null } : null);
       setApprovals((approvalsData || []) as ApprovalRecord[]);
-      setPayments((paymentsData || []) as unknown as PaymentRecord[]);
+      setPayments((safePaymentsData || []) as unknown as PaymentRecord[]);
       setReceipts((receiptsData || []) as ReceiptRecord[]);
     } catch (error: any) {
       toast.error(error.message || "Failed to load expense details");
