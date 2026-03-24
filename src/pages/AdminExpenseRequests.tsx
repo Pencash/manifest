@@ -30,7 +30,6 @@ export default function AdminExpenseRequests() {
       navigate("/admin/auth");
       return;
     }
-  }, [filterStatus]);
 
     const { data: roleData } = await supabase
       .from("user_roles")
@@ -45,53 +44,53 @@ export default function AdminExpenseRequests() {
     }
 
     setLoadingAccess(false);
+
+    const registerQuery = useExpenseRegister(filterStatus, !loadingAccess);
+    const requests = useMemo(() => registerQuery.data || [], [registerQuery.data]);
+
+    const summary = useMemo(() => {
+      const requestedTotal = requests.reduce((sum, request) => sum + Number(request.amount), 0);
+      const paidTotal = requests.reduce((sum, request) => sum + request.paidTotal, 0);
+      const outstandingTotal = requests.reduce((sum, request) => sum + request.remainingBalance, 0);
+      const activeCount = requests.filter((request) => ["pending", "approved", "partially_paid"].includes(request.status)).length;
+
+      return {
+        requestedTotal,
+        paidTotal,
+        outstandingTotal,
+        activeCount,
+      };
+    }, [requests]);
+
+    const exportToExcel = () => {
+      const exportData = requests.map((req) => ({
+        "Request #": req.request_number || "Draft",
+        Requester: req.profiles.full_name,
+        Email: req.profiles.email || "N/A",
+        Category: req.expense_categories?.name || "Unknown",
+        Service: req.services?.name || "General",
+        Amount: formatAmount(req.amount, req.currency),
+        "Paid Total": formatAmount(req.paidTotal, req.currency),
+        Balance: formatAmount(req.remainingBalance, req.currency),
+        "Settled At": req.paid_at ? format(new Date(req.paid_at), "dd MMM yyyy, HH:mm") : "N/A",
+        "Settled By": req.settledByProfile?.full_name || "N/A",
+        Priority: req.priority.toUpperCase(),
+        Status: req.status.replace(/_/g, " ").toUpperCase(),
+        Description: req.description,
+        Created: format(new Date(req.created_at), "dd MMM yyyy"),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Expense Requests");
+      XLSX.writeFile(wb, `expense-requests-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+      toast.success("Expense register exported to Excel.");
+    };
   }, [navigate]);
 
-  useEffect(() => {
+    useEffect(() => {
     void checkAuth();
   }, [checkAuth]);
-
-  const registerQuery = useExpenseRegister(filterStatus, !loadingAccess);
-  const requests = useMemo(() => registerQuery.data || [], [registerQuery.data]);
-
-  const summary = useMemo(() => {
-    const requestedTotal = requests.reduce((sum, request) => sum + Number(request.amount), 0);
-    const paidTotal = requests.reduce((sum, request) => sum + request.paidTotal, 0);
-    const outstandingTotal = requests.reduce((sum, request) => sum + request.remainingBalance, 0);
-    const activeCount = requests.filter((request) => ["pending", "approved", "partially_paid"].includes(request.status)).length;
-
-    return {
-      requestedTotal,
-      paidTotal,
-      outstandingTotal,
-      activeCount,
-    };
-  }, [requests]);
-
-  const exportToExcel = () => {
-    const exportData = requests.map((req) => ({
-      "Request #": req.request_number || "Draft",
-      Requester: req.profiles.full_name,
-      Email: req.profiles.email || "N/A",
-      Category: req.expense_categories?.name || "Unknown",
-      Service: req.services?.name || "General",
-      Amount: formatAmount(req.amount, req.currency),
-      "Paid Total": formatAmount(req.paidTotal, req.currency),
-      Balance: formatAmount(req.remainingBalance, req.currency),
-      "Settled At": req.paid_at ? format(new Date(req.paid_at), "dd MMM yyyy, HH:mm") : "N/A",
-      "Settled By": req.settledByProfile?.full_name || "N/A",
-      Priority: req.priority.toUpperCase(),
-      Status: req.status.replace(/_/g, " ").toUpperCase(),
-      Description: req.description,
-      Created: format(new Date(req.created_at), "dd MMM yyyy"),
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Expense Requests");
-    XLSX.writeFile(wb, `expense-requests-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-    toast.success("Expense register exported to Excel.");
-  };
 
   if (loadingAccess || registerQuery.isLoading) {
     return (
