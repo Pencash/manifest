@@ -8,7 +8,7 @@ import {
   calculateRemainingBalance,
   derivePaymentAwareExpenseStatus,
 } from "@/lib/expense-payments";
-import { formatAmount, cn } from "@/lib/utils";
+import { formatAmount } from "@/lib/utils";
 import { currencySafe } from "@/lib/expense-format";
 import { toast } from "sonner";
 import type {
@@ -65,9 +65,15 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       if (expenseError) throw expenseError;
       if (!expenseData) throw new Error("Expense request not found");
 
+      // expense_payments table exists at DB level but may not be in generated types yet
+      const paymentsQuery = supabase.from("expense_payments" as any)
+        .select("id, expense_request_id, amount, payment_date, payment_method, payment_reference, payee_name, notes, status, recorded_by, created_at")
+        .eq("expense_request_id", expenseId)
+        .order("payment_date", { ascending: false });
+
       const [{ data: approvalsData, error: approvalsError }, { data: paymentsData, error: paymentsError }, { data: receiptsData, error: receiptsError }] = await Promise.all([
         supabase.from("expense_approvals").select("id, approver_id, action, comments, created_at").eq("expense_request_id", expenseId).order("created_at", { ascending: false }),
-        supabase.from("expense_payments").select("id, expense_request_id, amount, payment_date, payment_method, payment_reference, payee_name, notes, status, recorded_by, created_at").eq("expense_request_id", expenseId).order("payment_date", { ascending: false }),
+        paymentsQuery,
         supabase.from("expense_receipts").select("id, file_name, file_size, storage_path, uploaded_at, uploaded_by").eq("expense_request_id", expenseId).order("uploaded_at", { ascending: false }),
       ]);
 
@@ -78,9 +84,9 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       const profileIds = new Set<string>();
       profileIds.add(expenseData.requester_id);
       if (expenseData.paid_by) profileIds.add(expenseData.paid_by);
-      (approvalsData || []).forEach((a) => profileIds.add(a.approver_id));
-      (paymentsData || []).forEach((p) => profileIds.add(p.recorded_by));
-      (receiptsData || []).forEach((r) => profileIds.add(r.uploaded_by));
+      (approvalsData || []).forEach((a: any) => profileIds.add(a.approver_id));
+      ((paymentsData || []) as any[]).forEach((p: any) => profileIds.add(p.recorded_by));
+      (receiptsData || []).forEach((r: any) => profileIds.add(r.uploaded_by));
 
       const { data: profilesData, error: profilesError } = profileIds.size
         ? await supabase.from("profiles").select("id, full_name, email").in("id", [...profileIds])
@@ -97,7 +103,7 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       setRequesterProfile(nextProfilesMap[expenseData.requester_id] || { full_name: "Unknown user", email: null });
       setPaidByProfile(expenseData.paid_by ? nextProfilesMap[expenseData.paid_by] || { full_name: "Unknown user", email: null } : null);
       setApprovals((approvalsData || []) as ApprovalRecord[]);
-      setPayments((paymentsData || []) as PaymentRecord[]);
+      setPayments((paymentsData || []) as unknown as PaymentRecord[]);
       setReceipts((receiptsData || []) as ReceiptRecord[]);
     } catch (error: any) {
       toast.error(error.message || "Failed to load expense details");
@@ -144,7 +150,7 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Please enter a valid payment amount.");
     if (amount > remainingBalance + 0.001) throw new Error(`Payment amount exceeds the remaining balance of ${formatAmount(remainingBalance, currencySafe(expense.currency))}.`);
 
-    const { error } = await supabase.from("expense_payments").insert({
+    const { error } = await (supabase.from("expense_payments" as any) as any).insert({
       expense_request_id: expense.id,
       amount,
       payment_date: new Date(form.payment_date).toISOString(),
@@ -164,7 +170,9 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       .filter(Boolean)
       .join("\n\n");
 
-    const { error } = await supabase.from("expense_payments").update({ status: "voided", notes: nextNotes }).eq("id", payment.id);
+    const { error } = await (supabase.from("expense_payments" as any) as any)
+      .update({ status: "voided", notes: nextNotes })
+      .eq("id", payment.id);
     if (error) throw error;
     await loadExpenseDetail();
     triggerNotificationRefresh();
