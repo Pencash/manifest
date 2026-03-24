@@ -559,7 +559,7 @@ export default function AdminGivings() {
           const { error: updateError } = await supabase.from("givings").update(payloadToSave).eq("id", editingGivingId);
           saveError = updateError;
         } else {
-          const { error: givingError } = await supabase.from("givings").insert(payloadToSave);
+          const { error: givingError } = await supabase.from("givings").insert(payloadToSave as any);
           saveError = givingError;
         }
 
