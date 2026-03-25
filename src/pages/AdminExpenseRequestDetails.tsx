@@ -1,156 +1,248 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  CalendarDays,
-  FileClock,
-  FolderOpen,
-  Loader2,
-  RefreshCw,
-  ShieldCheck,
-  Wallet,
-} from "lucide-react";
+import { ArrowLeft, FileClock, RefreshCw, Wallet } from "lucide-react";
 
-import { useExpenseRequestDetail } from "@/hooks/useExpenseRequestDetail";
-import { cn, formatAmount } from "@/lib/utils";
-import {
-  currencySafe,
-  formatDateOnly,
-  formatDateTime,
-  formatMethodLabel,
-  statusBadgeClasses,
-  priorityBadgeClasses,
-} from "@/lib/expense-format";
-import type { PaymentRecord } from "@/lib/expense-detail-types";
+import { ExpenseApprovalsTimeline } from "@/components/expenses/ExpenseApprovalsTimeline";
+import { ExpenseAttachmentsPanel } from "@/components/expenses/ExpenseAttachmentsPanel";
+import { ExpenseEmptyState } from "@/components/expenses/ExpenseEmptyState";
+import { ExpenseOverviewPanel } from "@/components/expenses/ExpenseOverviewPanel";
+import { ExpensePaymentsPanel } from "@/components/expenses/ExpensePaymentsPanel";
+import { ExpenseSummaryCards } from "@/components/expenses/ExpenseSummaryCards";
+import { RecordExpensePaymentDialog } from "@/components/expenses/RecordExpensePaymentDialog";
+import { VoidExpensePaymentDialog } from "@/components/expenses/VoidExpensePaymentDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { currencySafe, statusBadgeClasses, priorityBadgeClasses } from "@/features/expenses/presentation";
+import type { ExpensePaymentFormValues, PaymentRecord } from "@/features/expenses/types";
+import {
+  useExpenseReceiptUrl,
+  useExpenseRequestDetail,
+  useRecordExpensePayment,
+  useVoidExpensePayment,
+} from "@/hooks/useExpenseRequestDetail";
+import {
+  calculatePostedPaymentsTotal,
+  calculateRemainingBalance,
+  derivePaymentAwareExpenseStatus,
+  validateExpensePaymentInput,
+} from "@/lib/expense-payments";
+import { hasAdminAccess, type AppRole } from "@/lib/roles";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/expense/EmptyState";
-import { ExpenseRequestSummaryCard } from "@/components/expense/ExpenseRequestSummaryCard";
-import { ExpenseApprovalTimeline } from "@/components/expense/ExpenseApprovalTimeline";
-import { ExpensePaymentLedger } from "@/components/expense/ExpensePaymentLedger";
-import { RecordExpensePaymentDialog, type PaymentFormState } from "@/components/expense/RecordExpensePaymentDialog";
-import { VoidExpensePaymentDialog } from "@/components/expense/VoidExpensePaymentDialog";
-import { ExpenseAttachmentsPanel } from "@/components/expense/ExpenseAttachmentsPanel";
+const formatDateTimeLocalInputValue = (value = new Date()): string => {
+  const localDate = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const buildDefaultPaymentForm = (fallbackAmount = ""): ExpensePaymentFormValues => ({
+  amount: fallbackAmount,
+  payment_method: "bank_transfer",
+  payment_reference: "",
+  payee_name: "",
+  payment_date: formatDateTimeLocalInputValue(),
+  notes: "",
+});
 
 export default function AdminExpenseRequestDetails() {
   const navigate = useNavigate();
   const { expenseId } = useParams<{ expenseId: string }>();
-
-  const {
-    loading, refreshing, expense,
-    requesterProfile, paidByProfile,
-    approvals, payments, receipts, profilesMap,
-    postedTotal, requestedAmount, remainingBalance,
-    paymentProgress, derivedPaymentStatus,
-    latestPostedPayment, canManagePayments, canRecordPayment,
-    checkAuthAndLoad, loadExpenseDetail,
-    recordPayment, voidPayment, openReceipt,
-  } = useExpenseRequestDetail(expenseId);
-
+  const [loadingAccess, setLoadingAccess] = useState(true);
+  const [role, setRole] = useState<AppRole | null>(null);
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
   const [paymentToVoid, setPaymentToVoid] = useState<PaymentRecord | null>(null);
-  const [submittingPayment, setSubmittingPayment] = useState(false);
-  const [voidingPayment, setVoidingPayment] = useState(false);
   const [voidReason, setVoidReason] = useState("");
-  const [paymentForm, setPaymentForm] = useState<PaymentFormState>({
-    amount: "",
-    payment_method: "bank_transfer",
-    payment_reference: "",
-    payee_name: "",
-    payment_date: new Date().toISOString().slice(0, 16),
-    notes: "",
-  });
+  const [paymentForm, setPaymentForm] = useState<ExpensePaymentFormValues>(buildDefaultPaymentForm());
+
+  const checkAccess = useCallback(async () => {
+    try {
+      setLoadingAccess(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        navigate("/admin/auth");
+        return;
+      }
+
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (!roleData || !hasAdminAccess(roleData.role)) {
+        toast.error("Access denied. Admin privileges required.");
+        navigate("/dashboard");
+        return;
+      }
+
+      setRole(roleData.role as AppRole);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to validate access");
+      navigate("/dashboard");
+    } finally {
+      setLoadingAccess(false);
+    }
+  }, [navigate]);
 
   useEffect(() => {
-    void checkAuthAndLoad();
-  }, [expenseId]);
+    void checkAccess();
+  }, [checkAccess]);
 
-  const handleOpenRecordDialog = () => {
-    setPaymentForm({
-      amount: remainingBalance > 0 ? remainingBalance.toString() : expense?.amount?.toString() || "",
-      payment_method: "bank_transfer",
-      payment_reference: "",
-      payee_name: "",
-      payment_date: new Date().toISOString().slice(0, 16),
-      notes: "",
-    });
+  const detailQuery = useExpenseRequestDetail(expenseId, !loadingAccess);
+  const recordPaymentMutation = useRecordExpensePayment(expenseId);
+  const voidPaymentMutation = useVoidExpensePayment(expenseId);
+  const receiptUrlMutation = useExpenseReceiptUrl();
+
+  const detail = detailQuery.data;
+  const expense = detail?.expense ?? null;
+  const payments = useMemo(() => detail?.payments ?? [], [detail?.payments]);
+  const postedTotal = useMemo(() => calculatePostedPaymentsTotal(payments), [payments]);
+  const remainingBalance = expense ? calculateRemainingBalance(expense.amount, postedTotal) : 0;
+  const derivedPaymentStatus = expense ? derivePaymentAwareExpenseStatus(expense.amount, postedTotal) : "approved";
+  const paymentProgress = expense && expense.amount > 0 ? Math.min((postedTotal / expense.amount) * 100, 100) : 0;
+  const latestPostedPayment = payments.find((payment) => payment.status === "posted") || null;
+  const postedPaymentCount = payments.filter((payment) => payment.status === "posted").length;
+  const canManagePayments = role === "admin" || role === "finance";
+  const canRecordPayment = Boolean(expense && canManagePayments && ["approved", "partially_paid"].includes(expense.status));
+
+  useEffect(() => {
+    if (expense && !recordDialogOpen) {
+      setPaymentForm(buildDefaultPaymentForm(remainingBalance > 0 ? remainingBalance.toString() : expense.amount.toString()));
+    }
+  }, [expense, remainingBalance, recordDialogOpen]);
+
+  const openRecordDialog = () => {
+    if (!expense) return;
+    setPaymentForm(buildDefaultPaymentForm(remainingBalance > 0 ? remainingBalance.toString() : expense.amount.toString()));
     setRecordDialogOpen(true);
   };
 
   const handleRecordPayment = async () => {
+    if (!expense) return;
+
     try {
-      setSubmittingPayment(true);
-      await recordPayment(paymentForm);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) throw new Error("Not authenticated");
+
+      const amount = Number(paymentForm.amount);
+      const paymentDate = new Date(paymentForm.payment_date);
+
+      if (Number.isNaN(paymentDate.getTime())) {
+        throw new Error("Please choose a valid payment date and time.");
+      }
+
+      const validationErrors = validateExpensePaymentInput({
+        amount,
+        remainingBalance,
+        paymentMethod: paymentForm.payment_method,
+        paymentReference: paymentForm.payment_reference,
+        payeeName: paymentForm.payee_name,
+      });
+
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors[0]);
+      }
+
+      await recordPaymentMutation.mutateAsync({
+        expenseRequestId: expense.id,
+        amount,
+        paymentDateIso: paymentDate.toISOString(),
+        paymentMethod: paymentForm.payment_method,
+        paymentReference: paymentForm.payment_reference.trim() || null,
+        payeeName: paymentForm.payee_name.trim() || null,
+        notes: paymentForm.notes.trim() || null,
+        recordedBy: user.id,
+      });
+
       toast.success("Payment recorded successfully.");
       setRecordDialogOpen(false);
+      triggerNotificationRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to record payment");
-    } finally {
-      setSubmittingPayment(false);
+      console.error(error);
     }
-  };
-
-  const handleOpenVoidDialog = (payment: PaymentRecord) => {
-    setPaymentToVoid(payment);
-    setVoidReason("");
-    setVoidDialogOpen(true);
   };
 
   const handleVoidPayment = async () => {
     if (!paymentToVoid) return;
+
     try {
-      setVoidingPayment(true);
-      await voidPayment(paymentToVoid, voidReason);
+      await voidPaymentMutation.mutateAsync({
+        paymentId: paymentToVoid.id,
+        existingNotes: paymentToVoid.notes,
+        voidReason,
+      });
+
       toast.success("Payment voided successfully.");
       setVoidDialogOpen(false);
       setPaymentToVoid(null);
+      setVoidReason("");
+      triggerNotificationRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to void payment");
-    } finally {
-      setVoidingPayment(false);
+      console.error(error);
     }
   };
 
-  const handleOpenReceipt = async (receipt: any) => {
+  const handleOpenReceipt = async (storagePath: string) => {
     try {
-      await openReceipt(receipt);
+      const signedUrl = await receiptUrlMutation.mutateAsync(storagePath);
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error: any) {
       toast.error(error.message || "Failed to open receipt");
+      console.error(error);
     }
   };
 
-  if (loading) {
+  if (loadingAccess || detailQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
         <div className="text-center space-y-3">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading expense workspace...</p>
         </div>
       </div>
     );
   }
 
-  if (!expense) {
+  if (detailQuery.isError) {
     return (
       <div className="container mx-auto py-10">
-        <EmptyState icon={FileClock} title="Expense request not found" description="The selected expense may have been deleted or you may no longer have access to it." />
+        <ExpenseEmptyState
+          icon={FileClock}
+          title="Unable to load expense request"
+          description={detailQuery.error instanceof Error ? detailQuery.error.message : "Please refresh and try again."}
+        />
       </div>
     );
   }
 
-  const postedPaymentCount = payments.filter((p) => p.status === "posted").length;
+  if (!expense || !detail) {
+    return (
+      <div className="container mx-auto py-10">
+        <ExpenseEmptyState
+          icon={FileClock}
+          title="Expense request not found"
+          description="The selected expense may have been deleted or you may no longer have access to it."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-4">
             <Button variant="ghost" className="w-fit" onClick={() => navigate("/admin/expenses/all")}>
@@ -177,13 +269,14 @@ export default function AdminExpenseRequestDetails() {
               </div>
             </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" onClick={() => void loadExpenseDetail()} disabled={refreshing}>
-              <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
+            <Button variant="outline" onClick={() => detailQuery.refetch()} disabled={detailQuery.isFetching}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", detailQuery.isFetching && "animate-spin")} />
               Refresh
             </Button>
             {canRecordPayment && (
-              <Button onClick={handleOpenRecordDialog}>
+              <Button onClick={openRecordDialog}>
                 <Wallet className="mr-2 h-4 w-4" />
                 Record payment
               </Button>
@@ -191,39 +284,18 @@ export default function AdminExpenseRequestDetails() {
           </div>
         </div>
 
-        {/* Summary cards */}
-        <ExpenseRequestSummaryCard
+        <ExpenseSummaryCards
           expense={expense}
           postedTotal={postedTotal}
           remainingBalance={remainingBalance}
           derivedPaymentStatus={derivedPaymentStatus}
-          postedPaymentCount={postedPaymentCount}
+          paymentProgress={paymentProgress}
           latestPostedPayment={latestPostedPayment}
+          postedPaymentCount={postedPaymentCount}
+          settledAt={expense.paid_at}
+          settledByName={detail.paidByProfile?.full_name || null}
         />
 
-        {/* Payment progress */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <CardTitle>Payment progress</CardTitle>
-                <CardDescription>The payment ledger below drives the current disbursement state for this request.</CardDescription>
-              </div>
-              <Badge className={cn("border", statusBadgeClasses[derivedPaymentStatus] || statusBadgeClasses.approved)}>
-                {derivedPaymentStatus.replace(/_/g, " ").toUpperCase()}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Progress value={paymentProgress} className="h-3" />
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-              <span>{formatAmount(postedTotal, currencySafe(expense.currency))} of {formatAmount(requestedAmount, currencySafe(expense.currency))} has been disbursed.</span>
-              <span>{paymentProgress.toFixed(1)}% complete</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid h-auto w-full grid-cols-2 gap-2 md:grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -232,133 +304,37 @@ export default function AdminExpenseRequestDetails() {
             <TabsTrigger value="attachments">Attachments</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Request narrative</CardTitle>
-                  <CardDescription>What was requested and why it was justified.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Description</h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{expense.description}</p>
-                  </div>
-                  <Separator />
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Justification</h3>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{expense.justification}</p>
-                  </div>
-                  {expense.rejection_reason && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h3 className="text-sm font-semibold uppercase tracking-wide text-destructive">Latest rejection reason</h3>
-                        <p className="mt-2 whitespace-pre-wrap rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm leading-6 text-foreground">
-                          {expense.rejection_reason}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Ownership & routing</CardTitle>
-                    <CardDescription>Who owns the request and where it belongs.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Requester</p>
-                        <p>{requesterProfile?.full_name || "Unknown user"}</p>
-                        <p className="text-muted-foreground">{requesterProfile?.email || "No email available"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <FolderOpen className="mt-0.5 h-4 w-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Category</p>
-                        <p>{expense.expense_categories?.name || "Unknown category"}</p>
-                        <p className="text-muted-foreground">{expense.expense_categories?.code || "No category code"}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CalendarDays className="mt-0.5 h-4 w-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Service / event</p>
-                        <p>{expense.services?.name || "General expense"}</p>
-                        <p className="text-muted-foreground">{expense.services?.service_date ? formatDateOnly(expense.services.service_date) : "Not tied to a service"}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Workflow metadata</CardTitle>
-                    <CardDescription>Operational facts for finance and approvers.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Current status</span>
-                      <span className="font-medium">{expense.status.replace(/_/g, " ")}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Due date</span>
-                      <span className="font-medium">{formatDateOnly(expense.due_date)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Created</span>
-                      <span className="font-medium">{formatDateTime(expense.created_at)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Last updated</span>
-                      <span className="font-medium">{formatDateTime(expense.updated_at)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Latest payment method</span>
-                      <span className="font-medium">{formatMethodLabel(expense.payment_method)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Latest payment reference</span>
-                      <span className="font-medium">{expense.payment_reference || "—"}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Latest paid at</span>
-                      <span className="font-medium">{formatDateTime(expense.paid_at)}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span className="text-muted-foreground">Recorded by</span>
-                      <span className="font-medium">{paidByProfile?.full_name || "—"}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="approvals">
-            <ExpenseApprovalTimeline approvals={approvals} profilesMap={profilesMap} />
-          </TabsContent>
-
-          <TabsContent value="payments">
-            <ExpensePaymentLedger
-              payments={payments}
-              profilesMap={profilesMap}
-              currency={expense.currency}
-              canRecordPayment={canRecordPayment}
-              canManagePayments={canManagePayments}
-              onRecordPayment={handleOpenRecordDialog}
-              onVoidPayment={handleOpenVoidDialog}
+          <TabsContent value="overview">
+            <ExpenseOverviewPanel
+              expense={expense}
+              requesterProfile={detail.requesterProfile}
+              paidByProfile={detail.paidByProfile}
             />
           </TabsContent>
-
+          <TabsContent value="approvals">
+            <ExpenseApprovalsTimeline approvals={detail.approvals} profilesMap={detail.profilesMap} />
+          </TabsContent>
+          <TabsContent value="payments">
+            <ExpensePaymentsPanel
+              payments={detail.payments}
+              currency={currencySafe(expense.currency)}
+              profilesMap={detail.profilesMap}
+              canManagePayments={canManagePayments}
+              canRecordPayment={canRecordPayment}
+              onRecordPayment={openRecordDialog}
+              onVoidPayment={(payment) => {
+                setPaymentToVoid(payment);
+                setVoidReason("");
+                setVoidDialogOpen(true);
+              }}
+            />
+          </TabsContent>
           <TabsContent value="attachments">
-            <ExpenseAttachmentsPanel receipts={receipts} profilesMap={profilesMap} onOpenReceipt={handleOpenReceipt} />
+            <ExpenseAttachmentsPanel
+              receipts={detail.receipts}
+              profilesMap={detail.profilesMap}
+              onOpenReceipt={(receipt) => void handleOpenReceipt(receipt.storage_path)}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -366,23 +342,23 @@ export default function AdminExpenseRequestDetails() {
       <RecordExpensePaymentDialog
         open={recordDialogOpen}
         onOpenChange={setRecordDialogOpen}
-        form={paymentForm}
-        onFormChange={setPaymentForm}
-        remainingBalance={remainingBalance}
-        currency={currencySafe(expense.currency)}
-        submitting={submittingPayment}
+        values={paymentForm}
+        onChange={setPaymentForm}
         onSubmit={() => void handleRecordPayment()}
+        submitting={recordPaymentMutation.isPending}
+        remainingBalance={remainingBalance}
+        currency={expense.currency}
       />
 
       <VoidExpensePaymentDialog
         open={voidDialogOpen}
         onOpenChange={setVoidDialogOpen}
         payment={paymentToVoid}
-        currency={expense.currency}
         voidReason={voidReason}
         onVoidReasonChange={setVoidReason}
-        voiding={voidingPayment}
-        onConfirm={() => void handleVoidPayment()}
+        onSubmit={() => void handleVoidPayment()}
+        submitting={voidPaymentMutation.isPending}
+        currency={expense.currency}
       />
     </div>
   );
