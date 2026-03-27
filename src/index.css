@@ -2,97 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* 
+ * Design System: Devotional Modernism
+ * Navy (#0A1628) + Burnished Gold (#C8A45C) + Warm Ivory (#FAF7F2)
+ * DM Serif Display for headings, Source Sans 3 for body, JetBrains Mono for stats
+ * All colors in HSL.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 20%;
+    /* Font families */
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-sans: 'Source Sans 3', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    --background: 38 53% 96%;
+    --foreground: 216 60% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
+    --card-foreground: 216 60% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
+    --popover-foreground: 216 60% 10%;
 
-    /* Primary: Phaneroo Orange */
-    --primary: 36 94% 55%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary: Navy */
+    --primary: 216 60% 10%;
+    --primary-foreground: 38 53% 96%;
 
-    /* Secondary: Phaneroo Green */
-    --secondary: 83 56% 53%;
-    --secondary-foreground: 0 0% 100%;
+    /* Secondary: Sage */
+    --secondary: 150 20% 85%;
+    --secondary-foreground: 150 30% 25%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 38 20% 93%;
+    --muted-foreground: 216 15% 45%;
 
-    --accent: 36 94% 55%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent: Gold */
+    --accent: 40 50% 57%;
+    --accent-foreground: 216 60% 10%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 15 55% 45%;
+    --destructive-foreground: 38 53% 96%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 36 94% 55%;
+    --border: 38 15% 88%;
+    --input: 38 15% 88%;
+    --ring: 40 50% 57%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar: Navy */
+    --sidebar-background: 216 60% 10%;
+    --sidebar-foreground: 38 20% 90%;
+    --sidebar-primary: 40 50% 57%;
+    --sidebar-primary-foreground: 216 60% 10%;
+    --sidebar-accent: 216 50% 16%;
+    --sidebar-accent-foreground: 38 53% 96%;
+    --sidebar-border: 216 40% 20%;
+    --sidebar-ring: 40 50% 57%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Brand colors */
+    --navy: 216 60% 10%;
+    --navy-light: 216 50% 16%;
+    --gold: 40 50% 57%;
+    --gold-light: 40 40% 70%;
+    --gold-dark: 40 55% 40%;
+    --ivory: 38 53% 96%;
+    --sage: 150 25% 45%;
+    --sage-light: 150 20% 85%;
+    --terracotta: 15 55% 45%;
   }
 
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 95%;
+    --background: 216 60% 8%;
+    --foreground: 38 20% 92%;
 
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 95%;
+    --card: 216 55% 12%;
+    --card-foreground: 38 20% 92%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 216 55% 12%;
+    --popover-foreground: 38 20% 92%;
 
-    --primary: 36 94% 55%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 40 50% 57%;
+    --primary-foreground: 216 60% 10%;
 
-    --secondary: 83 56% 53%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 150 15% 20%;
+    --secondary-foreground: 150 20% 80%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 216 40% 15%;
+    --muted-foreground: 38 10% 65%;
 
-    --accent: 36 94% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 40 50% 57%;
+    --accent-foreground: 216 60% 10%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 15 55% 45%;
+    --destructive-foreground: 38 53% 96%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 36 94% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 216 35% 18%;
+    --input: 216 35% 18%;
+    --ring: 40 50% 57%;
+
+    --sidebar-background: 216 65% 7%;
+    --sidebar-foreground: 38 20% 90%;
+    --sidebar-primary: 40 50% 57%;
+    --sidebar-primary-foreground: 216 60% 10%;
+    --sidebar-accent: 216 50% 14%;
+    --sidebar-accent-foreground: 38 53% 96%;
+    --sidebar-border: 216 40% 14%;
+    --sidebar-ring: 40 50% 57%;
   }
 }
 
@@ -103,5 +120,31 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  /* Gold divider line — signature architectural element */
+  .gold-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--gold)), transparent);
+  }
+
+  /* Stat numbers in JetBrains Mono */
+  .stat-number {
+    font-family: var(--font-mono);
+    font-weight: 600;
+  }
+
+  /* Display heading */
+  .heading-display {
+    font-family: var(--font-display);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
   }
 }
