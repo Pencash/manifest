@@ -14,6 +14,7 @@ import { hasAdminAccess } from "@/lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAmount } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 type TimePeriod = "today" | "week" | "month" | "all";
 
@@ -35,6 +36,14 @@ interface Metrics {
   recentActivity: { type: string; message: string; time: string }[];
 }
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+  })
+};
+
 const AdminDashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -50,70 +59,38 @@ const AdminDashboard = () => {
   const checkUser = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user) {
-        navigate("/admin/auth");
-        return;
-      }
-
+      if (!session?.user) { navigate("/admin/auth"); return; }
       setUser(session.user);
-
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", session.user.id)
-        .single();
-
+      const { data: profileData, error: profileError } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
       if (profileError) throw profileError;
       setProfile(profileData);
-
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id);
-
+      const { data: rolesData, error: rolesError } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
       if (rolesError) throw rolesError;
-
       const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
-
-      if (!hasAdminAccess(mainRole)) {
-        toast.error("Access denied. Admin privileges required.");
-        navigate("/dashboard");
-        return;
-      }
+      if (!hasAdminAccess(mainRole)) { toast.error("Access denied. Admin privileges required."); navigate("/dashboard"); return; }
     } catch (error: any) {
       console.error("Error loading admin profile or role:", error);
       toast.error("Failed to load admin profile");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [navigate]);
 
   const getDateRange = (period: TimePeriod) => {
     const now = new Date();
     switch (period) {
-      case "today":
-        return { start: startOfDay(now), end: endOfDay(now) };
-      case "week":
-        return { start: startOfWeek(now), end: endOfWeek(now) };
-      case "month":
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "all":
-        return { start: null, end: null };
+      case "today": return { start: startOfDay(now), end: endOfDay(now) };
+      case "week": return { start: startOfWeek(now), end: endOfWeek(now) };
+      case "month": return { start: startOfMonth(now), end: endOfMonth(now) };
+      case "all": return { start: null, end: null };
     }
   };
 
   const getPreviousDateRange = (period: TimePeriod) => {
     const now = new Date();
     switch (period) {
-      case "today":
-        return { start: startOfDay(subDays(now, 1)), end: endOfDay(subDays(now, 1)) };
-      case "week":
-        return { start: startOfWeek(subWeeks(now, 1)), end: endOfWeek(subWeeks(now, 1)) };
-      case "month":
-        return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
-      case "all":
-        return { start: null, end: null };
+      case "today": return { start: startOfDay(subDays(now, 1)), end: endOfDay(subDays(now, 1)) };
+      case "week": return { start: startOfWeek(subWeeks(now, 1)), end: endOfWeek(subWeeks(now, 1)) };
+      case "month": return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
+      case "all": return { start: null, end: null };
     }
   };
 
@@ -124,37 +101,14 @@ const AdminDashboard = () => {
       const { start: prevStart, end: prevEnd } = getPreviousDateRange(timePeriod);
 
       let givingsQuery = supabase.from("givings").select("amount, payment_method, created_at, giving_type_id, giving_types(name)").eq("status", "verified");
-      if (start && end) {
-        givingsQuery = givingsQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
-      }
-
+      if (start && end) { givingsQuery = givingsQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString()); }
       let prevGivingsQuery = supabase.from("givings").select("amount").eq("status", "verified");
-      if (prevStart && prevEnd) {
-        prevGivingsQuery = prevGivingsQuery.gte("created_at", prevStart.toISOString()).lte("created_at", prevEnd.toISOString());
-      }
+      if (prevStart && prevEnd) { prevGivingsQuery = prevGivingsQuery.gte("created_at", prevStart.toISOString()).lte("created_at", prevEnd.toISOString()); }
 
-      const [
-        givingsRes,
-        prevGivingsRes,
-        activeMembersRes,
-        newMembersRes,
-        pendingGivingsRes,
-        pendingExpensesRes,
-        pendingServicesRes,
-        attendanceCountRes,
-        attendanceRes,
-        testimoniesCountRes,
-        prayersCountRes,
-        recentGivingsRes,
-        recentTestimoniesRes,
-        recentPrayersRes,
-      ] = await Promise.all([
-        givingsQuery,
-        prevGivingsQuery,
+      const [givingsRes, prevGivingsRes, activeMembersRes, newMembersRes, pendingGivingsRes, pendingExpensesRes, pendingServicesRes, attendanceCountRes, attendanceRes, testimoniesCountRes, prayersCountRes, recentGivingsRes, recentTestimoniesRes, recentPrayersRes] = await Promise.all([
+        givingsQuery, prevGivingsQuery,
         supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
-        start
-          ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString())
-          : Promise.resolve({ count: 0, error: null }),
+        start ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString()) : Promise.resolve({ count: 0, error: null }),
         supabase.from("givings").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("services").select("id", { count: "exact", head: true }).eq("approval_status", "pending_admin_approval"),
@@ -169,22 +123,16 @@ const AdminDashboard = () => {
 
       const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
       const previousGivings = prevGivingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
-
       const activeMembers = activeMembersRes.count || 0;
       const newMembers = newMembersRes.count || 0;
 
       const givingsByType: { [key: string]: number } = {};
-      givingsRes.data?.forEach(g => {
-        const typeName = (g.giving_types as any)?.name || "Other";
-        givingsByType[typeName] = (givingsByType[typeName] || 0) + Number(g.amount);
-      });
+      givingsRes.data?.forEach(g => { const typeName = (g.giving_types as any)?.name || "Other"; givingsByType[typeName] = (givingsByType[typeName] || 0) + Number(g.amount); });
 
       const givingsTrendMap: { [key: string]: { cash: number; mobile: number; bank: number; card: number } } = {};
       givingsRes.data?.forEach(g => {
         const dateKey = format(new Date(g.created_at), "MMM dd");
-        if (!givingsTrendMap[dateKey]) {
-          givingsTrendMap[dateKey] = { cash: 0, mobile: 0, bank: 0, card: 0 };
-        }
+        if (!givingsTrendMap[dateKey]) givingsTrendMap[dateKey] = { cash: 0, mobile: 0, bank: 0, card: 0 };
         const method = g.payment_method.toLowerCase();
         if (method.includes("cash")) givingsTrendMap[dateKey].cash += Number(g.amount);
         else if (method.includes("mobile")) givingsTrendMap[dateKey].mobile += Number(g.amount);
@@ -193,69 +141,26 @@ const AdminDashboard = () => {
       });
 
       const attendanceByType: { [key: string]: number } = {};
-      attendanceRes.data?.forEach(a => {
-        const typeName = (a.services as any)?.service_type || "other";
-        attendanceByType[typeName] = (attendanceByType[typeName] || 0) + 1;
-      });
+      attendanceRes.data?.forEach(a => { const typeName = (a.services as any)?.service_type || "other"; attendanceByType[typeName] = (attendanceByType[typeName] || 0) + 1; });
 
       const recentActivity: { type: string; message: string; time: string }[] = [];
-      
-      const recentGivings = recentGivingsRes.data || [];
-      recentGivings.forEach(g => {
-        recentActivity.push({
-          type: "giving",
-          message: `New giving recorded (${formatAmount(Number(g.amount))})`,
-          time: formatTimeAgo(new Date(g.created_at))
-        });
-      });
-
-      const recentTestimonies = recentTestimoniesRes.data || [];
-      recentTestimonies.forEach(t => {
-        recentActivity.push({
-          type: "testimony",
-          message: "New testimony shared",
-          time: formatTimeAgo(new Date(t.created_at))
-        });
-      });
-
-      const recentPrayers = recentPrayersRes.data || [];
-      recentPrayers.forEach(p => {
-        recentActivity.push({
-          type: "prayer",
-          message: "New prayer request submitted",
-          time: formatTimeAgo(new Date(p.created_at))
-        });
-      });
-
-      recentActivity.sort((a, b) => {
-        const timeA = parseTimeAgo(a.time);
-        const timeB = parseTimeAgo(b.time);
-        return timeA - timeB;
-      });
+      (recentGivingsRes.data || []).forEach(g => { recentActivity.push({ type: "giving", message: `New giving recorded (${formatAmount(Number(g.amount))})`, time: formatTimeAgo(new Date(g.created_at)) }); });
+      (recentTestimoniesRes.data || []).forEach(t => { recentActivity.push({ type: "testimony", message: "New testimony shared", time: formatTimeAgo(new Date(t.created_at)) }); });
+      (recentPrayersRes.data || []).forEach(p => { recentActivity.push({ type: "prayer", message: "New prayer request submitted", time: formatTimeAgo(new Date(p.created_at)) }); });
+      recentActivity.sort((a, b) => parseTimeAgo(a.time) - parseTimeAgo(b.time));
 
       setMetrics({
-        totalGivings,
-        previousGivings,
-        activeMembers,
-        newMembers,
-        pendingGivings: pendingGivingsRes.count || 0,
-        pendingExpenses: pendingExpensesRes.count || 0,
-        pendingServices: pendingServicesRes.count || 0,
+        totalGivings, previousGivings, activeMembers, newMembers,
+        pendingGivings: pendingGivingsRes.count || 0, pendingExpenses: pendingExpensesRes.count || 0, pendingServices: pendingServicesRes.count || 0,
         totalAttendance: attendanceCountRes.count || 0,
         avgAttendance: (attendanceCountRes.count || 0) ? Math.round((attendanceCountRes.count || 0) / Math.max(Object.keys(givingsTrendMap).length, 1)) : 0,
-        testimonies: testimoniesCountRes.count || 0,
-        prayers: prayersCountRes.count || 0,
+        testimonies: testimoniesCountRes.count || 0, prayers: prayersCountRes.count || 0,
         givingsByType: Object.entries(givingsByType).map(([name, value]) => ({ name, value })),
         givingsTrend: Object.entries(givingsTrendMap).map(([date, values]) => ({ date, ...values })),
         attendanceByType: Object.entries(attendanceByType).map(([name, count]) => ({ name: formatServiceType(name), count })),
         recentActivity: recentActivity.slice(0, 10)
       });
-    } catch (error) {
-      console.error("Error loading metrics:", error);
-      toast.error("Failed to load dashboard metrics");
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error("Error loading metrics:", error); toast.error("Failed to load dashboard metrics"); } finally { setLoading(false); }
   }, [timePeriod]);
 
   const formatNumber = (num: number): string => {
@@ -267,34 +172,21 @@ const AdminDashboard = () => {
   const calculateTrend = (current: number, previous: number) => {
     if (previous === 0) return { percent: "0", direction: "neutral" as const };
     const percent = ((current - previous) / previous) * 100;
-    return {
-      percent: Math.abs(percent).toFixed(1),
-      direction: percent > 0 ? "up" as const : percent < 0 ? "down" as const : "neutral" as const
-    };
+    return { percent: Math.abs(percent).toFixed(1), direction: percent > 0 ? "up" as const : percent < 0 ? "down" as const : "neutral" as const };
   };
 
-  const formatServiceType = (type: string): string => {
-    return type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-  };
+  const formatServiceType = (type: string): string => type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 
   useEffect(() => {
     checkUser();
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (!session?.user) {
-        navigate("/admin/auth");
-      }
+      if (!session?.user) navigate("/admin/auth");
     });
-
     return () => subscription.unsubscribe();
   }, [checkUser, navigate]);
 
-  useEffect(() => {
-    if (user) {
-      loadMetrics();
-    }
-  }, [loadMetrics, user]);
+  useEffect(() => { if (user) loadMetrics(); }, [loadMetrics, user]);
 
   const formatTimeAgo = (date: Date): string => {
     const now = new Date();
@@ -302,7 +194,6 @@ const AdminDashboard = () => {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-
     if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
@@ -319,53 +210,29 @@ const AdminDashboard = () => {
   };
 
   const handleExport = async () => {
-    if (!exportStartDate || !exportEndDate) {
-      toast.error("Please select both start and end dates");
-      return;
-    }
-
+    if (!exportStartDate || !exportEndDate) { toast.error("Please select both start and end dates"); return; }
     setExporting(true);
     try {
-      const { data: givingsData } = await supabase
-        .from("givings")
-        .select("*, profiles(full_name), giving_types(name)")
-        .gte("created_at", exportStartDate)
-        .lte("created_at", exportEndDate);
-
-      const formattedData = givingsData?.map(g => ({
-        Date: format(new Date(g.created_at), "yyyy-MM-dd"),
-        Member: (g.profiles as any)?.full_name || "Anonymous",
-        Type: (g.giving_types as any)?.name || "Other",
-        Amount: g.amount,
-        Currency: g.currency,
-        Method: g.payment_method,
-        Status: g.status
-      })) || [];
-
+      const { data: givingsData } = await supabase.from("givings").select("*, profiles(full_name), giving_types(name)").gte("created_at", exportStartDate).lte("created_at", exportEndDate);
+      const formattedData = givingsData?.map(g => ({ Date: format(new Date(g.created_at), "yyyy-MM-dd"), Member: (g.profiles as any)?.full_name || "Anonymous", Type: (g.giving_types as any)?.name || "Other", Amount: g.amount, Currency: g.currency, Method: g.payment_method, Status: g.status })) || [];
       const XLSX = await import("xlsx");
       const ws = XLSX.utils.json_to_sheet(formattedData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Givings");
       XLSX.writeFile(wb, `givings-report-${exportStartDate}-to-${exportEndDate}.xlsx`);
-
       toast.success("Data exported successfully");
       setExportDialogOpen(false);
-    } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export data");
-    } finally {
-      setExporting(false);
-    }
+    } catch (error) { console.error("Export error:", error); toast.error("Failed to export data"); } finally { setExporting(false); }
   };
 
   if (loading || !metrics) {
     return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-20 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+      <div className="space-y-6">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
         </div>
-        <Skeleton className="h-80 w-full" />
+        <Skeleton className="h-80 w-full rounded-xl" />
       </div>
     );
   }
@@ -373,377 +240,254 @@ const AdminDashboard = () => {
   const trend = calculateTrend(metrics.totalGivings, metrics.previousGivings);
   const totalPending = metrics.pendingGivings + metrics.pendingExpenses + metrics.pendingServices;
 
+  const statCards = [
+    { label: "Total Givings", value: formatAmount(metrics.totalGivings), sub: "vs previous period", icon: DollarSign, color: "hsl(var(--sage))", trend },
+    { label: "Active Members", value: metrics.activeMembers.toString(), sub: `${metrics.newMembers} new this period`, icon: Users, color: "hsl(var(--gold))" },
+    { label: "Pending Approvals", value: totalPending.toString(), sub: `${metrics.pendingGivings} givings, ${metrics.pendingExpenses} expenses`, icon: AlertCircle, color: "hsl(var(--terracotta))" },
+    { label: "Total Attendance", value: metrics.totalAttendance.toString(), sub: `Avg: ${metrics.avgAttendance}/service`, icon: Calendar, color: "hsl(var(--navy-light))" },
+    { label: "Engagement", value: (metrics.testimonies + metrics.prayers).toString(), sub: `${metrics.testimonies} testimonies, ${metrics.prayers} prayers`, icon: MessageSquare, color: "hsl(var(--gold-dark))" },
+  ];
+
+  const periodButtons: { label: string; value: TimePeriod }[] = [
+    { label: "Today", value: "today" },
+    { label: "This Week", value: "week" },
+    { label: "This Month", value: "month" },
+    { label: "All Time", value: "all" },
+  ];
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+      >
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Welcome back, {profile?.full_name || "Admin"}!</h1>
-          <p className="text-muted-foreground">Dashboard Overview</p>
+          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+            Welcome back, {profile?.full_name || "Admin"}
+          </h1>
+          <p className="text-muted-foreground mt-1">Here's what's happening across your platform.</p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={timePeriod === "today" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setTimePeriod("today")}
-          >
-            Today
-          </Button>
-          <Button 
-            variant={timePeriod === "week" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setTimePeriod("week")}
-          >
-            This Week
-          </Button>
-          <Button 
-            variant={timePeriod === "month" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setTimePeriod("month")}
-          >
-            This Month
-          </Button>
-          <Button 
-            variant={timePeriod === "all" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setTimePeriod("all")}
-          >
-            All Time
-          </Button>
+        <div className="flex gap-1.5 bg-muted/60 p-1 rounded-lg">
+          {periodButtons.map(p => (
+            <Button
+              key={p.value}
+              variant="ghost"
+              size="sm"
+              onClick={() => setTimePeriod(p.value)}
+              className={`text-xs px-3 rounded-md transition-all ${
+                timePeriod === p.value
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "hover:bg-background/60 text-muted-foreground"
+              }`}
+            >
+              {p.label}
+            </Button>
+          ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card className="border-l-4 border-l-[hsl(142,76%,36%)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-full bg-[hsl(142,76%,36%)]/10 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-[hsl(142,76%,36%)]" />
-              </div>
-              {trend.direction !== "neutral" && (
-                <div className={`flex items-center gap-1 text-sm ${trend.direction === "up" ? "text-[hsl(142,76%,36%)]" : "text-destructive"}`}>
-                  {trend.direction === "up" ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                  <span>{trend.percent}%</span>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground/70">Total Givings</p>
-              <p className="text-2xl font-bold text-foreground">{formatAmount(metrics.totalGivings)}</p>
-              <p className="text-xs text-foreground/60">vs previous period</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[hsl(221,83%,53%)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-full bg-[hsl(221,83%,53%)]/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-[hsl(221,83%,53%)]" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground/70">Active Members</p>
-              <p className="text-2xl font-bold text-foreground">{metrics.activeMembers}</p>
-              <p className="text-xs text-foreground/60">{metrics.newMembers} new this period</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[hsl(38,92%,50%)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-full bg-[hsl(38,92%,50%)]/10 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-[hsl(38,92%,50%)]" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground/70">Pending Approvals</p>
-              <p className="text-2xl font-bold text-foreground">{totalPending}</p>
-              <p className="text-xs text-foreground/60">
-                {metrics.pendingGivings} givings, {metrics.pendingExpenses} expenses
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[hsl(271,81%,56%)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-full bg-[hsl(271,81%,56%)]/10 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-[hsl(271,81%,56%)]" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground/70">Total Attendance</p>
-              <p className="text-2xl font-bold text-foreground">{metrics.totalAttendance}</p>
-              <p className="text-xs text-foreground/60">Avg: {metrics.avgAttendance}/service</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[hsl(189,94%,43%)]">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-full bg-[hsl(189,94%,43%)]/10 flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-[hsl(189,94%,43%)]" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground/70">Engagement</p>
-              <p className="text-2xl font-bold text-foreground">{metrics.testimonies + metrics.prayers}</p>
-              <p className="text-xs text-foreground/60">
-                {metrics.testimonies} testimonies, {metrics.prayers} prayers
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {statCards.map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <motion.div key={card.label} custom={i} variants={fadeUp} initial="hidden" animate="visible">
+              <Card className="relative overflow-hidden border-none shadow-md hover:shadow-lg transition-shadow bg-card">
+                <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: card.color }} />
+                <CardHeader className="pb-2 pl-5">
+                  <div className="flex items-center justify-between">
+                    <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}15` }}>
+                      <Icon className="h-4 w-4" style={{ color: card.color }} />
+                    </div>
+                    {card.trend && card.trend.direction !== "neutral" && (
+                      <span className={`flex items-center gap-0.5 text-xs font-semibold ${card.trend.direction === "up" ? "text-sage" : "text-destructive"}`}>
+                        {card.trend.direction === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {card.trend.percent}%
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pl-5">
+                  <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
+                  <p className="text-2xl font-mono font-bold text-foreground tracking-tight mt-0.5">{card.value}</p>
+                  <p className="text-[0.65rem] text-muted-foreground mt-1">{card.sub}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {metrics.givingsTrend.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Giving Trends
-            </CardTitle>
-            <CardDescription>Total contributions over time by payment method</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={metrics.givingsTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="hsl(var(--muted-foreground))"
-                  angle={-45}
-                  textAnchor="end"
-                  height={70}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  tickFormatter={(value) => {
-                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                    return value.toString();
-                  }}
-                  width={70}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "var(--radius)"
-                  }} 
-                />
-                <Legend />
-                <Line type="monotone" dataKey="cash" stroke="hsl(142, 76%, 36%)" strokeWidth={2} name="Cash" />
-                <Line type="monotone" dataKey="mobile" stroke="hsl(221, 83%, 53%)" strokeWidth={2} name="Mobile Money" />
-                <Line type="monotone" dataKey="bank" stroke="hsl(38, 92%, 50%)" strokeWidth={2} name="Bank Transfer" />
-                <Line type="monotone" dataKey="card" stroke="hsl(271, 81%, 56%)" strokeWidth={2} name="Card" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
+          <Card className="border-none shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display text-lg">
+                <TrendingUp className="h-5 w-5 text-accent" />
+                Giving Trends
+              </CardTitle>
+              <CardDescription>Contributions over time by payment method</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={metrics.givingsTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 12 }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v.toString()} width={70} tick={{ fontSize: 12 }} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)" }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="cash" stroke="hsl(var(--sage))" strokeWidth={2} name="Cash" />
+                  <Line type="monotone" dataKey="mobile" stroke="hsl(var(--gold))" strokeWidth={2} name="Mobile Money" />
+                  <Line type="monotone" dataKey="bank" stroke="hsl(var(--navy-light))" strokeWidth={2} name="Bank Transfer" />
+                  <Line type="monotone" dataKey="card" stroke="hsl(var(--terracotta))" strokeWidth={2} name="Card" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
         {metrics.givingsByType.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Contributions by Type</CardTitle>
-              <CardDescription>Breakdown of giving categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={metrics.givingsByType}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="hsl(var(--muted-foreground))"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    tick={{ fontSize: 11 }}
-                    interval={0}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    tickFormatter={(value) => {
-                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                      if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                      return value.toString();
-                    }}
-                    width={70}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)"
-                    }} 
-                  />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
+            <Card className="border-none shadow-md h-full">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">Contributions by Type</CardTitle>
+                <CardDescription>Breakdown of giving categories</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={metrics.givingsByType}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v.toString()} width={70} tick={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)" }} />
+                    <Bar dataKey="value" fill="hsl(var(--gold))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
 
         {metrics.attendanceByType.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Attendance Overview</CardTitle>
-              <CardDescription>Service participation trends</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={metrics.attendanceByType}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--card))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)"
-                    }} 
-                  />
-                  <Bar dataKey="count" fill="hsl(var(--secondary))" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <motion.div custom={7} variants={fadeUp} initial="hidden" animate="visible">
+            <Card className="border-none shadow-md h-full">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">Attendance Overview</CardTitle>
+                <CardDescription>Service participation trends</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={metrics.attendanceByType}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)" }} />
+                    <Bar dataKey="count" fill="hsl(var(--sage))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Recent Activity
-          </CardTitle>
-          <CardDescription>Latest updates across the platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {metrics.recentActivity.length > 0 ? (
-              metrics.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 pb-3 border-b border-border last:border-0">
-                  <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{activity.message}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+      <div className="grid md:grid-cols-3 gap-6">
+        <motion.div custom={8} variants={fadeUp} initial="hidden" animate="visible" className="md:col-span-2">
+          <Card className="border-none shadow-md h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-display text-lg">
+                <MessageSquare className="h-5 w-5 text-accent" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>Latest updates across the platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {metrics.recentActivity.length > 0 ? metrics.recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-3 pb-3 border-b border-border/50 last:border-0">
+                    <div className="h-2 w-2 rounded-full bg-accent mt-2 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">{activity.message}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No recent activity</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Download className="mr-2 h-4 w-4" />
-                Export Data
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Export Data</DialogTitle>
-                <DialogDescription>Select a date range to export giving data to Excel</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start-date">Start Date</Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={exportStartDate}
-                    onChange={(e) => setExportStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end-date">End Date</Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={exportEndDate}
-                    onChange={(e) => setExportEndDate(e.target.value)}
-                  />
-                </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground">No recent activity</p>
+                )}
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setExportDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleExport} disabled={exporting}>
-                  {exporting ? "Exporting..." : "Export"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      {totalPending > 0 && timePeriod === "all" && (
-        <Card className="border-[hsl(38,92%,50%)]/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-[hsl(38,92%,50%)]">
-              <AlertCircle className="h-5 w-5" />
-              Items Requiring Attention
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {metrics.pendingGivings > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Pending Givings ({metrics.pendingGivings})</span>
-                  <Button variant="ghost" size="sm" onClick={() => navigate("/admin/givings")}>
-                    View <ChevronRight className="ml-1 h-4 w-4" />
+        <motion.div custom={9} variants={fadeUp} initial="hidden" animate="visible" className="space-y-6">
+          <Card className="border-none shadow-md">
+            <CardHeader>
+              <CardTitle className="font-display text-lg">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full bg-primary hover:bg-primary/90">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Data
                   </Button>
-                </div>
-              )}
-              {metrics.pendingExpenses > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Pending Expenses ({metrics.pendingExpenses})</span>
-                  <Button variant="ghost" size="sm" onClick={() => navigate("/admin/expense-requests")}>
-                    View <ChevronRight className="ml-1 h-4 w-4" />
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export Data</DialogTitle>
+                    <DialogDescription>Select a date range to export giving data to Excel</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start-date">Start Date</Label>
+                      <Input id="start-date" type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end-date">End Date</Label>
+                      <Input id="end-date" type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setExportDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleExport} disabled={exporting}>{exporting ? "Exporting..." : "Export"}</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+
+          {totalPending > 0 && (
+            <Card className="border-none shadow-md border-l-4 border-l-terracotta">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  Requires Attention
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {metrics.pendingGivings > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full justify-between text-xs" onClick={() => navigate("/admin/givings")}>
+                    Pending Givings ({metrics.pendingGivings}) <ChevronRight className="h-3 w-3" />
                   </Button>
-                </div>
-              )}
-              {metrics.pendingServices > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">Pending Services ({metrics.pendingServices})</span>
-                  <Button variant="ghost" size="sm" onClick={() => navigate("/admin/pending-services")}>
-                    View <ChevronRight className="ml-1 h-4 w-4" />
+                )}
+                {metrics.pendingExpenses > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full justify-between text-xs" onClick={() => navigate("/admin/expenses/pending")}>
+                    Pending Expenses ({metrics.pendingExpenses}) <ChevronRight className="h-3 w-3" />
                   </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                )}
+                {metrics.pendingServices > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full justify-between text-xs" onClick={() => navigate("/admin/pending-services")}>
+                    Pending Services ({metrics.pendingServices}) <ChevronRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 };
