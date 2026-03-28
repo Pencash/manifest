@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { ChevronDown, LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { NotificationBadge } from "@/components/NotificationBadge";
@@ -22,7 +22,6 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 
 interface NavItemWithCount {
@@ -43,16 +42,8 @@ export function AppSidebar() {
   const loadUserInfo = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (profileData) {
-      setUserName(profileData.full_name);
-    }
+    const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (profileData) setUserName(profileData.full_name);
     setUserEmail(user.email || "");
   }, []);
 
@@ -60,67 +51,19 @@ export function AppSidebar() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+      if (!roleData || !hasAdminAccess(roleData.role)) { setNavItems(adminNavItems); return; }
 
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!roleData || !hasAdminAccess(roleData.role)) {
-        setNavItems(adminNavItems);
-        return;
-      }
-
-      // Count pending givings - simplified query to avoid !inner join issues
-      const { count: pendingGivingsCount } = await supabase
-        .from("givings")
-        .select("*", { count: 'exact', head: true })
-        .eq("status", "pending");
-
-      console.log("📊 Pending Givings Query Result:", { count: pendingGivingsCount });
-
-      // Count pending expense requests
-      const { count: pendingExpensesCount } = await supabase
-        .from("expense_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending");
-
-      // Count pending service events
-      const { data: pendingServices } = await supabase
-        .from("services")
-        .select("id")
-        .eq("approval_status", "pending_admin_approval");
-
-      const givingsCount = pendingGivingsCount || 0;
-      const expensesCount = pendingExpensesCount || 0;
-      const servicesCount = pendingServices?.length || 0;
-
-      console.log("📊 Notification Counts:", {
-        givings: givingsCount,
-        expenses: expensesCount,
-        services: servicesCount,
-        timestamp: new Date().toISOString()
-      });
+      const { count: pendingGivingsCount } = await supabase.from("givings").select("*", { count: 'exact', head: true }).eq("status", "pending");
+      const { count: pendingExpensesCount } = await supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
+      const { data: pendingServices } = await supabase.from("services").select("id").eq("approval_status", "pending_admin_approval");
 
       const updatedItems = adminNavItems.map(item => {
-        if (item.path === "/admin/givings") {
-          console.log("✅ Setting badge for Payment Verification:", givingsCount);
-          return { ...item, notificationCount: givingsCount };
-        }
-        if (item.path === "/admin/expenses/pending") {
-          return { ...item, notificationCount: expensesCount };
-        }
-        if (item.path === "/admin/pending-services") {
-          return { ...item, notificationCount: servicesCount };
-        }
+        if (item.path === "/admin/givings") return { ...item, notificationCount: pendingGivingsCount || 0 };
+        if (item.path === "/admin/expenses/pending") return { ...item, notificationCount: pendingExpensesCount || 0 };
+        if (item.path === "/admin/pending-services") return { ...item, notificationCount: pendingServices?.length || 0 };
         return item;
       });
-
-      console.log("📝 Updated nav items with badges:", 
-        updatedItems.filter(i => i.notificationCount !== undefined && i.notificationCount > 0)
-      );
-
       setNavItems(updatedItems);
     } catch (error) {
       console.error("Error loading notification counts:", error);
@@ -128,45 +71,19 @@ export function AppSidebar() {
     }
   }, []);
 
-  // Load user info
-  useEffect(() => {
-    loadUserInfo();
-  }, [loadUserInfo]);
+  useEffect(() => { loadUserInfo(); }, [loadUserInfo]);
 
-  // Close the mobile sidebar when the route changes so the content is visible.
   useEffect(() => {
-    if (isMobile && openMobile) {
-      setOpenMobile(false);
-    }
-  }, [isMobile, location.pathname, openMobile, setOpenMobile]);
+    if (isMobile && openMobile) setOpenMobile(false);
+  }, [isMobile, location.pathname]);
 
-  // Load notification counts with realtime updates
   useEffect(() => {
     loadNotificationCounts();
-    
-    const givingsChannel = supabase
-      .channel('givings-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts)
-      .subscribe();
-
-    const expensesChannel = supabase
-      .channel('expenses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts)
-      .subscribe();
-
-    const servicesChannel = supabase
-      .channel('services-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts)
-      .subscribe();
-
+    const givingsChannel = supabase.channel('givings-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts).subscribe();
+    const expensesChannel = supabase.channel('expenses-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts).subscribe();
+    const servicesChannel = supabase.channel('services-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts).subscribe();
     const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
-
-    return () => {
-      supabase.removeChannel(givingsChannel);
-      supabase.removeChannel(expensesChannel);
-      supabase.removeChannel(servicesChannel);
-      unsubscribeFromEvents();
-    };
+    return () => { supabase.removeChannel(givingsChannel); supabase.removeChannel(expensesChannel); supabase.removeChannel(servicesChannel); unsubscribeFromEvents(); };
   }, [loadNotificationCounts]);
 
   const handleSignOut = async () => {
@@ -175,58 +92,39 @@ export function AppSidebar() {
     window.location.href = "/";
   };
 
-  // Group items by category
-  const financialItems = navItems.filter(item => 
-    ["/admin/givings", "/admin/reports/financial"].includes(item.path)
-  );
-
-  const expenseItems = navItems.filter(item => 
-    item.path.startsWith("/admin/expenses")
-  );
-
-  const eventsItems = navItems.filter(item => 
-    ["/admin/events", "/admin/pending-services", "/admin/reports/attendance"].includes(item.path)
-  );
-
-  const adminItems = navItems.filter(item => 
-    ["/admin/users", "/admin/mobilization"].includes(item.path)
-  );
-
+  const financialItems = navItems.filter(item => ["/admin/givings", "/admin/reports/financial"].includes(item.path));
+  const expenseItems = navItems.filter(item => item.path.startsWith("/admin/expenses"));
+  const eventsItems = navItems.filter(item => ["/admin/events", "/admin/pending-services", "/admin/reports/attendance"].includes(item.path));
+  const adminItems = navItems.filter(item => ["/admin/users", "/admin/mobilization"].includes(item.path));
+  const conversionItem = navItems.find(item => item.path === "/admin/conversions");
   const dashboardItem = navItems.find(item => item.path === "/admin/dashboard");
 
   const handleMenuSelect = () => {
-    if (isMobile) {
-      // Add small delay to show selection feedback before closing
-      setTimeout(() => setOpenMobile(false), 150);
-    }
+    if (isMobile) setTimeout(() => setOpenMobile(false), 150);
   };
 
   const renderMenuItem = (item: NavItemWithCount) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.path;
-
     return (
       <SidebarMenuItem key={item.path}>
         <SidebarMenuButton asChild isActive={isActive}>
           <NavLink
             to={item.path}
-            className="relative flex items-center gap-3 px-3 py-3 md:py-2 rounded-md transition-colors hover:bg-accent"
-            activeClassName="bg-accent text-accent-foreground font-medium"
+            className="relative flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+            activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
             onClick={handleMenuSelect}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            {!isCollapsed && <span className="flex-1">{item.label}</span>}
+            {!isCollapsed && <span className="flex-1 text-sm">{item.label}</span>}
             {item.notificationCount !== undefined && item.notificationCount > 0 && (
-              (() => {
-                console.log(`🔔 Rendering badge for ${item.label}:`, item.notificationCount, "collapsed:", isCollapsed);
-                return !isCollapsed ? (
-                  <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1 text-[0.625rem] font-bold text-white">
-                    {item.notificationCount > 99 ? "99+" : item.notificationCount}
-                  </span>
-                ) : (
-                  <NotificationBadge count={item.notificationCount} />
-                );
-              })()
+              !isCollapsed ? (
+                <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-accent px-1.5 text-[0.625rem] font-bold text-accent-foreground">
+                  {item.notificationCount > 99 ? "99+" : item.notificationCount}
+                </span>
+              ) : (
+                <NotificationBadge count={item.notificationCount} />
+              )
             )}
           </NavLink>
         </SidebarMenuButton>
@@ -234,84 +132,80 @@ export function AppSidebar() {
     );
   };
 
+  const renderGroup = (label: string, items: NavItemWithCount[]) => {
+    if (items.length === 0) return null;
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel className="text-[0.65rem] uppercase tracking-widest text-sidebar-foreground/40 font-semibold px-3">
+          {label}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>{items.map(renderMenuItem)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  };
+
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
-      <SidebarHeader className="border-b px-4 py-4">
-        {!isCollapsed && (
-          <h2 className="text-lg font-semibold text-foreground">Admin Portal</h2>
+    <Sidebar collapsible="icon" variant="sidebar" className="border-r-0">
+      <SidebarHeader className="px-4 py-5 border-b border-sidebar-border/30">
+        {!isCollapsed ? (
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
+              <span className="text-accent-foreground font-bold text-sm font-display">P</span>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-sidebar-foreground font-display tracking-tight">Phaneroo</h2>
+              <p className="text-[0.6rem] text-sidebar-foreground/50 uppercase tracking-wider">Admin Portal</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
+              <span className="text-accent-foreground font-bold text-sm font-display">P</span>
+            </div>
+          </div>
         )}
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
-        {/* Dashboard */}
+      <SidebarContent className="px-2 py-3 space-y-1">
         {dashboardItem && (
           <>
             <SidebarGroup>
-              <SidebarMenu>
-                {renderMenuItem(dashboardItem)}
-              </SidebarMenu>
+              <SidebarMenu>{renderMenuItem(dashboardItem)}</SidebarMenu>
             </SidebarGroup>
-            <Separator className="my-2" />
+            <Separator className="my-1 bg-sidebar-border/20" />
           </>
         )}
 
-        {/* Financial Management */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Financial</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {financialItems.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {conversionItem && (
+          <>
+            <SidebarGroup>
+              <SidebarMenu>{renderMenuItem(conversionItem)}</SidebarMenu>
+            </SidebarGroup>
+            <Separator className="my-1 bg-sidebar-border/20" />
+          </>
+        )}
 
-        <Separator className="my-2" />
-
-        {/* Expense Management */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Expenses</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {expenseItems.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <Separator className="my-2" />
-
-        {/* Events & Attendance */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Events</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {eventsItems.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <Separator className="my-2" />
-
-        {/* Administration */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map(renderMenuItem)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {renderGroup("Financial", financialItems)}
+        <Separator className="my-1 bg-sidebar-border/20" />
+        {renderGroup("Expenses", expenseItems)}
+        <Separator className="my-1 bg-sidebar-border/20" />
+        {renderGroup("Events", eventsItems)}
+        <Separator className="my-1 bg-sidebar-border/20" />
+        {renderGroup("Admin", adminItems)}
       </SidebarContent>
 
-      <SidebarFooter className="border-t p-4">
+      <SidebarFooter className="border-t border-sidebar-border/30 p-3">
         {!isCollapsed ? (
           <div className="space-y-3">
             <div className="px-2">
-              <p className="text-sm font-medium text-foreground truncate">{userName || "User"}</p>
-              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{userName || "User"}</p>
+              <p className="text-[0.65rem] text-sidebar-foreground/50 truncate">{userEmail}</p>
             </div>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2" 
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 text-sm"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
@@ -319,13 +213,7 @@ export function AppSidebar() {
             </Button>
           </div>
         ) : (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="w-full" 
-            onClick={handleSignOut}
-            title="Sign Out"
-          >
+          <Button variant="ghost" size="icon" className="w-full text-sidebar-foreground/60 hover:text-sidebar-foreground" onClick={handleSignOut} title="Sign Out">
             <LogOut className="h-4 w-4" />
           </Button>
         )}
