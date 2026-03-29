@@ -340,13 +340,13 @@ const Dashboard = () => {
             <Card className="relative overflow-hidden border-0 h-full">
               <div className="absolute inset-0">
                 <img src={PRAYER_IMG} alt="Prayer" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-navy/40" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
               </div>
               <CardContent className="relative z-10 p-6 flex flex-col justify-end h-full min-h-[200px]">
-                <p className="text-ivory/90 text-base italic leading-relaxed mb-3 font-display">
+                <p className="text-white/90 text-base italic leading-relaxed mb-3 font-display">
                   "For where two or three gather in my name, there am I with them."
                 </p>
-                <p className="text-gold text-sm font-medium font-sans">Matthew 18:20</p>
+                <p className="text-accent text-sm font-medium font-sans">Matthew 18:20</p>
               </CardContent>
             </Card>
           </motion.div>
