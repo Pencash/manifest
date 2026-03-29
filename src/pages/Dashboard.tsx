@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   HandHeart,
@@ -13,13 +12,13 @@ import {
   LogOut,
   Heart,
   DollarSign,
-  TrendingUp,
   Calendar,
   ChevronRight,
   ArrowUpRight,
 } from "lucide-react";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchUpcomingServices } from "@/hooks/useMobilizationData";
 
 const PRAYER_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663236049561/UnYjyJ7WEfrjJobGhetJUW/prayer-moment-BpSzBFsE9EiR37d3KfbKxW.webp";
@@ -38,7 +37,7 @@ const Dashboard = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Prefetch services data for MemberMobilization page
+  // Prefetch services data
   useEffect(() => {
     queryClient.prefetchQuery({
       queryKey: ['upcoming-services'],
@@ -46,8 +45,76 @@ const Dashboard = () => {
     });
   }, [queryClient]);
 
+  // Fetch total giving amount
+  const { data: givingTotal } = useQuery({
+    queryKey: ['my-giving-total', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { data, error } = await supabase
+        .from('givings')
+        .select('amount')
+        .eq('profile_id', user.id)
+        .eq('status', 'verified');
+      if (error) throw error;
+      return data?.reduce((sum, g) => sum + Number(g.amount), 0) ?? 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch testimony count
+  const { data: testimonyCount } = useQuery({
+    queryKey: ['my-testimony-count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from('testimonies')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', user.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch prayer count
+  const { data: prayerCount } = useQuery({
+    queryKey: ['my-prayer-count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from('prayer_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', user.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch upcoming events count
+  const { data: upcomingEventsCount } = useQuery({
+    queryKey: ['upcoming-events-count'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { count, error } = await supabase
+        .from('services')
+        .select('id', { count: 'exact', head: true })
+        .gte('service_date', today)
+        .eq('is_published', true)
+        .eq('approval_status', 'approved');
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const handleRefresh = async () => {
-    await refreshProfile();
+    await Promise.all([
+      refreshProfile(),
+      queryClient.invalidateQueries({ queryKey: ['my-giving-total'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-testimony-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-prayer-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['upcoming-events-count'] }),
+    ]);
   };
 
   const handleSignOut = async () => {
@@ -58,6 +125,43 @@ const Dashboard = () => {
 
   const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "Friend";
 
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) return `MK${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `MK${(amount / 1000).toFixed(1)}K`;
+    return `MK${amount.toLocaleString()}`;
+  };
+
+  const stats = [
+    {
+      label: "Total Given",
+      value: givingTotal != null ? formatCurrency(givingTotal) : "—",
+      icon: DollarSign,
+      color: "text-accent",
+      path: "/history",
+    },
+    {
+      label: "Testimonies",
+      value: testimonyCount != null ? String(testimonyCount) : "—",
+      icon: MessageSquare,
+      color: "text-secondary-foreground",
+      path: "/testimony",
+    },
+    {
+      label: "Prayers",
+      value: prayerCount != null ? String(prayerCount) : "—",
+      icon: Heart,
+      color: "text-destructive",
+      path: "/prayer",
+    },
+    {
+      label: "Upcoming Events",
+      value: upcomingEventsCount != null ? String(upcomingEventsCount) : "—",
+      icon: Calendar,
+      color: "text-foreground",
+      path: "/mobilization",
+    },
+  ];
+
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="space-y-8">
@@ -65,41 +169,37 @@ const Dashboard = () => {
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={0}>
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="heading-display text-3xl sm:text-4xl text-navy">
-                Welcome back, <span className="text-gold">{firstName}</span>
+              <h1 className="heading-display text-3xl sm:text-4xl text-foreground">
+                Welcome back, <span className="text-accent">{firstName}</span>
               </h1>
-              <p className="text-navy/50 mt-2 text-base font-sans">
+              <p className="text-muted-foreground mt-2 text-base font-sans">
                 Your dashboard for Manifest Malawi — here is what is happening.
               </p>
             </div>
-            <Button variant="ghost" onClick={handleSignOut} className="text-navy/50 hover:text-navy hover:bg-navy/5">
+            <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
           </div>
         </motion.div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats — clickable */}
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={1} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Given", value: "—", icon: DollarSign, trend: "View history", color: "text-gold" },
-            { label: "Testimonies", value: "—", icon: MessageSquare, trend: "Share yours", color: "text-sage" },
-            { label: "Prayers", value: "—", icon: Heart, trend: "Submit request", color: "text-terracotta" },
-            { label: "Events", value: "—", icon: Calendar, trend: "See upcoming", color: "text-navy" },
-          ].map((stat) => (
-            <Card key={stat.label} className="bg-white border-navy/5 hover:border-gold/20 transition-colors duration-300">
+          {stats.map((stat) => (
+            <Card
+              key={stat.label}
+              className="bg-card border-border hover:border-accent/20 transition-colors duration-300 cursor-pointer group"
+              onClick={() => navigate(stat.path)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-navy/5 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                     <stat.icon className={`h-5 w-5 ${stat.color}`} />
                   </div>
-                  <span className="text-xs text-sage font-medium flex items-center gap-1 font-sans">
-                    <TrendingUp className="h-3 w-3" />
-                    {stat.trend}
-                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="stat-number text-2xl text-navy mb-1">{stat.value}</div>
-                <div className="text-navy/40 text-sm font-sans">{stat.label}</div>
+                <div className="stat-number text-2xl text-foreground mb-1">{stat.value}</div>
+                <div className="text-muted-foreground text-sm font-sans">{stat.label}</div>
               </CardContent>
             </Card>
           ))}
@@ -107,7 +207,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={2}>
-          <h3 className="heading-display text-xl text-navy mb-4">Quick Actions</h3>
+          <h3 className="heading-display text-xl text-foreground mb-4">Quick Actions</h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               {
@@ -115,9 +215,7 @@ const Dashboard = () => {
                 description: "Submit your tithes and offerings",
                 icon: HandHeart,
                 buttonLabel: "Give Now",
-                gradient: "from-gold/10 to-gold/5",
-                iconBg: "bg-gold/15",
-                iconColor: "text-gold-dark",
+                iconColor: "text-accent",
                 path: "/give",
               },
               {
@@ -125,9 +223,7 @@ const Dashboard = () => {
                 description: "Share your faith journey with the community",
                 icon: MessageSquare,
                 buttonLabel: "Share Now",
-                gradient: "from-sage/10 to-sage/5",
-                iconBg: "bg-sage/15",
-                iconColor: "text-sage",
+                iconColor: "text-secondary-foreground",
                 path: "/testimony",
               },
               {
@@ -135,32 +231,30 @@ const Dashboard = () => {
                 description: "Submit your prayer needs",
                 icon: Heart,
                 buttonLabel: "Request Prayer",
-                gradient: "from-terracotta/10 to-terracotta/5",
-                iconBg: "bg-terracotta/15",
-                iconColor: "text-terracotta",
+                iconColor: "text-destructive",
                 path: "/prayer",
               },
             ].map((action) => (
               <Card
                 key={action.title}
-                className={`group bg-gradient-to-br ${action.gradient} border-navy/5 hover:border-gold/20 hover:shadow-lg hover:shadow-gold/5 transition-all duration-300 cursor-pointer`}
+                className="group bg-card border-border hover:border-accent/20 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300 cursor-pointer"
                 onClick={() => navigate(action.path)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-lg ${action.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                       <action.icon className={`h-6 w-6 ${action.iconColor}`} />
                     </div>
                     <div className="flex-1">
-                      <CardTitle className="text-lg text-navy group-hover:text-gold transition-colors font-display">
+                      <CardTitle className="text-lg text-foreground group-hover:text-accent transition-colors font-display">
                         {action.title}
                       </CardTitle>
-                      <p className="text-navy/50 text-sm mt-1 font-sans">{action.description}</p>
+                      <p className="text-muted-foreground text-sm mt-1 font-sans">{action.description}</p>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full bg-navy text-ivory hover:bg-navy-light">
+                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                     {action.buttonLabel}
                     <ArrowUpRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -174,25 +268,25 @@ const Dashboard = () => {
         <div className="grid lg:grid-cols-5 gap-6">
           {/* Giving History shortcut */}
           <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={3} className="lg:col-span-3">
-            <Card className="bg-white border-navy/5">
+            <Card className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg text-navy font-display">Giving History</CardTitle>
+                <CardTitle className="text-lg text-foreground font-display">Giving History</CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gold hover:text-gold-dark text-xs font-sans"
+                  className="text-accent hover:text-accent/80 text-xs font-sans"
                   onClick={() => navigate("/history")}
                 >
                   View All <ChevronRight className="ml-1 h-3 w-3" />
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-navy/40 font-sans">
-                  <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-navy/20" />
+                <div className="text-center py-8 text-muted-foreground font-sans">
+                  <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
                   <p className="text-sm">Your giving history will appear here.</p>
                   <Button
                     variant="ghost"
-                    className="mt-3 text-gold hover:text-gold-dark"
+                    className="mt-3 text-accent hover:text-accent/80"
                     onClick={() => navigate("/history")}
                   >
                     View full history
