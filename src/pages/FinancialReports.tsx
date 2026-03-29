@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, Download, Wallet, TrendingUp, TrendingDown, CalendarRange, HandCoins, Receipt, ArrowRight } from "lucide-react";
+import { ArrowLeft, Download, Wallet, TrendingUp, TrendingDown, CalendarRange, HandCoins, Receipt, ArrowRight, CircleAlert } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "@/lib/roles";
@@ -257,10 +257,20 @@ const FinancialReports = () => {
               <p className="text-muted-foreground">Financial movement statement focused on incoming, expenses, and available activity funds</p>
             </div>
           </div>
-          <Button onClick={exportSummaryToExcel} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Summary
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/admin/givings")} className="gap-2">
+              Givings Ledger
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/admin/expenses/all")} className="gap-2">
+              Expense Ledger
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button onClick={exportSummaryToExcel} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export Summary
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -331,59 +341,37 @@ const FinancialReports = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Eligible Incoming</CardTitle>
+              <CardTitle className="text-sm font-medium">Activity-Support Inflows</CardTitle>
               <Wallet className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatAmount(analytics.eligibleIncoming)}</div>
-              <p className="text-xs text-muted-foreground">Funds available to support ministry activities</p>
+              <p className="text-xs text-muted-foreground">Verified incoming available for activities (after exclusions)</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Restricted Incoming</CardTitle>
-              <CalendarRange className="h-4 w-4 text-primary/60" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(analytics.restrictedIncoming)}</div>
-              <p className="text-xs text-muted-foreground">Excluded from activity spending</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Funded Expenses</CardTitle>
+              <CardTitle className="text-sm font-medium">Activity Outflows</CardTitle>
               <Receipt className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatAmount(analytics.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Approved / partially paid / paid</p>
+              <p className="text-xs text-muted-foreground">Approved / partially paid / paid expenses</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Net Movement</CardTitle>
+              <CardTitle className="text-sm font-medium">Closing Activity Balance</CardTitle>
               {analytics.netMovement >= 0 ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${analytics.netMovement >= 0 ? "text-green-700" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
-              <p className="text-xs text-muted-foreground">Eligible incoming minus funded expenses</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Expense Queue</CardTitle>
-              <HandCoins className="h-4 w-4 text-primary/60" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analytics.pendingExpenseCount}</div>
-              <p className="text-xs text-muted-foreground">{formatAmount(analytics.pendingExpenseAmount)} awaiting decision</p>
+              <p className="text-xs text-muted-foreground">Inflows minus funded activity outflows in this period</p>
             </CardContent>
           </Card>
         </div>
@@ -411,8 +399,8 @@ const FinancialReports = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Incoming by Giving Type</CardTitle>
-              <CardDescription>Verified incoming composition for the same period</CardDescription>
+              <CardTitle>Incoming Composition</CardTitle>
+              <CardDescription>Shows giving mix including restricted buckets for governance visibility</CardDescription>
             </CardHeader>
             <CardContent>
               {analytics.givingsByType.length === 0 ? (
@@ -455,17 +443,42 @@ const FinancialReports = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Audit & Drill-Down Paths</CardTitle>
-              <CardDescription>Use detailed transaction pages for line-by-line verification instead of this summary screen.</CardDescription>
+              <CardTitle>Governance Watch</CardTitle>
+              <CardDescription>Risk and control indicators for this reporting scope</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-between" onClick={() => navigate("/admin/givings")}>Givings Ledger <ArrowRight className="h-4 w-4" /></Button>
-              <Button variant="outline" className="w-full justify-between" onClick={() => navigate("/admin/expenses/all")}>Expense Ledger <ArrowRight className="h-4 w-4" /></Button>
-              <Button variant="outline" className="w-full justify-between" onClick={() => navigate("/admin/expenses/pending")}>Pending Expense Approvals <ArrowRight className="h-4 w-4" /></Button>
-              <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Why this design avoids duplication:</p>
-                <p>The dashboard gives operational snapshots, while this page gives a period-based financial movement statement. Detailed records stay in the dedicated ledger pages for better audit traceability.</p>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Restricted Incoming (Excluded)</p>
+                    <p className="text-2xl font-bold mt-1">{formatAmount(analytics.restrictedIncoming)}</p>
+                  </div>
+                  <CalendarRange className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">This amount is tracked for accountability and is not available for activity spending.</p>
               </div>
+
+              <div className="rounded-md border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Pending Expense Queue</p>
+                    <p className="text-2xl font-bold mt-1">{analytics.pendingExpenseCount}</p>
+                  </div>
+                  <HandCoins className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{formatAmount(analytics.pendingExpenseAmount)} waiting for review/approval.</p>
+                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => navigate("/admin/expenses/pending")}>
+                  Review pending approvals
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              {analytics.netMovement < 0 && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm flex items-start gap-2">
+                  <CircleAlert className="h-4 w-4 text-destructive mt-0.5" />
+                  <p className="text-destructive">Activity outflows are above activity-support inflows for this period. Review expense timing and funding source mix.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
