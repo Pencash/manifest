@@ -108,6 +108,23 @@ const Dashboard = () => {
     },
   });
 
+  // Fetch recent givings for history snapshot
+  const { data: recentGivings } = useQuery({
+    queryKey: ['my-recent-givings', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('givings')
+        .select('id, amount, currency, payment_method, status, created_at')
+        .eq('profile_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
   const handleRefresh = async () => {
     await Promise.all([
       refreshProfile(),
