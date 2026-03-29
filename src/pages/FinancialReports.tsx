@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,54 +6,74 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, Download, DollarSign, TrendingUp, FileText, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { ArrowLeft, Download, Wallet, TrendingUp, TrendingDown, CalendarRange, HandCoins, Receipt, ArrowRight, CircleAlert } from "lucide-react";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import * as XLSX from "xlsx";
 import { hasAdminAccess } from "@/lib/roles";
-import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatAmount } from "@/lib/utils";
+
+type DatePreset = "this_month" | "last_3_months" | "this_year" | "custom";
+
+const RESTRICTED_GIVING_KEYWORDS = ["tithe", "first fruit", "firstfruit", "seed", "pledge"];
 
 const FinancialReports = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [givings, setGivings] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [givingTypes, setGivingTypes] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
+  const [startDate, setStartDate] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState<string>(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+  const [datePreset, setDatePreset] = useState<DatePreset>("this_month");
   const [selectedGivingType, setSelectedGivingType] = useState<string>("all");
-  const [selectedService, setSelectedService] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("all");
-  const [minAmount, setMinAmount] = useState<string>("");
-  const [maxAmount, setMaxAmount] = useState<string>("");
-  const [showAnonymous, setShowAnonymous] = useState<boolean>(true);
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string>("all");
   const navigate = useNavigate();
 
   useEffect(() => {
     checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const applyPreset = (preset: DatePreset) => {
+    const now = new Date();
+    setDatePreset(preset);
+
+    if (preset === "custom") return;
+
+    if (preset === "this_month") {
+      setStartDate(format(startOfMonth(now), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
+      return;
+    }
+
+    if (preset === "last_3_months") {
+      setStartDate(format(startOfMonth(subMonths(now, 2)), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(now), "yyyy-MM-dd"));
+      return;
+    }
+
+    setStartDate(format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd"));
+    setEndDate(format(new Date(now.getFullYear(), 11, 31), "yyyy-MM-dd"));
+  };
 
   const checkAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session?.user) {
         navigate("/admin/auth");
         return;
       }
-      
+
       setUser(session.user);
 
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id);
-
+      const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
       const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
 
       if (!hasAdminAccess(mainRole)) {
@@ -73,172 +93,147 @@ const FinancialReports = () => {
 
   const loadFinancialData = async () => {
     try {
-      // Load giving types
-      const { data: typesData } = await supabase
-        .from("giving_types")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      setGivingTypes(typesData || []);
+      const [typesRes, categoriesRes] = await Promise.all([
+        supabase.from("giving_types").select("id, name").eq("is_active", true).order("name"),
+        supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
+      ]);
 
-      // Load services
-      const { data: servicesData } = await supabase
-        .from("services")
-        .select("*")
-        .order("service_date", { ascending: false });
-      setServices(servicesData || []);
+      setGivingTypes(typesRes.data || []);
+      setExpenseCategories(categoriesRes.data || []);
 
-      // Load givings with filters
-      let query = supabase
+      let givingsQuery = supabase
         .from("givings")
-        .select(`
-          *,
-          profiles(full_name, email),
-          giving_types(name),
-          services(name, service_date),
-          receipts(id, verification_status)
-        `)
+        .select("id, created_at, amount, currency, status, payment_method, giving_types(name)")
         .order("created_at", { ascending: false });
 
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate);
-      if (selectedGivingType !== "all") query = query.eq("giving_type_id", selectedGivingType);
-      if (selectedService !== "all") query = query.eq("service_id", selectedService);
-      if (selectedStatus !== "all") query = query.eq("status", selectedStatus);
-      if (selectedPaymentMethod !== "all") query = query.eq("payment_method", selectedPaymentMethod);
+      if (startDate) givingsQuery = givingsQuery.gte("created_at", `${startDate}T00:00:00`);
+      if (endDate) givingsQuery = givingsQuery.lte("created_at", `${endDate}T23:59:59`);
+      if (selectedGivingType !== "all") givingsQuery = givingsQuery.eq("giving_type_id", selectedGivingType);
 
-      const { data: givingsData, error } = await query;
+      let expensesQuery = supabase
+        .from("expense_requests")
+        .select("id, amount, status, created_at, category_id, expense_categories(name)")
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      
-      // Apply client-side filters for amount and anonymous
-      let filteredGivings = givingsData || [];
-      
-      if (minAmount) {
-        filteredGivings = filteredGivings.filter(g => Number(g.amount) >= Number(minAmount));
-      }
-      
-      if (maxAmount) {
-        filteredGivings = filteredGivings.filter(g => Number(g.amount) <= Number(maxAmount));
-      }
-      
-      if (!showAnonymous) {
-        filteredGivings = filteredGivings.filter(g => !g.is_anonymous);
-      }
-      
-      setGivings(filteredGivings);
+      if (startDate) expensesQuery = expensesQuery.gte("created_at", `${startDate}T00:00:00`);
+      if (endDate) expensesQuery = expensesQuery.lte("created_at", `${endDate}T23:59:59`);
+      if (selectedExpenseCategory !== "all") expensesQuery = expensesQuery.eq("category_id", selectedExpenseCategory);
+
+      const [givingsRes, expensesRes] = await Promise.all([givingsQuery, expensesQuery]);
+      if (givingsRes.error) throw givingsRes.error;
+      if (expensesRes.error) throw expensesRes.error;
+
+      setGivings(givingsRes.data || []);
+      setExpenses(expensesRes.data || []);
     } catch (error: any) {
       console.error("Error loading financial data:", error);
       toast.error("Failed to load financial data");
     }
   };
 
-  const getSummaryMetrics = () => {
-    const totalAmount = givings.reduce((sum, g) => sum + Number(g.amount), 0);
-    const totalTransactions = givings.length;
-    const averageGiving = totalTransactions > 0 ? totalAmount / totalTransactions : 0;
-    const pendingCount = givings.filter(g => g.status === "pending").length;
+  const analytics = useMemo(() => {
+    const verifiedGivings = givings.filter((g) => g.status === "verified");
+    const fundedExpenses = expenses.filter((expense) => ["approved", "partially_paid", "paid"].includes(expense.status));
+    const pendingExpenses = expenses.filter((expense) => expense.status === "pending");
 
-    return { totalAmount, totalTransactions, averageGiving, pendingCount };
-  };
+    let totalIncoming = 0;
+    let eligibleIncoming = 0;
+    let restrictedIncoming = 0;
 
-  const getGivingsByTypeData = () => {
-    const typeMap = new Map<string, number>();
-    givings.forEach(g => {
-      const typeName = g.giving_types?.name || "Unknown";
-      typeMap.set(typeName, (typeMap.get(typeName) || 0) + Number(g.amount));
+    verifiedGivings.forEach((giving) => {
+      const amount = Number(giving.amount) || 0;
+      const typeName = (giving.giving_types?.name || "").toLowerCase().trim();
+      const isRestricted = RESTRICTED_GIVING_KEYWORDS.some((keyword) => typeName.includes(keyword));
+
+      totalIncoming += amount;
+      if (isRestricted) restrictedIncoming += amount;
+      else eligibleIncoming += amount;
     });
 
-    return Array.from(typeMap.entries()).map(([name, amount]) => ({
-      name,
-      value: amount
-    }));
-  };
+    const totalExpenses = fundedExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const pendingExpenseAmount = pendingExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const availableActivityFunds = eligibleIncoming - totalExpenses;
+    const expenseCoveragePct = eligibleIncoming > 0 ? (totalExpenses / eligibleIncoming) * 100 : 0;
 
-  const getMonthlyTrendsData = () => {
-    const monthMap = new Map<string, number>();
-    givings.forEach(g => {
-      const month = format(new Date(g.created_at), "MMM yyyy");
-      monthMap.set(month, (monthMap.get(month) || 0) + Number(g.amount));
+    const givingsByTypeMap = new Map<string, number>();
+    verifiedGivings.forEach((giving) => {
+      const name = giving.giving_types?.name || "Unknown";
+      givingsByTypeMap.set(name, (givingsByTypeMap.get(name) || 0) + Number(giving.amount));
     });
 
-    return Array.from(monthMap.entries())
-      .map(([month, amount]) => ({ month, amount }))
-      .reverse()
-      .slice(0, 12);
-  };
+    const expenseByCategoryMap = new Map<string, number>();
+    fundedExpenses.forEach((expense) => {
+      const name = expense.expense_categories?.name || "Uncategorized";
+      expenseByCategoryMap.set(name, (expenseByCategoryMap.get(name) || 0) + Number(expense.amount));
+    });
 
-  const exportToExcel = () => {
-    const exportData = givings.map(g => ({
-      "Date": format(new Date(g.created_at), "PPP"),
-      "Donor": g.is_anonymous ? "Anonymous" : g.profiles?.full_name || "N/A",
-      "Email": g.is_anonymous ? "Anonymous" : g.profiles?.email || "N/A",
-      "Type": g.giving_types?.name || "N/A",
-      "Service": g.services?.name || "N/A",
-      "Service Date": g.services?.service_date ? format(new Date(g.services.service_date), "PPP") : "N/A",
-      "Amount (MWK)": g.amount,
-      "Payment Method": g.payment_method,
-      "Reference": g.payment_reference || "N/A",
-      "Status": g.status,
-      "Receipt Status": g.receipts?.[0]?.verification_status || "No receipt"
-    }));
+    const monthlyMap = new Map<string, { incoming: number; expenses: number }>();
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Financial Report");
-    XLSX.writeFile(wb, `financial_report_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
-    toast.success("Report exported successfully");
-  };
+    verifiedGivings.forEach((giving) => {
+      const key = format(new Date(giving.created_at), "MMM yyyy");
+      const current = monthlyMap.get(key) || { incoming: 0, expenses: 0 };
+      current.incoming += Number(giving.amount);
+      monthlyMap.set(key, current);
+    });
 
-  const getStatusBadge = (status: string) => {
-    const variants: any = {
-      verified: "default",
-      pending: "secondary",
-      rejected: "destructive"
+    fundedExpenses.forEach((expense) => {
+      const key = format(new Date(expense.created_at), "MMM yyyy");
+      const current = monthlyMap.get(key) || { incoming: 0, expenses: 0 };
+      current.expenses += Number(expense.amount);
+      monthlyMap.set(key, current);
+    });
+
+    const monthlyMovement = Array.from(monthlyMap.entries())
+      .map(([month, values]) => ({ month, ...values, net: values.incoming - values.expenses }))
+      .slice(-12);
+
+    const givingsByType = Array.from(givingsByTypeMap.entries()).map(([name, value]) => ({ name, value }));
+    const expensesByCategory = Array.from(expenseByCategoryMap.entries()).map(([name, value]) => ({ name, value }));
+
+    return {
+      totalIncoming,
+      eligibleIncoming,
+      restrictedIncoming,
+      totalExpenses,
+      pendingExpenseAmount,
+      pendingExpenseCount: pendingExpenses.length,
+      availableActivityFunds,
+      expenseCoveragePct,
+      netMovement: eligibleIncoming - totalExpenses,
+      givingsByType,
+      expensesByCategory,
+      monthlyMovement,
     };
-    return <Badge variant={variants[status] || "secondary"}>{status}</Badge>;
+  }, [expenses, givings]);
+
+  const exportSummaryToExcel = () => {
+    const summaryRows = [
+      { Metric: "Reporting Period", Value: `${startDate || "N/A"} to ${endDate || "N/A"}` },
+      { Metric: "Total Verified Incoming", Value: analytics.totalIncoming },
+      { Metric: "Eligible Incoming (activity-supporting)", Value: analytics.eligibleIncoming },
+      { Metric: "Restricted Incoming (excluded)", Value: analytics.restrictedIncoming },
+      { Metric: "Funded Expenses", Value: analytics.totalExpenses },
+      { Metric: "Pending Expense Amount", Value: analytics.pendingExpenseAmount },
+      { Metric: "Net Movement (Eligible Incoming - Funded Expenses)", Value: analytics.netMovement },
+      { Metric: "Available Activity Funds", Value: analytics.availableActivityFunds },
+      { Metric: "Expense Coverage %", Value: `${analytics.expenseCoveragePct.toFixed(1)}%` },
+    ];
+
+    const incomingBreakdownRows = analytics.givingsByType.map((item) => ({ Bucket: item.name, Amount: item.value }));
+    const expenseBreakdownRows = analytics.expensesByCategory.map((item) => ({ Category: item.name, Amount: item.value }));
+    const movementRows = analytics.monthlyMovement.map((item) => ({ Month: item.month, Incoming: item.incoming, Expenses: item.expenses, Net: item.net }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomingBreakdownRows), "Incoming Breakdown");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseBreakdownRows), "Expense Breakdown");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movementRows), "Monthly Movement");
+
+    XLSX.writeFile(wb, `financial_summary_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Financial summary exported successfully");
   };
 
-  const COLORS = [
-    'hsl(var(--primary))', 
-    'hsl(var(--secondary))', 
-    'hsl(var(--accent))',
-    'hsl(142 76% 36%)', // green
-    'hsl(217 91% 60%)', // blue
-    'hsl(262 83% 58%)', // purple
-    'hsl(346 77% 50%)', // pink
-    'hsl(48 96% 53%)'   // yellow
-  ];
-
-  const renderCustomLabel = ({ cx, cy, midAngle, outerRadius, percent, name, index }: any) => {
-    // Only show labels for segments >= 5%
-    if (percent < 0.05) return null;
-
-    // Calculate label position outside the donut
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 30;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    // Match the label color with the corresponding slice color for clarity
-    const labelColor = COLORS[index % COLORS.length];
-
-    // Dynamic text anchor based on position
-    const textAnchor = x > cx ? 'start' : 'end';
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill={labelColor}
-        textAnchor={textAnchor}
-        dominantBaseline="central"
-        className="text-xs font-medium"
-      >
-        {`${name}: ${(percent * 100).toFixed(1)}%`}
-      </text>
-    );
-  };
+  const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(142 76% 36%)", "hsl(217 91% 60%)", "hsl(262 83% 58%)", "hsl(346 77% 50%)", "hsl(48 96% 53%)"];
 
   if (loading) {
     return (
@@ -248,60 +243,67 @@ const FinancialReports = () => {
     );
   }
 
-  const metrics = getSummaryMetrics();
-  const pieData = getGivingsByTypeData();
-  const totalPieValue = pieData.length > 0
-    ? pieData.reduce((sum, item) => sum + item.value, 0)
-    : 0;
-  const monthlyData = getMonthlyTrendsData();
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate("/admin/dashboard")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Financial Reports
-              </h1>
-              <p className="text-muted-foreground">Comprehensive giving analytics and insights</p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Financial Reports</h1>
+              <p className="text-muted-foreground">Financial movement statement focused on incoming, expenses, and available activity funds</p>
             </div>
           </div>
-          <Button onClick={exportToExcel} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export to Excel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/admin/givings")} className="gap-2">
+              Givings Ledger
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/admin/expenses/all")} className="gap-2">
+              Expense Ledger
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button onClick={exportSummaryToExcel} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export Summary
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Filters</CardTitle>
-            <CardDescription>Customize your report view</CardDescription>
+            <CardTitle>Report Scope</CardTitle>
+            <CardDescription>Define the reporting window and slices for audit-friendly summaries.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
+                <Label>Date Preset</Label>
+                <Select value={datePreset} onValueChange={(value: DatePreset) => applyPreset(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this_month">This Month</SelectItem>
+                    <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                    <SelectItem value="this_year">This Year</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                <Input type="date" value={startDate} onChange={(e) => { setDatePreset("custom"); setStartDate(e.target.value); }} />
               </div>
               <div>
                 <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <Input type="date" value={endDate} onChange={(e) => { setDatePreset("custom"); setEndDate(e.target.value); }} />
               </div>
+
               <div>
                 <Label>Giving Type</Label>
                 <Select value={selectedGivingType} onValueChange={setSelectedGivingType}>
@@ -310,280 +312,176 @@ const FinancialReports = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    {givingTypes.map(type => (
+                    {givingTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div>
-                <Label>Service</Label>
-                <Select value={selectedService} onValueChange={setSelectedService}>
+                <Label>Expense Category</Label>
+                <Select value={selectedExpenseCategory} onValueChange={setSelectedExpenseCategory}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Services</SelectItem>
-                    {services.map(service => (
-                      <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {expenseCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Payment Method</Label>
-                <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Methods</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Min Amount</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 1000"
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(e.target.value)}
-                  min="0"
-                />
-              </div>
-              <div>
-                <Label>Max Amount</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 50000"
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(e.target.value)}
-                  min="0"
-                />
-              </div>
-              <div className="flex items-center space-x-2 pt-6">
-                <input
-                  type="checkbox"
-                  id="show-anonymous"
-                  checked={showAnonymous}
-                  onChange={(e) => setShowAnonymous(e.target.checked)}
-                  className="h-4 w-4 rounded"
-                />
-                <Label htmlFor="show-anonymous" className="cursor-pointer text-sm">
-                  Show Anonymous
-                </Label>
+
+              <div className="flex items-end">
+                <Button onClick={loadFinancialData} className="w-full">Apply Scope</Button>
               </div>
             </div>
-            <Button onClick={loadFinancialData} className="mt-4">Apply Filters</Button>
           </CardContent>
         </Card>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-              <DollarSign className="h-4 w-4 text-primary/60" />
+              <CardTitle className="text-sm font-medium">Activity-Support Inflows</CardTitle>
+              <Wallet className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(metrics.totalAmount)}</div>
+              <div className="text-2xl font-bold">{formatAmount(analytics.eligibleIncoming)}</div>
+              <p className="text-xs text-muted-foreground">Verified incoming available for activities (after exclusions)</p>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-              <FileText className="h-4 w-4 text-primary/60" />
+              <CardTitle className="text-sm font-medium">Activity Outflows</CardTitle>
+              <Receipt className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalTransactions}</div>
+              <div className="text-2xl font-bold">{formatAmount(analytics.totalExpenses)}</div>
+              <p className="text-xs text-muted-foreground">Approved / partially paid / paid expenses</p>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Average Giving</CardTitle>
-              <TrendingUp className="h-4 w-4 text-primary/60" />
+              <CardTitle className="text-sm font-medium">Closing Activity Balance</CardTitle>
+              {analytics.netMovement >= 0 ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(metrics.averageGiving)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Verifications</CardTitle>
-              <Calendar className="h-4 w-4 text-primary/60" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.pendingCount}</div>
+              <div className={`text-2xl font-bold ${analytics.netMovement >= 0 ? "text-green-700" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
+              <p className="text-xs text-muted-foreground">Inflows minus funded activity outflows in this period</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Givings by Type</CardTitle>
+              <CardTitle>Monthly Movement</CardTitle>
+              <CardDescription>Incoming vs expenses for the selected reporting scope</CardDescription>
             </CardHeader>
             <CardContent>
-              {pieData.length === 0 ? (
-                <div className="h-[400px] flex items-center justify-center text-muted-foreground">
-                  No data available for the selected filters
-                </div>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={analytics.monthlyMovement}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis tickFormatter={(value) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString())} width={70} />
+                  <Tooltip formatter={(value: any) => formatAmount(Number(value))} />
+                  <Legend />
+                  <Bar dataKey="incoming" name="Incoming" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expenses" name="Expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Incoming Composition</CardTitle>
+              <CardDescription>Shows giving mix including restricted buckets for governance visibility</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analytics.givingsByType.length === 0 ? (
+                <div className="h-[320px] flex items-center justify-center text-muted-foreground">No incoming data for selected scope</div>
               ) : (
-                <ResponsiveContainer width="100%" height={400}>
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="40%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Pie data={analytics.givingsByType} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}>
+                      {analytics.givingsByType.map((_, index) => (
+                        <Cell key={`giving-type-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value: any, name: string) => {
-                        const percent = totalPieValue ? ((value as number) / totalPieValue) * 100 : 0;
-                        return [`${percent.toFixed(1)}%`, name];
-                      }}
-                      contentStyle={{
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                        backgroundColor: 'hsl(var(--background))'
-                      }}
-                    />
-                    <Legend
-                      layout="vertical"
-                      align="right"
-                      verticalAlign="middle"
-                      formatter={(value: string, entry: any) => {
-                        const percent = totalPieValue ? (entry.payload.value / totalPieValue) * 100 : 0;
-                        return `${value}: ${percent.toFixed(1)}%`;
-                      }}
-                      wrapperStyle={{ paddingLeft: '20px' }}
-                    />
+                    <Tooltip formatter={(value: any) => formatAmount(Number(value))} />
+                    <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
+        </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Trends</CardTitle>
+              <CardTitle>Expense Allocation by Category</CardTitle>
+              <CardDescription>Where approved spending has gone in this period</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyData}>
+                <BarChart data={analytics.expensesByCategory} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis 
-                    tickFormatter={(value) => {
-                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                      if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                      return value.toString();
-                    }}
-                    width={80}
-                    label={{ 
-                      value: 'Amount (MWK)', 
-                      angle: -90, 
-                      position: 'insideLeft',
-                      style: { textAnchor: 'middle' }
-                    }}
-                  />
-                  <Tooltip formatter={(value: any) => formatAmount(value)} />
-                  <Bar dataKey="amount" fill="hsl(var(--primary))" />
+                  <XAxis type="number" tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString())} />
+                  <YAxis type="category" dataKey="name" width={120} />
+                  <Tooltip formatter={(value: any) => formatAmount(Number(value))} />
+                  <Bar dataKey="value" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Detailed Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Detailed Transactions</CardTitle>
-            <CardDescription>Complete list of all giving records</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Donor</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {givings.map((giving) => (
-                    <TableRow key={giving.id}>
-                      <TableCell>{format(new Date(giving.created_at), "PPP")}</TableCell>
-                      <TableCell>
-                        {giving.is_anonymous ? (
-                          <span className="text-muted-foreground italic">Anonymous</span>
-                        ) : (
-                          <div>
-                            <div className="font-medium">{giving.profiles?.full_name || "N/A"}</div>
-                            <div className="text-xs text-muted-foreground">{giving.profiles?.email || ""}</div>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>{giving.giving_types?.name || "N/A"}</TableCell>
-                      <TableCell>
-                        {giving.services ? (
-                          <div>
-                            <div className="font-medium">{giving.services.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(new Date(giving.services.service_date), "PP")}
-                            </div>
-                          </div>
-                        ) : (
-                          "N/A"
-                        )}
-                      </TableCell>
-                      <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
-                      <TableCell>{giving.payment_method.replace("_", " ")}</TableCell>
-                      <TableCell className="text-xs">{giving.payment_reference || "N/A"}</TableCell>
-                      <TableCell>{getStatusBadge(giving.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {givings.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No transactions found for the selected filters
+          <Card>
+            <CardHeader>
+              <CardTitle>Governance Watch</CardTitle>
+              <CardDescription>Risk and control indicators for this reporting scope</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Restricted Incoming (Excluded)</p>
+                    <p className="text-2xl font-bold mt-1">{formatAmount(analytics.restrictedIncoming)}</p>
+                  </div>
+                  <CalendarRange className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">This amount is tracked for accountability and is not available for activity spending.</p>
+              </div>
+
+              <div className="rounded-md border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Pending Expense Queue</p>
+                    <p className="text-2xl font-bold mt-1">{analytics.pendingExpenseCount}</p>
+                  </div>
+                  <HandCoins className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{formatAmount(analytics.pendingExpenseAmount)} waiting for review/approval.</p>
+                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => navigate("/admin/expenses/pending")}>
+                  Review pending approvals
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              {analytics.netMovement < 0 && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm flex items-start gap-2">
+                  <CircleAlert className="h-4 w-4 text-destructive mt-0.5" />
+                  <p className="text-destructive">Activity outflows are above activity-support inflows for this period. Review expense timing and funding source mix.</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
