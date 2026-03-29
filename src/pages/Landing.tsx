@@ -39,6 +39,12 @@ const stagger = {
 const Landing = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { session, loading } = useAuth();
+
+  // Redirect authenticated users to their dashboard
+  if (!loading && session?.user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
