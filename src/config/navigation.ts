@@ -27,6 +27,7 @@ export const adminNavItems: NavItem[] = [
   
   // Financial Management
   { label: "Payment Verification", path: "/admin/givings", icon: DollarSign },
+  { label: "Record Offline Giving", path: "/admin/givings/offline", icon: FileText },
   { label: "Financial Reports", path: "/admin/reports/financial", icon: TrendingUp },
   
   // Expense Management
