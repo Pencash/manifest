@@ -300,17 +300,37 @@ const Dashboard = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground font-sans">
-                  <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                  <p className="text-sm">Your giving history will appear here.</p>
-                  <Button
-                    variant="ghost"
-                    className="mt-3 text-accent hover:text-accent/80"
-                    onClick={() => navigate("/history")}
-                  >
-                    View full history
-                  </Button>
-                </div>
+                {recentGivings && recentGivings.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentGivings.map((giving) => (
+                      <div key={giving.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{formatCurrency(Number(giving.amount))}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(giving.created_at), 'MMM d, yyyy')}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          giving.status === 'verified' ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
+                          giving.status === 'pending' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {giving.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground font-sans">
+                    <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm">Your giving history will appear here.</p>
+                    <Button
+                      variant="ghost"
+                      className="mt-3 text-accent hover:text-accent/80"
+                      onClick={() => navigate("/history")}
+                    >
+                      View full history
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
