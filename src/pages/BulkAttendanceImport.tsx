@@ -81,7 +81,7 @@ const BulkAttendanceImport = () => {
   const downloadTemplate = () => {
     const template = [
       { full_name: "John Doe", email: "john@example.com", phone: "+265999123456", status: "present" },
-      { full_name: "Jane Smith", email: "jane@example.com", phone: "+265888654321", status: "present" }
+      { full_name: "Jane Smith", email: "", phone: "+265888654321", status: "present" }
     ];
 
     const ws = XLSX.utils.json_to_sheet(template);
@@ -107,7 +107,7 @@ const BulkAttendanceImport = () => {
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet) as Array<{
             full_name: string;
-            email: string;
+            email?: string;
             phone?: string;
             status: string;
           }>;
@@ -117,69 +117,97 @@ const BulkAttendanceImport = () => {
 
           for (const row of jsonData) {
             try {
-              // Check if person exists in profiles by email
-              const { data: existingProfile } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("email", row.email)
-                .single();
+              if (!row.full_name?.trim()) {
+                errorCount++;
+                continue;
+              }
+              const normalizedEmail = row.email?.trim() || null;
+              const normalizedPhone = row.phone?.trim() || null;
+              const attendanceStatus = row.status || "present";
+              let imported = false;
 
-              if (existingProfile) {
-                // Add attendance for existing profile with full snapshot data
-                const { error } = await supabase
-                  .from("attendance")
-                  .insert({
-                    profile_id: existingProfile.id,
-                    service_id: serviceId,
-                    status: row.status || 'present',
-                    snapshot_event_name: service?.name || null,
-                    snapshot_event_date: service?.service_date || null,
-                    snapshot_event_venue: service?.location || null,
-                    snapshot_event_type: service?.service_type || null,
-                    snapshot_person_name: row.full_name,
-                    snapshot_person_email: row.email,
-                    snapshot_person_phone: row.phone || null,
-                    created_by: user?.id || null,
-                  });
-
-                if (!error) successCount++;
-                else errorCount++;
-              } else {
-                // Check if contact exists
-                const { data: existingContact } = await supabase
-                  .from("contacts")
+              if (normalizedEmail) {
+                // Check if person exists in profiles by email
+                const { data: existingProfile } = await supabase
+                  .from("profiles")
                   .select("id")
-                  .eq("email", row.email)
-                  .single();
+                  .eq("email", normalizedEmail)
+                  .maybeSingle();
 
-                if (existingContact) {
-                  // Add attendance for existing contact with full snapshot data
+                if (existingProfile) {
                   const { error } = await supabase
                     .from("attendance")
                     .insert({
-                      contact_id: existingContact.id,
+                      profile_id: existingProfile.id,
                       service_id: serviceId,
-                      status: row.status || 'present',
+                      status: attendanceStatus,
                       snapshot_event_name: service?.name || null,
                       snapshot_event_date: service?.service_date || null,
                       snapshot_event_venue: service?.location || null,
                       snapshot_event_type: service?.service_type || null,
                       snapshot_person_name: row.full_name,
-                      snapshot_person_email: row.email,
-                      snapshot_person_phone: row.phone || null,
+                      snapshot_person_email: normalizedEmail,
+                      snapshot_person_phone: normalizedPhone,
+                      created_by: user?.id || null,
+                    });
+                  if (!error) {
+                    successCount++;
+                    imported = true;
+                  }
+                }
+              }
+
+              if (!imported) {
+                // Check if contact exists by email first (if provided)
+                const existingContactByEmail = normalizedEmail
+                  ? await supabase.from("contacts").select("id").eq("email", normalizedEmail).maybeSingle()
+                  : { data: null, error: null };
+
+                if (existingContactByEmail.error) {
+                  errorCount++;
+                  continue;
+                }
+
+                const existingContactByPhone = !existingContactByEmail.data && normalizedPhone
+                  ? await supabase.from("contacts").select("id").eq("phone", normalizedPhone).eq("full_name", row.full_name).maybeSingle()
+                  : { data: null, error: null };
+
+                if (existingContactByPhone.error) {
+                  errorCount++;
+                  continue;
+                }
+
+                const existingContact = existingContactByEmail.data || existingContactByPhone.data;
+                if (existingContact) {
+                  const { error } = await supabase
+                    .from("attendance")
+                    .insert({
+                      contact_id: existingContact.id,
+                      service_id: serviceId,
+                      status: attendanceStatus,
+                      snapshot_event_name: service?.name || null,
+                      snapshot_event_date: service?.service_date || null,
+                      snapshot_event_venue: service?.location || null,
+                      snapshot_event_type: service?.service_type || null,
+                      snapshot_person_name: row.full_name,
+                      snapshot_person_email: normalizedEmail,
+                      snapshot_person_phone: normalizedPhone,
                       created_by: user?.id || null,
                     });
 
-                  if (!error) successCount++;
-                  else errorCount++;
+                  if (!error) {
+                    successCount++;
+                    imported = true;
+                  } else {
+                    errorCount++;
+                  }
                 } else {
-                  // Create new contact and add attendance
                   const { data: newContact, error: contactError } = await supabase
                     .from("contacts")
                     .insert({
                       full_name: row.full_name,
-                      email: row.email,
-                      phone: row.phone || null,
+                      email: normalizedEmail,
+                      phone: normalizedPhone,
                       contact_type: 'visitor',
                       first_visit_date: new Date().toISOString().split('T')[0],
                       last_visit_date: new Date().toISOString().split('T')[0],
@@ -198,14 +226,14 @@ const BulkAttendanceImport = () => {
                     .insert({
                       contact_id: newContact.id,
                       service_id: serviceId,
-                      status: row.status || 'present',
+                      status: attendanceStatus,
                       snapshot_event_name: service?.name || null,
                       snapshot_event_date: service?.service_date || null,
                       snapshot_event_venue: service?.location || null,
                       snapshot_event_type: service?.service_type || null,
                       snapshot_person_name: row.full_name,
-                      snapshot_person_email: row.email,
-                      snapshot_person_phone: row.phone || null,
+                      snapshot_person_email: normalizedEmail,
+                      snapshot_person_phone: normalizedPhone,
                       created_by: user?.id || null,
                     });
 
@@ -280,7 +308,7 @@ const BulkAttendanceImport = () => {
               <h3 className="font-semibold">Instructions:</h3>
               <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
                 <li>Download the template file below</li>
-                <li>Fill in the attendance data (full_name, email, phone, status)</li>
+                <li>Fill in the attendance data (full_name, phone, status). Email is optional.</li>
                 <li>Status should be "present" or "absent"</li>
                 <li>Upload the completed file</li>
               </ol>

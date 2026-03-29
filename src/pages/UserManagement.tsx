@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Shield, UserCog } from "lucide-react";
@@ -29,6 +32,11 @@ const UserManagement = () => {
   const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState<ProfileWithRole | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const navigate = useNavigate();
   const { role: currentUserRole, loading: roleLoading } = useUserRole(user?.id);
 
@@ -132,26 +140,52 @@ const UserManagement = () => {
   };
 
   const handleResetPassword = async (profile: ProfileWithRole) => {
-    if (!profile.email) {
-      toast.error("User does not have a valid email");
+    setPasswordTarget(profile);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordDialogOpen(true);
+  };
+
+  const handleSetPassword = async () => {
+    if (!passwordTarget) return;
+
+    if (passwordTarget.id === user?.id) {
+      toast.error("Use account settings to update your own password");
       return;
     }
 
-    setActionInProgress(profile.id);
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setSavingPassword(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-        redirectTo: `${window.location.origin}/member/auth`,
+      const { data, error } = await supabase.functions.invoke("admin-update-user-password", {
+        body: { userId: passwordTarget.id, newPassword },
       });
 
       if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to update password");
+      }
 
-      toast.success("Password reset email sent");
+      toast.success(`Password updated for ${passwordTarget.full_name}`);
+      setPasswordDialogOpen(false);
+      setPasswordTarget(null);
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error: any) {
-      console.error("Error resetting password:", error);
-      toast.error("Failed to send reset email");
+      console.error("Error updating password:", error);
+      toast.error(error?.message || "Failed to update password");
     } finally {
-      setActionInProgress(null);
+      setSavingPassword(false);
     }
   };
 
@@ -323,7 +357,7 @@ const UserManagement = () => {
                             disabled={actionInProgress === profile.id || profile.id === user?.id}
                             onClick={() => handleResetPassword(profile)}
                           >
-                            Reset Password
+                            Change Password
                           </Button>
                           <Button
                             variant="destructive"
@@ -343,6 +377,58 @@ const UserManagement = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {passwordTarget?.full_name || "this user"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasswordDialogOpen(false);
+                setPasswordTarget(null);
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSetPassword} disabled={savingPassword}>
+              {savingPassword ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
