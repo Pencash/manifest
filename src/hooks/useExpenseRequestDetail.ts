@@ -46,7 +46,15 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
   const requestedAmount = expense?.amount || 0;
   const remainingBalance = calculateRemainingBalance(requestedAmount, postedTotal);
   const paymentProgress = requestedAmount > 0 ? Math.min((postedTotal / requestedAmount) * 100, 100) : 0;
-  const derivedPaymentStatus = requestedAmount > 0 ? derivePaymentAwareExpenseStatus(requestedAmount, postedTotal) : "approved";
+  const derivedPaymentStatus = useMemo(() => {
+    if (!expense) return "approved";
+
+    if (["draft", "pending", "changes_requested", "rejected", "cancelled"].includes(expense.status)) {
+      return expense.status;
+    }
+
+    return requestedAmount > 0 ? derivePaymentAwareExpenseStatus(requestedAmount, postedTotal) : "approved";
+  }, [expense, requestedAmount, postedTotal]);
   const latestPostedPayment = useMemo(
     () => payments.find((p) => p.status === "posted") || null,
     [payments],
