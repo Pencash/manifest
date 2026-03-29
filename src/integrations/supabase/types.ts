@@ -202,7 +202,7 @@ export type Database = {
         Row: {
           contact_type: string
           created_at: string
-          email: string
+          email: string | null
           first_visit_date: string | null
           full_name: string
           id: string
@@ -217,7 +217,7 @@ export type Database = {
         Insert: {
           contact_type?: string
           created_at?: string
-          email: string
+          email?: string | null
           first_visit_date?: string | null
           full_name: string
           id?: string
@@ -232,7 +232,7 @@ export type Database = {
         Update: {
           contact_type?: string
           created_at?: string
-          email?: string
+          email?: string | null
           first_visit_date?: string | null
           full_name?: string
           id?: string
