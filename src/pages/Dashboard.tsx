@@ -132,6 +132,7 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['my-testimony-count'] }),
       queryClient.invalidateQueries({ queryKey: ['my-prayer-count'] }),
       queryClient.invalidateQueries({ queryKey: ['upcoming-events-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-recent-givings'] }),
     ]);
   };
 
