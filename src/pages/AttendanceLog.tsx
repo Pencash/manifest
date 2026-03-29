@@ -30,7 +30,7 @@ interface Service {
 interface Profile {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
 }
 
@@ -259,23 +259,19 @@ const AttendanceLog = () => {
       return;
     }
 
-    if (!newPersonData.email.trim()) {
-      toast.error("Please enter an email");
-      return;
-    }
-
     try {
       // Generate member code if they're a new member
       const memberCode = newPersonData.status === "member" 
         ? `MEM-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
         : null;
 
+      const normalizedEmail = newPersonData.email.trim();
       // Create contact in contacts table
       const { data: newContact, error: contactError } = await supabase
         .from("contacts")
         .insert({
           full_name: newPersonData.full_name,
-          email: newPersonData.email,
+          email: normalizedEmail || null,
           phone: newPersonData.phone || null,
           member_code: memberCode,
           contact_type: newPersonData.status,
@@ -302,7 +298,7 @@ const AttendanceLog = () => {
             snapshot_event_venue: service?.location || null,
             snapshot_event_type: service?.service_type || null,
             snapshot_person_name: newPersonData.full_name,
-            snapshot_person_email: newPersonData.email,
+            snapshot_person_email: normalizedEmail || null,
             snapshot_person_phone: newPersonData.phone || null,
             created_by: user?.id || null,
           });
@@ -337,7 +333,7 @@ const AttendanceLog = () => {
 
   const filteredMembers = members.filter(member =>
     member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchQuery.toLowerCase())
+    (member.email || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const presentCount = Array.from(attendance.values()).filter(v => v).length;
@@ -473,7 +469,7 @@ const AttendanceLog = () => {
                       />
                       <div>
                         <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-sm text-muted-foreground">{member.email || "No email on file"}</p>
                         {member.phone && (
                           <p className="text-sm text-muted-foreground">{member.phone}</p>
                         )}
@@ -512,13 +508,13 @@ const AttendanceLog = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email (Optional)</Label>
               <Input
                 id="email"
                 type="email"
                 value={newPersonData.email}
                 onChange={(e) => setNewPersonData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="Enter email address"
+                placeholder="Enter email address (if available)"
               />
             </div>
 

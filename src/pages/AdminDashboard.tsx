@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight } from "lucide-react";
+import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight, Wallet, HandCoins, CalendarCheck2, Megaphone, ArrowRight } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { hasAdminAccess } from "@/lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -34,6 +34,15 @@ interface Metrics {
   givingsTrend: { date: string; cash: number; mobile: number; bank: number; card: number }[];
   attendanceByType: { name: string; count: number }[];
   recentActivity: { type: string; message: string; time: string }[];
+  eligibleActivityGivings: number;
+  restrictedGivings: number;
+  fundedExpenses: number;
+  activitySupportFunds: number;
+  eventsUpcoming: number;
+  eventsInPeriod: number;
+  mobilizationInvites: number;
+  mobilizationConfirmed: number;
+  mobilizationAttended: number;
 }
 
 const fadeUp = {
@@ -105,7 +114,28 @@ const AdminDashboard = () => {
       let prevGivingsQuery = supabase.from("givings").select("amount").eq("status", "verified");
       if (prevStart && prevEnd) { prevGivingsQuery = prevGivingsQuery.gte("created_at", prevStart.toISOString()).lte("created_at", prevEnd.toISOString()); }
 
-      const [givingsRes, prevGivingsRes, activeMembersRes, newMembersRes, pendingGivingsRes, pendingExpensesRes, pendingServicesRes, attendanceCountRes, attendanceRes, testimoniesCountRes, prayersCountRes, recentGivingsRes, recentTestimoniesRes, recentPrayersRes] = await Promise.all([
+      let fundedExpensesQuery = supabase
+        .from("expense_requests")
+        .select("amount")
+        .in("status", ["approved", "partially_paid", "paid"]);
+      if (start && end) {
+        fundedExpensesQuery = fundedExpensesQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
+      }
+
+      let servicesInPeriodQuery = supabase
+        .from("services")
+        .select("id", { count: "exact", head: true })
+        .or("is_archived.is.null,is_archived.eq.false");
+      if (start && end) {
+        servicesInPeriodQuery = servicesInPeriodQuery.gte("service_date", format(start, "yyyy-MM-dd")).lte("service_date", format(end, "yyyy-MM-dd"));
+      }
+
+      let mobilizationQuery = supabase.from("member_invitations").select("status, created_at");
+      if (start && end) {
+        mobilizationQuery = mobilizationQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
+      }
+
+      const [givingsRes, prevGivingsRes, activeMembersRes, newMembersRes, pendingGivingsRes, pendingExpensesRes, pendingServicesRes, attendanceCountRes, attendanceRes, testimoniesCountRes, prayersCountRes, recentGivingsRes, recentTestimoniesRes, recentPrayersRes, fundedExpensesRes, servicesUpcomingRes, servicesInPeriodRes, mobilizationRes] = await Promise.all([
         givingsQuery, prevGivingsQuery,
         supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
         start ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString()) : Promise.resolve({ count: 0, error: null }),
@@ -119,6 +149,10 @@ const AdminDashboard = () => {
         supabase.from("givings").select("amount, created_at").eq("status", "verified").order("created_at", { ascending: false }).limit(5),
         supabase.from("testimonies").select("created_at").order("created_at", { ascending: false }).limit(3),
         supabase.from("prayer_requests").select("created_at").order("created_at", { ascending: false }).limit(2),
+        fundedExpensesQuery,
+        supabase.from("services").select("id", { count: "exact", head: true }).gte("service_date", format(new Date(), "yyyy-MM-dd")).or("is_archived.is.null,is_archived.eq.false"),
+        servicesInPeriodQuery,
+        mobilizationQuery,
       ]);
 
       const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
@@ -128,6 +162,23 @@ const AdminDashboard = () => {
 
       const givingsByType: { [key: string]: number } = {};
       givingsRes.data?.forEach(g => { const typeName = (g.giving_types as any)?.name || "Other"; givingsByType[typeName] = (givingsByType[typeName] || 0) + Number(g.amount); });
+      const restrictedKeywords = ["tithe", "first fruit", "firstfruit", "seed", "pledge"];
+      let restrictedGivings = 0;
+      let eligibleActivityGivings = 0;
+
+      givingsRes.data?.forEach((g) => {
+        const typeName = ((g.giving_types as any)?.name || "").toLowerCase().trim();
+        const amount = Number(g.amount) || 0;
+        const isRestricted = restrictedKeywords.some((keyword) => typeName.includes(keyword));
+        if (isRestricted) {
+          restrictedGivings += amount;
+        } else {
+          eligibleActivityGivings += amount;
+        }
+      });
+
+      const fundedExpenses = fundedExpensesRes.data?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const activitySupportFunds = eligibleActivityGivings - fundedExpenses;
 
       const givingsTrendMap: { [key: string]: { cash: number; mobile: number; bank: number; card: number } } = {};
       givingsRes.data?.forEach(g => {
@@ -148,6 +199,9 @@ const AdminDashboard = () => {
       (recentTestimoniesRes.data || []).forEach(t => { recentActivity.push({ type: "testimony", message: "New testimony shared", time: formatTimeAgo(new Date(t.created_at)) }); });
       (recentPrayersRes.data || []).forEach(p => { recentActivity.push({ type: "prayer", message: "New prayer request submitted", time: formatTimeAgo(new Date(p.created_at)) }); });
       recentActivity.sort((a, b) => parseTimeAgo(a.time) - parseTimeAgo(b.time));
+      const mobilizationInvites = mobilizationRes.data?.length || 0;
+      const mobilizationConfirmed = mobilizationRes.data?.filter((invite) => ["confirmed", "attended"].includes((invite.status || "").toLowerCase())).length || 0;
+      const mobilizationAttended = mobilizationRes.data?.filter((invite) => (invite.status || "").toLowerCase() === "attended").length || 0;
 
       setMetrics({
         totalGivings, previousGivings, activeMembers, newMembers,
@@ -158,16 +212,19 @@ const AdminDashboard = () => {
         givingsByType: Object.entries(givingsByType).map(([name, value]) => ({ name, value })),
         givingsTrend: Object.entries(givingsTrendMap).map(([date, values]) => ({ date, ...values })),
         attendanceByType: Object.entries(attendanceByType).map(([name, count]) => ({ name: formatServiceType(name), count })),
-        recentActivity: recentActivity.slice(0, 10)
+        recentActivity: recentActivity.slice(0, 10),
+        eligibleActivityGivings,
+        restrictedGivings,
+        fundedExpenses,
+        activitySupportFunds,
+        eventsUpcoming: servicesUpcomingRes.count || 0,
+        eventsInPeriod: servicesInPeriodRes.count || 0,
+        mobilizationInvites,
+        mobilizationConfirmed,
+        mobilizationAttended,
       });
     } catch (error) { console.error("Error loading metrics:", error); toast.error("Failed to load dashboard metrics"); } finally { setLoading(false); }
   }, [timePeriod]);
-
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
 
   const calculateTrend = (current: number, previous: number) => {
     if (previous === 0) return { percent: "0", direction: "neutral" as const };
@@ -239,6 +296,7 @@ const AdminDashboard = () => {
 
   const trend = calculateTrend(metrics.totalGivings, metrics.previousGivings);
   const totalPending = metrics.pendingGivings + metrics.pendingExpenses + metrics.pendingServices;
+  const activityFundingUtilization = metrics.eligibleActivityGivings > 0 ? (metrics.fundedExpenses / metrics.eligibleActivityGivings) * 100 : 0;
 
   const statCards = [
     { label: "Total Givings", value: formatAmount(metrics.totalGivings), sub: "vs previous period", icon: DollarSign, color: "hsl(var(--sage))", trend },
@@ -253,6 +311,33 @@ const AdminDashboard = () => {
     { label: "This Week", value: "week" },
     { label: "This Month", value: "month" },
     { label: "All Time", value: "all" },
+  ];
+
+  const activitySnapshotCards = [
+    {
+      title: "Events",
+      value: metrics.eventsInPeriod.toString(),
+      subtitle: `${metrics.eventsUpcoming} upcoming events`,
+      helper: "Review event plans and schedules",
+      icon: CalendarCheck2,
+      action: () => navigate("/admin/events"),
+    },
+    {
+      title: "Attendance",
+      value: metrics.totalAttendance.toString(),
+      subtitle: `${metrics.avgAttendance} avg attendance per service`,
+      helper: "Open attendance trends and service breakdown",
+      icon: Users,
+      action: () => navigate("/admin/reports/attendance"),
+    },
+    {
+      title: "Mobilization",
+      value: metrics.mobilizationInvites.toString(),
+      subtitle: `${metrics.mobilizationConfirmed} confirmations • ${metrics.mobilizationAttended} attended`,
+      helper: "Track invitations and conversion to attendance",
+      icon: Megaphone,
+      action: () => navigate("/admin/mobilization"),
+    },
   ];
 
   return (
@@ -319,8 +404,85 @@ const AdminDashboard = () => {
         })}
       </div>
 
+      <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
+        <Card className="border-none shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display text-lg">
+              <Wallet className="h-5 w-5 text-accent" />
+              Activity Support Funds Snapshot
+            </CardTitle>
+            <CardDescription>Funds available for Manifest activities are based on verified givings excluding first fruits, tithes, seed, and pledges.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs text-muted-foreground">Eligible Givings</p>
+              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.eligibleActivityGivings)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs text-muted-foreground">Restricted Givings (Excluded)</p>
+              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.restrictedGivings)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs text-muted-foreground">Funded Expenses</p>
+              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.fundedExpenses)}</p>
+            </div>
+            <div className="rounded-lg border bg-primary/5 p-4">
+              <p className="text-xs text-muted-foreground">Funds Available for Activities</p>
+              <p className={`text-xl font-mono font-bold mt-1 ${metrics.activitySupportFunds < 0 ? "text-destructive" : "text-primary"}`}>
+                {formatAmount(metrics.activitySupportFunds)}
+              </p>
+              <p className="text-[0.65rem] text-muted-foreground mt-1">
+                {activityFundingUtilization.toFixed(1)}% of eligible givings allocated
+              </p>
+            </div>
+            <div className="md:col-span-4">
+              <Button variant="outline" className="w-full md:w-auto" onClick={() => navigate("/admin/reports/financial")}>
+                <HandCoins className="h-4 w-4 mr-2" />
+                Open financial reports
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {activitySnapshotCards.map((snapshot, i) => {
+          const Icon = snapshot.icon;
+          return (
+            <motion.button
+              key={snapshot.title}
+              type="button"
+              custom={i + 6}
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              onClick={snapshot.action}
+              className="text-left"
+            >
+              <Card className="border-none shadow-md hover:shadow-lg transition-all h-full group">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <CardTitle className="font-display text-lg">{snapshot.title}</CardTitle>
+                  <CardDescription>{snapshot.helper}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-mono font-bold">{snapshot.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{snapshot.subtitle}</p>
+                </CardContent>
+              </Card>
+            </motion.button>
+          );
+        })}
+      </div>
+
       {metrics.givingsTrend.length > 0 && (
-        <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
+        <motion.div custom={10} variants={fadeUp} initial="hidden" animate="visible">
           <Card className="border-none shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-display text-lg">
