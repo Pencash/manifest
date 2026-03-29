@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import {
   HandHeart,
   MessageSquare,
@@ -107,6 +108,23 @@ const Dashboard = () => {
     },
   });
 
+  // Fetch recent givings for history snapshot
+  const { data: recentGivings } = useQuery({
+    queryKey: ['my-recent-givings', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('givings')
+        .select('id, amount, currency, payment_method, status, created_at')
+        .eq('profile_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id,
+  });
+
   const handleRefresh = async () => {
     await Promise.all([
       refreshProfile(),
@@ -114,6 +132,7 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['my-testimony-count'] }),
       queryClient.invalidateQueries({ queryKey: ['my-prayer-count'] }),
       queryClient.invalidateQueries({ queryKey: ['upcoming-events-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-recent-givings'] }),
     ]);
   };
 
@@ -281,17 +300,37 @@ const Dashboard = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground font-sans">
-                  <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                  <p className="text-sm">Your giving history will appear here.</p>
-                  <Button
-                    variant="ghost"
-                    className="mt-3 text-accent hover:text-accent/80"
-                    onClick={() => navigate("/history")}
-                  >
-                    View full history
-                  </Button>
-                </div>
+                {recentGivings && recentGivings.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentGivings.map((giving) => (
+                      <div key={giving.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{formatCurrency(Number(giving.amount))}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(giving.created_at), 'MMM d, yyyy')}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          giving.status === 'verified' ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
+                          giving.status === 'pending' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {giving.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground font-sans">
+                    <HistoryIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm">Your giving history will appear here.</p>
+                    <Button
+                      variant="ghost"
+                      className="mt-3 text-accent hover:text-accent/80"
+                      onClick={() => navigate("/history")}
+                    >
+                      View full history
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -301,13 +340,13 @@ const Dashboard = () => {
             <Card className="relative overflow-hidden border-0 h-full">
               <div className="absolute inset-0">
                 <img src={PRAYER_IMG} alt="Prayer" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/80 to-navy/40" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/40" />
               </div>
               <CardContent className="relative z-10 p-6 flex flex-col justify-end h-full min-h-[200px]">
-                <p className="text-ivory/90 text-base italic leading-relaxed mb-3 font-display">
+                <p className="text-white/90 text-base italic leading-relaxed mb-3 font-display">
                   "For where two or three gather in my name, there am I with them."
                 </p>
-                <p className="text-gold text-sm font-medium font-sans">Matthew 18:20</p>
+                <p className="text-accent text-sm font-medium font-sans">Matthew 18:20</p>
               </CardContent>
             </Card>
           </motion.div>
