@@ -92,7 +92,7 @@ export function AppSidebar() {
     window.location.href = "/";
   };
 
-  const financialItems = navItems.filter(item => ["/admin/givings", "/admin/reports/financial"].includes(item.path));
+  const financialItems = navItems.filter(item => ["/admin/financial/verification", "/admin/financial/offline-giving", "/admin/reports/financial"].includes(item.path));
   const expenseItems = navItems.filter(item => item.path.startsWith("/admin/expenses"));
   const eventsItems = navItems.filter(item => ["/admin/events", "/admin/pending-services", "/admin/reports/attendance"].includes(item.path));
   const adminItems = navItems.filter(item => ["/admin/users", "/admin/mobilization"].includes(item.path));
