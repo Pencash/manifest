@@ -186,16 +186,16 @@ const Dashboard = () => {
       <div className="space-y-8">
         {/* Welcome Section */}
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={0}>
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
             <div>
-              <h1 className="heading-display text-3xl sm:text-4xl text-foreground">
+              <h1 className="heading-display text-2xl sm:text-3xl md:text-4xl text-foreground">
                 Welcome back, <span className="text-accent">{firstName}</span>
               </h1>
-              <p className="text-muted-foreground mt-2 text-base font-sans">
-                Your dashboard for Manifest Malawi — here is what is happening.
+              <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base font-sans">
+                Your dashboard for Manifest Malawi
               </p>
             </div>
-            <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground self-start">
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
@@ -210,15 +210,15 @@ const Dashboard = () => {
               className="bg-card border-border hover:border-accent/20 transition-colors duration-300 cursor-pointer group"
               onClick={() => navigate(stat.path)}
             >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="stat-number text-2xl text-foreground mb-1">{stat.value}</div>
-                <div className="text-muted-foreground text-sm font-sans">{stat.label}</div>
+                <div className="stat-number text-lg sm:text-2xl text-foreground mb-0.5 sm:mb-1 truncate">{stat.value}</div>
+                <div className="text-muted-foreground text-xs sm:text-sm font-sans">{stat.label}</div>
               </CardContent>
             </Card>
           ))}

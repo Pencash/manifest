@@ -244,31 +244,31 @@ const FinancialReports = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/admin/dashboard")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-3 sm:p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/dashboard")}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Financial Reports</h1>
-              <p className="text-muted-foreground">Financial movement statement focused on incoming, expenses, and available activity funds</p>
-            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/admin/givings")} className="gap-2">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Financial Reports</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Financial movement statement focused on incoming, expenses, and available activity funds</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/givings")} className="gap-1.5 text-xs sm:text-sm">
               Givings Ledger
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" onClick={() => navigate("/admin/expenses/all")} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/expenses/all")} className="gap-1.5 text-xs sm:text-sm">
               Expense Ledger
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button onClick={exportSummaryToExcel} className="gap-2">
-              <Download className="h-4 w-4" />
-              Export Summary
+            <Button size="sm" onClick={exportSummaryToExcel} className="gap-1.5 text-xs sm:text-sm">
+              <Download className="h-3.5 w-3.5" />
+              Export
             </Button>
           </div>
         </div>
@@ -278,8 +278,8 @@ const FinancialReports = () => {
             <CardTitle>Report Scope</CardTitle>
             <CardDescription>Define the reporting window and slices for audit-friendly summaries.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <CardContent className="p-3 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
               <div>
                 <Label>Date Preset</Label>
                 <Select value={datePreset} onValueChange={(value: DatePreset) => applyPreset(value)}>
@@ -341,50 +341,50 @@ const FinancialReports = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Activity-Support Inflows</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Activity-Support Inflows</CardTitle>
               <Wallet className="h-4 w-4 text-primary/60" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(analytics.eligibleIncoming)}</div>
-              <p className="text-xs text-muted-foreground">Verified incoming available for activities (after exclusions)</p>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold truncate">{formatAmount(analytics.eligibleIncoming)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Verified incoming for activities</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Activity Outflows</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Activity Outflows</CardTitle>
               <Receipt className="h-4 w-4 text-primary/60" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(analytics.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Approved / partially paid / paid expenses</p>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold truncate">{formatAmount(analytics.totalExpenses)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Approved / partially paid / paid</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Closing Activity Balance</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Closing Activity Balance</CardTitle>
               {analytics.netMovement >= 0 ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${analytics.netMovement >= 0 ? "text-green-700" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
-              <p className="text-xs text-muted-foreground">Inflows minus funded activity outflows in this period</p>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.netMovement >= 0 ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Inflows minus outflows</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Monthly Movement</CardTitle>
-              <CardDescription>Incoming vs expenses for the selected reporting scope</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Monthly Movement</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Incoming vs expenses for the selected scope</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={analytics.monthlyMovement}>
+            <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={analytics.monthlyMovement} margin={{ left: -10, right: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis tickFormatter={(value) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString())} width={70} />
@@ -398,11 +398,11 @@ const FinancialReports = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Incoming Composition</CardTitle>
-              <CardDescription>Shows giving mix including restricted buckets for governance visibility</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Incoming Composition</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Giving mix including restricted buckets</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
               {analytics.givingsByType.length === 0 ? (
                 <div className="h-[320px] flex items-center justify-center text-muted-foreground">No incoming data for selected scope</div>
               ) : (

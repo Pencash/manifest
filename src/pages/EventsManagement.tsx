@@ -475,7 +475,7 @@ const EventsManagement = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         <Button
           variant="ghost"
           onClick={() => navigate("/admin/dashboard")}
@@ -485,14 +485,14 @@ const EventsManagement = () => {
           Back to Dashboard
         </Button>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Events Calendar</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Events Calendar</h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage services and special events
             </p>
           </div>
-          <Button onClick={() => {
+          <Button className="w-full sm:w-auto" onClick={() => {
             resetForm();
             setEditingService(null);
             setIsDialogOpen(true);
@@ -503,15 +503,15 @@ const EventsManagement = () => {
         </div>
 
         {/* Compact Filter Bar */}
-        <div className="sticky top-0 z-20 mb-6 flex flex-col items-start gap-4 rounded-lg border bg-background/95 p-4 backdrop-blur sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm font-medium text-muted-foreground">Status:</span>
-            <div className="flex gap-1">
+        <div className="sticky top-0 z-20 mb-6 rounded-lg border bg-background/95 p-3 sm:p-4 backdrop-blur space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
+          <div className="w-full sm:w-auto">
+            <span className="text-xs font-medium text-muted-foreground block mb-1.5 sm:hidden">Status</span>
+            <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 scrollbar-hide">
               <Button
                 variant={statusFilter === 'all' && !showArchived ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('all'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 All
               </Button>
@@ -519,7 +519,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'upcoming' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('upcoming'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Upcoming
               </Button>
@@ -527,7 +527,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'today' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('today'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Today
               </Button>
@@ -535,7 +535,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'past' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('past'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Past
               </Button>
@@ -547,7 +547,7 @@ const EventsManagement = () => {
                   loadArchivedServices();
                 }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 <Archive className="h-3 w-3 mr-1" />
                 Archived
@@ -555,52 +555,54 @@ const EventsManagement = () => {
             </div>
           </div>
 
-          <div className="hidden sm:block h-8 w-[0.1rem] bg-border" />
+          <div className="hidden sm:block h-8 w-px bg-border flex-shrink-0" />
 
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 w-full sm:w-52">
-                <SelectValue placeholder="All Service Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  All ({services.length})
-                </SelectItem>
-                {serviceTypes.map(type => {
-                  const count = services.filter(s => s.service_type === type.value).length;
-                  return (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label} ({count})
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="flex items-center gap-2 sm:gap-3 justify-between sm:flex-1">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-xs sm:text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-8 w-full sm:w-52 text-xs sm:text-sm">
+                  <SelectValue placeholder="All Service Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    All ({services.length})
+                  </SelectItem>
+                  {serviceTypes.map(type => {
+                    const count = services.filter(s => s.service_type === type.value).length;
+                    return (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="text-sm text-muted-foreground flex-shrink-0">
-            {showArchived ? archivedServices.length : filteredServices.length} event{(showArchived ? archivedServices.length : filteredServices.length) !== 1 ? 's' : ''}
+            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">
+              {showArchived ? archivedServices.length : filteredServices.length} event{(showArchived ? archivedServices.length : filteredServices.length) !== 1 ? 's' : ''}
+            </span>
           </div>
         </div>
 
         {/* Active Events Grid */}
         {!showArchived && (
           <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredServices.map((service) => (
                 <Card key={service.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
+                  <CardHeader className="p-4 sm:p-6">
                     <div className="flex justify-between items-start">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           {getServiceTypeBadge(service.service_type)}
                           {getStatusBadge(service.service_date)}
                           {!service.is_published && (
                             <Badge variant="outline">Draft</Badge>
                           )}
                         </div>
-                        <CardTitle className="text-xl">{service.name}</CardTitle>
+                        <CardTitle className="text-base sm:text-xl leading-tight">{service.name}</CardTitle>
                       </div>
                     </div>
                     <CardDescription>
@@ -618,14 +620,14 @@ const EventsManagement = () => {
                       </div>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
                     {service.description && (
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
                         {service.description}
                       </p>
                     )}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
                           <span className="font-semibold">{service.total_attendance}</span>
