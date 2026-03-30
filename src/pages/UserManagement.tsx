@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { ResponsiveDataView, type ResponsiveDataViewRow } from "@/components/ResponsiveDataView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,6 +37,9 @@ const UserManagement = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const navigate = useNavigate();
   const { role: currentUserRole, loading: roleLoading } = useUserRole(user?.id);
 
@@ -248,6 +251,98 @@ const UserManagement = () => {
     }
   };
 
+  const filteredProfiles = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return profiles.filter((profile) => {
+      const userRole = profile.user_roles?.[0]?.role || "member";
+      const matchesRole = roleFilter === "all" || userRole === roleFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && profile.is_active) ||
+        (statusFilter === "inactive" && !profile.is_active);
+
+      if (!matchesRole || !matchesStatus) return false;
+      if (!query) return true;
+
+      return [
+        profile.full_name,
+        profile.email || "",
+        profile.phone || "",
+        userRole,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [profiles, roleFilter, searchQuery, statusFilter]);
+
+  const rows: ResponsiveDataViewRow[] = useMemo(
+    () =>
+      filteredProfiles.map((profile) => {
+        const userRole = profile.user_roles?.[0]?.role || "member";
+        return {
+          id: profile.id,
+          title: profile.full_name,
+          subtitle: profile.email || "No email",
+          desktopCells: [
+            <span className="font-medium">{profile.full_name}</span>,
+            profile.email || "N/A",
+            profile.phone || "N/A",
+            <Badge variant={getRoleBadgeVariant(userRole)}>{userRole}</Badge>,
+            <Select
+              value={userRole}
+              onValueChange={(value) => updateUserRole(profile.id, value as AppRole)}
+              disabled={profile.id === user?.id}
+            >
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="finance">Finance</SelectItem>
+                <SelectItem value="pastor">Pastor</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>,
+            <Badge variant={profile.is_active ? "default" : "secondary"}>
+              {profile.is_active ? "Active" : "Inactive"}
+            </Badge>,
+          ],
+          essentials: [
+            { label: "Status", value: <Badge variant={profile.is_active ? "default" : "secondary"}>{profile.is_active ? "Active" : "Inactive"}</Badge> },
+            { label: "Person", value: profile.full_name },
+            { label: "Role", value: <Badge variant={getRoleBadgeVariant(userRole)}>{userRole}</Badge> },
+            { label: "Date", value: new Date(profile.created_at).toLocaleDateString() },
+          ],
+          details: [
+            { label: "Email", value: profile.email || "N/A" },
+            { label: "Phone", value: profile.phone || "N/A" },
+          ],
+          actions: (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={actionInProgress === profile.id || profile.id === user?.id}
+                onClick={() => handleResetPassword(profile)}
+              >
+                Change Password
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={actionInProgress === profile.id || profile.id === user?.id}
+                onClick={() => handleDeleteUser(profile.id)}
+              >
+                Delete
+              </Button>
+            </>
+          ),
+        };
+      }),
+    [actionInProgress, filteredProfiles, getRoleBadgeVariant, handleDeleteUser, updateUserRole, user?.id],
+  );
+
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -302,78 +397,42 @@ const UserManagement = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Current Role</TableHead>
-                    <TableHead>Change Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profiles.map((profile) => {
-                    const userRole = profile.user_roles?.[0]?.role || "member";
-                    return (
-                      <TableRow key={profile.id}>
-                        <TableCell className="font-medium">{profile.full_name}</TableCell>
-                        <TableCell>{profile.email || "N/A"}</TableCell>
-                        <TableCell>{profile.phone || "N/A"}</TableCell>
-                        <TableCell>
-                          <Badge variant={getRoleBadgeVariant(userRole)}>
-                            {userRole}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={userRole}
-                            onValueChange={(value) => updateUserRole(profile.id, value as AppRole)}
-                            disabled={profile.id === user?.id}
-                          >
-                            <SelectTrigger className="w-full sm:w-36">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="member">Member</SelectItem>
-                              <SelectItem value="finance">Finance</SelectItem>
-                              <SelectItem value="pastor">Pastor</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={profile.is_active ? "default" : "secondary"}>
-                            {profile.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="space-x-2 text-right">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={actionInProgress === profile.id || profile.id === user?.id}
-                            onClick={() => handleResetPassword(profile)}
-                          >
-                            Change Password
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={actionInProgress === profile.id || profile.id === user?.id}
-                            onClick={() => handleDeleteUser(profile.id)}
-                          >
-                            Delete
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <ResponsiveDataView
+              columns={["Name", "Email", "Phone", "Current Role", "Change Role", "Status"]}
+              rows={rows}
+              controls={
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Input
+                    placeholder="Search name, email, phone"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                  />
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All roles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All roles</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="pastor">Pastor</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              emptyState={<p className="py-12 text-center text-muted-foreground">No users match the selected filters.</p>}
+            />
           </CardContent>
         </Card>
       </div>
