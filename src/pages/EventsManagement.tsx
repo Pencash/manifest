@@ -475,7 +475,7 @@ const EventsManagement = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         <Button
           variant="ghost"
           onClick={() => navigate("/admin/dashboard")}

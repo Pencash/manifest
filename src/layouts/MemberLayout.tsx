@@ -70,7 +70,7 @@ const MemberLayout = ({ children }: MemberLayoutProps) => {
         userName={profile?.full_name}
         userEmail={user.email}
       />
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-20 sm:pb-6">
         {children}
       </main>
       {showFAB && <MobileFAB actions={fabActions} />}

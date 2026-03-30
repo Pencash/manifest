@@ -147,4 +147,13 @@
     line-height: 1.1;
     letter-spacing: -0.01em;
   }
+
+  /* Hide horizontal scrollbar for filter bars on mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
