@@ -358,15 +358,15 @@ const FinancialReports = () => {
               <CardTitle className="text-xs sm:text-sm font-medium">Activity Outflows</CardTitle>
               <Receipt className="h-4 w-4 text-primary/60" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(analytics.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Approved / partially paid / paid expenses</p>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold truncate">{formatAmount(analytics.totalExpenses)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Approved / partially paid / paid</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Closing Activity Balance</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Closing Activity Balance</CardTitle>
               {analytics.netMovement >= 0 ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
             </CardHeader>
             <CardContent>
