@@ -50,6 +50,9 @@ export default function FundingAvailability({
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-5 w-5" />
           Funding Availability
+          {data?.monthLabel && (
+            <span className="text-sm font-normal text-muted-foreground">— {data.monthLabel}</span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
