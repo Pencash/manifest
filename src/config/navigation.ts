@@ -1,4 +1,4 @@
-import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings, Sparkles } from "lucide-react";
+import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings, Sparkles, Wallet } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 export interface NavItem {
