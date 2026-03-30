@@ -111,6 +111,8 @@ const App = () => {
                 <Route path="/admin/reports/attendance" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AttendanceReport /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/reports/financial" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialReports /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/givings" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminGivings /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/financial/verification" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialPaymentVerification /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/financial/offline-giving" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialOfflineGiving /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/request" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseRequest /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/all" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequests /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/:expenseId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequestDetails /></AdminLayout></RoleRoute>} />
