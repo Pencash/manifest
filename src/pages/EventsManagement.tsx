@@ -503,7 +503,7 @@ const EventsManagement = () => {
         </div>
 
         {/* Compact Filter Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-card border rounded-lg p-4">
+        <div className="sticky top-0 z-20 mb-6 flex flex-col items-start gap-4 rounded-lg border bg-background/95 p-4 backdrop-blur sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-medium text-muted-foreground">Status:</span>
             <div className="flex gap-1">

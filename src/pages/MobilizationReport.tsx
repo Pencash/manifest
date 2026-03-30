@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { ResponsiveDataView, type ResponsiveDataViewRow } from "@/components/ResponsiveDataView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -456,6 +456,63 @@ const MobilizationReport = () => {
     return matchesSearch && matchesConversion;
   });
 
+  const rankingRows: ResponsiveDataViewRow[] = useMemo(
+    () =>
+      filteredStats.map((stat, index) => ({
+        id: stat.member_id,
+        title: `${index + 1}. ${stat.member_name}`,
+        subtitle: `${stat.events_participated} events · ${stat.total_invitations} total invitations`,
+        desktopCells: [
+          <span className="font-medium text-muted-foreground">{index + 1}</span>,
+          <Link to={`/admin/mobilization/member/${stat.member_id}`} className="font-medium text-primary hover:underline flex items-center gap-1">
+            {stat.member_name}
+            <ExternalLink className="w-3 h-3" />
+          </Link>,
+          <Badge variant="outline" className={getScoreBadgeColor(stat.performance_score, index)}>
+            {stat.performance_score}
+          </Badge>,
+          getTrendIcon(stat.trend),
+          <span className="text-muted-foreground">{stat.events_participated}</span>,
+          <span className="text-muted-foreground">{stat.avg_per_event}</span>,
+          <span>{stat.total_invitations}</span>,
+          <span className="font-semibold text-green-600 dark:text-green-400">{stat.attended}</span>,
+          <Badge
+            variant="outline"
+            className={
+              stat.conversion_rate >= 50
+                ? "bg-green-500/10 text-green-700 dark:text-green-300"
+                : stat.conversion_rate >= 25
+                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+                  : "bg-gray-500/10 text-gray-700 dark:text-gray-300"
+            }
+          >
+            {stat.conversion_rate}%
+          </Badge>,
+        ],
+        essentials: [
+          { label: "Status", value: <Badge variant="outline">{stat.conversion_rate}% success</Badge> },
+          { label: "Person", value: stat.member_name },
+          { label: "Score", value: <Badge variant="outline" className={getScoreBadgeColor(stat.performance_score, index)}>{stat.performance_score}</Badge> },
+          { label: "Date", value: selectedServiceId === "all" ? "All events" : "Filtered event" },
+        ],
+        details: [
+          { label: "Rank", value: index + 1 },
+          { label: "Trend", value: getTrendIcon(stat.trend) },
+          { label: "Events", value: stat.events_participated },
+          { label: "Avg/Event", value: stat.avg_per_event },
+          { label: "Total Invites", value: stat.total_invitations },
+          { label: "Attended", value: stat.attended },
+        ],
+        actions: (
+          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/mobilization/member/${stat.member_id}`)}>
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Open Member
+          </Button>
+        ),
+      })),
+    [filteredStats, navigate, selectedServiceId],
+  );
+
   const totalStats = {
     total_invitations: memberStats.reduce((sum, s) => sum + s.total_invitations, 0),
     total_invited: memberStats.reduce((sum, s) => sum + s.invited + s.confirmed + s.attended, 0),
@@ -662,76 +719,11 @@ const MobilizationReport = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Member</TableHead>
-                      <TableHead className="text-center">Score</TableHead>
-                      <TableHead className="text-center">Trend</TableHead>
-                      <TableHead className="text-center">Events</TableHead>
-                      <TableHead className="text-center">Avg/Event</TableHead>
-                      <TableHead className="text-center">Total</TableHead>
-                      <TableHead className="text-center">Attended</TableHead>
-                      <TableHead className="text-center">Success Rate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStats.map((stat, index) => (
-                      <TableRow key={stat.member_id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell className="font-medium text-muted-foreground">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell>
-                          <Link 
-                            to={`/admin/mobilization/member/${stat.member_id}`}
-                            className="font-medium text-primary hover:underline flex items-center gap-1"
-                          >
-                            {stat.member_name}
-                            <ExternalLink className="w-3 h-3" />
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge
-                            variant="outline"
-                            className={getScoreBadgeColor(stat.performance_score, index)}
-                          >
-                            {stat.performance_score}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getTrendIcon(stat.trend)}
-                        </TableCell>
-                        <TableCell className="text-center text-muted-foreground">
-                          {stat.events_participated}
-                        </TableCell>
-                        <TableCell className="text-center text-muted-foreground">
-                          {stat.avg_per_event}
-                        </TableCell>
-                        <TableCell className="text-center">{stat.total_invitations}</TableCell>
-                        <TableCell className="text-center font-semibold text-green-600 dark:text-green-400">
-                          {stat.attended}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge
-                            variant="outline"
-                            className={
-                              stat.conversion_rate >= 50
-                                ? "bg-green-500/10 text-green-700 dark:text-green-300"
-                                : stat.conversion_rate >= 25
-                                ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
-                                : "bg-gray-500/10 text-gray-700 dark:text-gray-300"
-                            }
-                          >
-                            {stat.conversion_rate}%
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <ResponsiveDataView
+                columns={["#", "Member", "Score", "Trend", "Events", "Avg/Event", "Total", "Attended", "Success Rate"]}
+                rows={rankingRows}
+                emptyState={<div />}
+              />
             )}
           </CardContent>
         </Card>
