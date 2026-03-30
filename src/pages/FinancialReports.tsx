@@ -369,9 +369,9 @@ const FinancialReports = () => {
               <CardTitle className="text-xs sm:text-sm font-medium">Closing Activity Balance</CardTitle>
               {analytics.netMovement >= 0 ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${analytics.netMovement >= 0 ? "text-green-700" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
-              <p className="text-xs text-muted-foreground">Inflows minus funded activity outflows in this period</p>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.netMovement >= 0 ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Inflows minus outflows</p>
             </CardContent>
           </Card>
         </div>
