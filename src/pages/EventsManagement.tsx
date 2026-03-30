@@ -503,15 +503,15 @@ const EventsManagement = () => {
         </div>
 
         {/* Compact Filter Bar */}
-        <div className="sticky top-0 z-20 mb-6 flex flex-col items-start gap-4 rounded-lg border bg-background/95 p-4 backdrop-blur sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm font-medium text-muted-foreground">Status:</span>
-            <div className="flex gap-1">
+        <div className="sticky top-0 z-20 mb-6 rounded-lg border bg-background/95 p-3 sm:p-4 backdrop-blur space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
+          <div className="w-full sm:w-auto">
+            <span className="text-xs font-medium text-muted-foreground block mb-1.5 sm:hidden">Status</span>
+            <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 scrollbar-hide">
               <Button
                 variant={statusFilter === 'all' && !showArchived ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('all'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 All
               </Button>
@@ -519,7 +519,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'upcoming' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('upcoming'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Upcoming
               </Button>
@@ -527,7 +527,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'today' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('today'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Today
               </Button>
@@ -535,7 +535,7 @@ const EventsManagement = () => {
                 variant={statusFilter === 'past' ? 'default' : 'ghost'}
                 onClick={() => { setStatusFilter('past'); setShowArchived(false); }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 Past
               </Button>
@@ -547,7 +547,7 @@ const EventsManagement = () => {
                   loadArchivedServices();
                 }}
                 size="sm"
-                className="h-8"
+                className="h-8 flex-shrink-0 text-xs sm:text-sm"
               >
                 <Archive className="h-3 w-3 mr-1" />
                 Archived
@@ -555,32 +555,34 @@ const EventsManagement = () => {
             </div>
           </div>
 
-          <div className="hidden sm:block h-8 w-[0.1rem] bg-border" />
+          <div className="hidden sm:block h-8 w-px bg-border flex-shrink-0" />
 
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 w-full sm:w-52">
-                <SelectValue placeholder="All Service Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  All ({services.length})
-                </SelectItem>
-                {serviceTypes.map(type => {
-                  const count = services.filter(s => s.service_type === type.value).length;
-                  return (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label} ({count})
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="flex items-center gap-2 sm:gap-3 justify-between sm:flex-1">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-xs sm:text-sm font-medium text-muted-foreground flex-shrink-0">Type:</span>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-8 w-full sm:w-52 text-xs sm:text-sm">
+                  <SelectValue placeholder="All Service Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    All ({services.length})
+                  </SelectItem>
+                  {serviceTypes.map(type => {
+                    const count = services.filter(s => s.service_type === type.value).length;
+                    return (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label} ({count})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="text-sm text-muted-foreground flex-shrink-0">
-            {showArchived ? archivedServices.length : filteredServices.length} event{(showArchived ? archivedServices.length : filteredServices.length) !== 1 ? 's' : ''}
+            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">
+              {showArchived ? archivedServices.length : filteredServices.length} event{(showArchived ? archivedServices.length : filteredServices.length) !== 1 ? 's' : ''}
+            </span>
           </div>
         </div>
 
