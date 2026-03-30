@@ -315,7 +315,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-ivory/30 text-ivory hover:bg-ivory/10 hover:text-ivory font-medium"
+                  className="border-gold/60 text-gold bg-navy/60 hover:bg-gold/15 hover:text-gold font-medium"
                   onClick={() => navigate("/member/auth?mode=login")}
                 >
                   Sign In

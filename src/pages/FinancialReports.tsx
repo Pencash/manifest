@@ -233,7 +233,7 @@ const FinancialReports = () => {
     toast.success("Financial summary exported successfully");
   };
 
-  const COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(142 76% 36%)", "hsl(217 91% 60%)", "hsl(262 83% 58%)", "hsl(346 77% 50%)", "hsl(48 96% 53%)"];
+  const COLORS = ["hsl(40 50% 57%)", "hsl(216 60% 35%)", "hsl(142 76% 36%)", "hsl(15 55% 45%)", "hsl(262 83% 58%)", "hsl(346 77% 50%)", "hsl(48 96% 53%)"];
 
   if (loading) {
     return (
