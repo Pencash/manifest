@@ -376,15 +376,15 @@ const FinancialReports = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Monthly Movement</CardTitle>
-              <CardDescription>Incoming vs expenses for the selected reporting scope</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Monthly Movement</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Incoming vs expenses for the selected scope</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={analytics.monthlyMovement}>
+            <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={analytics.monthlyMovement} margin={{ left: -10, right: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis tickFormatter={(value) => (value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString())} width={70} />
