@@ -278,8 +278,8 @@ const FinancialReports = () => {
             <CardTitle>Report Scope</CardTitle>
             <CardDescription>Define the reporting window and slices for audit-friendly summaries.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <CardContent className="p-3 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
               <div>
                 <Label>Date Preset</Label>
                 <Select value={datePreset} onValueChange={(value: DatePreset) => applyPreset(value)}>
