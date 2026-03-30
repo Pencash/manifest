@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess } from "@/lib/roles";
+import { format } from "date-fns";
+import { Eye, Plus, RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { ResponsiveDataView, type ResponsiveDataViewRow } from "@/components/ResponsiveDataView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import { Eye, Plus, RefreshCw } from "lucide-react";
-import { format } from "date-fns";
-import { formatAmount } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 import { statusBadgeClasses } from "@/lib/expense-format";
-import { cn } from "@/lib/utils";
+import { hasAdminAccess } from "@/lib/roles";
+import { cn, formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
   id: string;
@@ -36,22 +37,22 @@ export default function AdminExpenseRequests() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       navigate("/admin/auth");
       return;
     }
 
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id);
+    const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
 
     const mainRole = rolesData?.[0]?.role;
     if (!hasAdminAccess(mainRole)) {
@@ -119,6 +120,19 @@ export default function AdminExpenseRequests() {
     }
   }, [statusFilter]);
 
+  const filteredRequests = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return requests;
+
+    return requests.filter((request) => {
+      const description = request.description.toLowerCase();
+      const requestNumber = request.request_number?.toLowerCase() ?? "";
+      const requester = request.profiles.full_name.toLowerCase();
+      const category = `${request.expense_categories.code} ${request.expense_categories.name}`.toLowerCase();
+      return [description, requestNumber, requester, category].some((entry) => entry.includes(query));
+    });
+  }, [requests, searchTerm]);
+
   const getPriorityBadge = (priority: string) => {
     const variants = {
       low: "secondary",
@@ -126,12 +140,67 @@ export default function AdminExpenseRequests() {
       high: "secondary",
       urgent: "destructive",
     } as const;
-    return (
-      <Badge variant={variants[priority as keyof typeof variants] || "secondary"}>
-        {priority.toUpperCase()}
-      </Badge>
-    );
+    return <Badge variant={variants[priority as keyof typeof variants] || "secondary"}>{priority.toUpperCase()}</Badge>;
   };
+
+  const rows: ResponsiveDataViewRow[] = useMemo(
+    () =>
+      filteredRequests.map((request) => {
+        const requesterCell = (
+          <>
+            <div className="font-medium">{request.profiles.full_name}</div>
+            <div className="text-xs text-muted-foreground">{request.profiles.email || "No email"}</div>
+          </>
+        );
+
+        const categoryCell = (
+          <>
+            <div className="font-medium">{request.expense_categories.code}</div>
+            <div className="text-xs text-muted-foreground">{request.expense_categories.name}</div>
+          </>
+        );
+
+        const statusBadge = (
+          <Badge className={cn("border", statusBadgeClasses[request.status] || statusBadgeClasses.draft)}>
+            {request.status.replace(/_/g, " ").toUpperCase()}
+          </Badge>
+        );
+
+        return {
+          id: request.id,
+          title: request.request_number || "Request",
+          subtitle: request.description,
+          desktopCells: [
+            <span className="font-mono text-sm">{request.request_number || "—"}</span>,
+            requesterCell,
+            categoryCell,
+            <span className="line-clamp-1 max-w-xs">{request.description}</span>,
+            <span className="font-mono">{formatAmount(request.amount, request.currency)}</span>,
+            getPriorityBadge(request.priority),
+            statusBadge,
+            <span className="text-sm text-muted-foreground">{format(new Date(request.created_at), "PPP")}</span>,
+          ],
+          essentials: [
+            { label: "Status", value: statusBadge },
+            { label: "Amount", value: <span className="font-mono">{formatAmount(request.amount, request.currency)}</span> },
+            { label: "Person", value: request.profiles.full_name },
+            { label: "Date", value: format(new Date(request.created_at), "PPP") },
+          ],
+          details: [
+            { label: "Category", value: `${request.expense_categories.code} — ${request.expense_categories.name}` },
+            { label: "Priority", value: getPriorityBadge(request.priority) },
+            { label: "Description", value: request.description },
+          ],
+          actions: (
+            <Button size="sm" variant="outline" onClick={() => navigate(`/admin/expenses/${request.id}`)}>
+              <Eye className="mr-1 h-4 w-4" />
+              View
+            </Button>
+          ),
+        };
+      }),
+    [filteredRequests, navigate],
+  );
 
   if (loading) {
     return (
@@ -166,90 +235,49 @@ export default function AdminExpenseRequests() {
 
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Expense Register ({requests.length})</CardTitle>
-                <CardDescription>All expense requests across every status</CardDescription>
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                  <SelectItem value="changes_requested">Changes Requested</SelectItem>
-                  <SelectItem value="partially_paid">Partially Paid</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                </SelectContent>
-              </Select>
+            <div>
+              <CardTitle>Expense Register ({filteredRequests.length})</CardTitle>
+              <CardDescription>All expense requests across every status</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            {requests.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No expense requests found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Request #</TableHead>
-                      <TableHead>Requester</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {requests.map((request) => (
-                      <TableRow key={request.id}>
-                        <TableCell className="font-mono text-sm">{request.request_number || "—"}</TableCell>
-                        <TableCell>
-                          <div className="font-medium">{request.profiles.full_name}</div>
-                          <div className="text-xs text-muted-foreground">{request.profiles.email}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{request.expense_categories.code}</div>
-                          <div className="text-xs text-muted-foreground">{request.expense_categories.name}</div>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">{request.description}</TableCell>
-                        <TableCell className="font-mono">
-                          {formatAmount(request.amount, request.currency)}
-                        </TableCell>
-                        <TableCell>{getPriorityBadge(request.priority)}</TableCell>
-                        <TableCell>
-                          <Badge className={cn("border", statusBadgeClasses[request.status] || statusBadgeClasses.draft)}>
-                            {request.status.replace(/_/g, " ").toUpperCase()}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(request.created_at), "PPP")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/admin/expenses/${request.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <ResponsiveDataView
+              columns={["Request #", "Requester", "Category", "Description", "Amount", "Priority", "Status", "Date"]}
+              rows={rows}
+              controls={
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Search by request number, person, category, or description"
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-[220px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="changes_requested">Changes Requested</SelectItem>
+                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              emptyState={
+                <div className="py-12 text-center">
+                  <p className="text-muted-foreground">No expense requests found</p>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
       </div>
