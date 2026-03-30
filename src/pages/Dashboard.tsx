@@ -210,15 +210,15 @@ const Dashboard = () => {
               className="bg-card border-border hover:border-accent/20 transition-colors duration-300 cursor-pointer group"
               onClick={() => navigate(stat.path)}
             >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="stat-number text-2xl text-foreground mb-1">{stat.value}</div>
-                <div className="text-muted-foreground text-sm font-sans">{stat.label}</div>
+                <div className="stat-number text-lg sm:text-2xl text-foreground mb-0.5 sm:mb-1 truncate">{stat.value}</div>
+                <div className="text-muted-foreground text-xs sm:text-sm font-sans">{stat.label}</div>
               </CardContent>
             </Card>
           ))}

@@ -398,11 +398,11 @@ const FinancialReports = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Incoming Composition</CardTitle>
-              <CardDescription>Shows giving mix including restricted buckets for governance visibility</CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Incoming Composition</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Giving mix including restricted buckets</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
               {analytics.givingsByType.length === 0 ? (
                 <div className="h-[320px] flex items-center justify-center text-muted-foreground">No incoming data for selected scope</div>
               ) : (

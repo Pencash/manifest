@@ -620,14 +620,14 @@ const EventsManagement = () => {
                       </div>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
                     {service.description && (
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
                         {service.description}
                       </p>
                     )}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
                           <span className="font-semibold">{service.total_attendance}</span>
