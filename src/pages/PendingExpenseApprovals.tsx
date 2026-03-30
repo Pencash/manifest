@@ -1,21 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess } from "@/lib/roles";
-import { triggerNotificationRefresh } from "@/lib/notification-events";
+import { format } from "date-fns";
+import { AlertCircle, CheckCircle, Eye, Search, XCircle } from "lucide-react";
+import { toast } from "sonner";
+
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { ResponsiveDataView, type ResponsiveDataViewRow } from "@/components/ResponsiveDataView";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import { CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
-import { format } from "date-fns";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { triggerNotificationRefresh } from "@/lib/notification-events";
+import { hasAdminAccess } from "@/lib/roles";
 import { formatAmount } from "@/lib/utils";
-import { BulkActionBar } from "@/components/BulkActionBar";
 
 interface ExpenseRequest {
   id: string;
@@ -43,22 +46,23 @@ export default function PendingExpenseApprovals() {
   const [processing, setProcessing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       navigate("/admin/auth");
       return;
     }
 
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", session.user.id);
+    const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
 
     const mainRole = rolesData?.[0]?.role;
 
@@ -133,16 +137,13 @@ export default function PendingExpenseApprovals() {
     setProcessing(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Check if user is main admin for approval action
       if (action === "approve") {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", user.id)
-          .single();
+        const { data: profile } = await supabase.from("profiles").select("email").eq("id", user.id).single();
 
         if (profile?.email !== "pnderitu2@gmail.com") {
           toast.error("Only the main administrator (pnderitu2@gmail.com) can approve expense requests.");
@@ -154,7 +155,6 @@ export default function PendingExpenseApprovals() {
       const newStatus = action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested";
       const requestIdsToProcess = bulkAction ? selectedIds : [selectedRequest!.id];
 
-      // Update expense request status
       const { error: updateError } = await supabase
         .from("expense_requests")
         .update({
@@ -165,24 +165,19 @@ export default function PendingExpenseApprovals() {
 
       if (updateError) throw updateError;
 
-      // Log approval actions
-      const approvals = requestIdsToProcess.map(id => ({
+      const approvals = requestIdsToProcess.map((id) => ({
         expense_request_id: id,
         approver_id: user.id,
         action: action === "approve" ? "approved" : action === "reject" ? "rejected" : "changes_requested",
         comments: comments || null,
       }));
 
-      const { error: approvalError } = await supabase
-        .from("expense_approvals")
-        .insert(approvals);
+      const { error: approvalError } = await supabase.from("expense_approvals").insert(approvals);
 
       if (approvalError) throw approvalError;
 
       toast.success(
-        bulkAction 
-          ? `${requestIdsToProcess.length} requests ${newStatus.replace("_", " ")}` 
-          : `Request ${newStatus.replace("_", " ")}`
+        bulkAction ? `${requestIdsToProcess.length} requests ${newStatus.replace("_", " ")}` : `Request ${newStatus.replace("_", " ")}`,
       );
       setDialogOpen(false);
       setSelectedIds([]);
@@ -197,15 +192,40 @@ export default function PendingExpenseApprovals() {
   };
 
   const toggleSelection = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  const toggleSelectAll = () => {
-    setSelectedIds(prev => 
-      prev.length === requests.length ? [] : requests.map(r => r.id)
-    );
+  const filteredRequests = useMemo(() => {
+    const searchQuery = searchTerm.trim().toLowerCase();
+    return requests.filter((request) => {
+      const matchesPriority = priorityFilter === "all" || request.priority === priorityFilter;
+      if (!matchesPriority) return false;
+
+      if (!searchQuery) return true;
+      const searchable = [
+        request.request_number,
+        request.description,
+        request.justification,
+        request.profiles.full_name,
+        request.expense_categories.code,
+        request.expense_categories.name,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(searchQuery);
+    });
+  }, [requests, searchTerm, priorityFilter]);
+
+  const toggleSelectAllFiltered = () => {
+    const visibleIds = filteredRequests.map((r) => r.id);
+    const allSelected = visibleIds.every((id) => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+      return;
+    }
+
+    setSelectedIds((prev) => [...new Set([...prev, ...visibleIds])]);
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -215,12 +235,84 @@ export default function PendingExpenseApprovals() {
       high: "secondary",
       urgent: "destructive",
     } as const;
-    return (
-      <Badge variant={colors[priority as keyof typeof colors] || "secondary"}>
-        {priority.toUpperCase()}
-      </Badge>
-    );
+    return <Badge variant={colors[priority as keyof typeof colors] || "secondary"}>{priority.toUpperCase()}</Badge>;
   };
+
+  const rows: ResponsiveDataViewRow[] = useMemo(
+    () =>
+      filteredRequests.map((request) => {
+        const requesterCell = (
+          <>
+            <div className="font-medium">{request.profiles.full_name}</div>
+            <div className="text-xs text-muted-foreground">{request.profiles.email}</div>
+          </>
+        );
+
+        const categoryCell = (
+          <>
+            <div className="font-medium">{request.expense_categories.code}</div>
+            <div className="text-xs text-muted-foreground">{request.expense_categories.name}</div>
+          </>
+        );
+
+        return {
+          id: request.id,
+          title: request.request_number,
+          subtitle: request.description,
+          desktopCells: [
+            <Checkbox checked={selectedIds.includes(request.id)} onCheckedChange={() => toggleSelection(request.id)} />,
+            <span className="font-mono text-sm">{request.request_number}</span>,
+            requesterCell,
+            categoryCell,
+            <div className="max-w-xs">
+              <div className="font-medium">{request.description}</div>
+              <div className="line-clamp-2 text-xs text-muted-foreground">{request.justification}</div>
+            </div>,
+            <span className="font-mono">{formatAmount(request.amount, request.currency)}</span>,
+            getPriorityBadge(request.priority),
+            <span className="text-sm text-muted-foreground">{format(new Date(request.created_at), "PPP")}</span>,
+          ],
+          essentials: [
+            { label: "Status", value: <Badge variant="secondary">PENDING</Badge> },
+            { label: "Amount", value: <span className="font-mono">{formatAmount(request.amount, request.currency)}</span> },
+            { label: "Person", value: request.profiles.full_name },
+            { label: "Date", value: format(new Date(request.created_at), "PPP") },
+          ],
+          details: [
+            { label: "Request #", value: request.request_number },
+            { label: "Category", value: `${request.expense_categories.code} — ${request.expense_categories.name}` },
+            { label: "Priority", value: getPriorityBadge(request.priority) },
+            { label: "Description", value: request.description },
+            { label: "Justification", value: request.justification },
+            { label: "Service", value: request.services?.name || "—" },
+          ],
+          actions: (
+            <>
+              <Button variant={selectedIds.includes(request.id) ? "default" : "outline"} onClick={() => toggleSelection(request.id)}>
+                {selectedIds.includes(request.id) ? "Selected" : "Select"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/admin/expenses/${request.id}`)}>
+                <Eye className="mr-1 h-4 w-4" />
+                View Details
+              </Button>
+              <Button size="sm" onClick={() => openApprovalDialog(request, "approve", false)}>
+                <CheckCircle className="mr-1 h-4 w-4" />
+                Approve
+              </Button>
+              <Button size="sm" variant="destructive" onClick={() => openApprovalDialog(request, "reject", false)}>
+                <XCircle className="mr-1 h-4 w-4" />
+                Reject
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => openApprovalDialog(request, "changes", false)}>
+                <AlertCircle className="mr-1 h-4 w-4" />
+                Request Changes
+              </Button>
+            </>
+          ),
+        };
+      }),
+    [filteredRequests, navigate, selectedIds],
+  );
 
   if (loading) {
     return (
@@ -235,7 +327,7 @@ export default function PendingExpenseApprovals() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pending Approvals</h1>
           <p className="text-muted-foreground">Review and approve expense requests</p>
@@ -243,13 +335,13 @@ export default function PendingExpenseApprovals() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Requests Awaiting Approval ({requests.length})</CardTitle>
+            <CardTitle>Requests Awaiting Approval ({filteredRequests.length})</CardTitle>
             <CardDescription>Review details and approve or reject expense requests</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <BulkActionBar
               selectedCount={selectedIds.length}
-              onSelectAll={toggleSelectAll}
+              onSelectAll={toggleSelectAllFiltered}
               onClearSelection={() => setSelectedIds([])}
               actions={[
                 {
@@ -272,99 +364,42 @@ export default function PendingExpenseApprovals() {
                 },
               ]}
             />
-            {requests.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-muted-foreground">No pending approvals</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedIds.length === requests.length && requests.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Request #</TableHead>
-                    <TableHead>Requester</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.includes(request.id)}
-                          onCheckedChange={() => toggleSelection(request.id)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{request.request_number}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{request.profiles.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{request.profiles.email}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{request.expense_categories.code}</div>
-                        <div className="text-xs text-muted-foreground">{request.expense_categories.name}</div>
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="font-medium">{request.description}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">{request.justification}</div>
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {formatAmount(request.amount, request.currency)}
-                      </TableCell>
-                      <TableCell>{getPriorityBadge(request.priority)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(request.created_at), "PPP")}
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/admin/expenses/${request.id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => openApprovalDialog(request, "approve", false)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => openApprovalDialog(request, "reject", false)}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openApprovalDialog(request, "changes", false)}
-                        >
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          Request Changes
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+
+            <ResponsiveDataView
+              columns={["Select", "Request #", "Requester", "Category", "Description", "Amount", "Priority", "Date"]}
+              rows={rows}
+              controls={
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Search by request, person, category, description"
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-full md:w-[220px]">
+                      <SelectValue placeholder="Filter by priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              emptyState={
+                <div className="py-12 text-center">
+                  <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                  <p className="text-muted-foreground">No pending approvals</p>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
 
@@ -373,18 +408,18 @@ export default function PendingExpenseApprovals() {
             <DialogHeader>
               <DialogTitle>
                 {action === "approve" ? "Approve" : action === "reject" ? "Reject" : "Request Changes"}
-                {bulkAction && ` ${selectedIds.length} Request${selectedIds.length !== 1 ? 's' : ''}`}
+                {bulkAction && ` ${selectedIds.length} Request${selectedIds.length !== 1 ? "s" : ""}`}
               </DialogTitle>
               <DialogDescription>
-                {!bulkAction && selectedRequest && `${selectedRequest.expense_categories.code} - ${formatAmount(selectedRequest.amount, selectedRequest.currency)}`}
-                {bulkAction && `You are about to ${action} ${selectedIds.length} expense request${selectedIds.length !== 1 ? 's' : ''}`}
+                {!bulkAction &&
+                  selectedRequest &&
+                  `${selectedRequest.expense_categories.code} - ${formatAmount(selectedRequest.amount, selectedRequest.currency)}`}
+                {bulkAction && `You are about to ${action} ${selectedIds.length} expense request${selectedIds.length !== 1 ? "s" : ""}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="comments">
-                  {action === "reject" ? "Reason for Rejection *" : "Comments (Optional)"}
-                </Label>
+                <Label htmlFor="comments">{action === "reject" ? "Reason for Rejection *" : "Comments (Optional)"}</Label>
                 <Textarea
                   id="comments"
                   value={comments}
