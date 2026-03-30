@@ -244,31 +244,31 @@ const FinancialReports = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/admin/dashboard")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-3 sm:p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/dashboard")}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Financial Reports</h1>
-              <p className="text-muted-foreground">Financial movement statement focused on incoming, expenses, and available activity funds</p>
-            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/admin/givings")} className="gap-2">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Financial Reports</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Financial movement statement focused on incoming, expenses, and available activity funds</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/givings")} className="gap-1.5 text-xs sm:text-sm">
               Givings Ledger
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" onClick={() => navigate("/admin/expenses/all")} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/expenses/all")} className="gap-1.5 text-xs sm:text-sm">
               Expense Ledger
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-            <Button onClick={exportSummaryToExcel} className="gap-2">
-              <Download className="h-4 w-4" />
-              Export Summary
+            <Button size="sm" onClick={exportSummaryToExcel} className="gap-1.5 text-xs sm:text-sm">
+              <Download className="h-3.5 w-3.5" />
+              Export
             </Button>
           </div>
         </div>
