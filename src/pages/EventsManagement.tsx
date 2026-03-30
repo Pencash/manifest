@@ -485,14 +485,14 @@ const EventsManagement = () => {
           Back to Dashboard
         </Button>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Events Calendar</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Events Calendar</h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Manage services and special events
             </p>
           </div>
-          <Button onClick={() => {
+          <Button className="w-full sm:w-auto" onClick={() => {
             resetForm();
             setEditingService(null);
             setIsDialogOpen(true);
