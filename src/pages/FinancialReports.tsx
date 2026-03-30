@@ -341,10 +341,10 @@ const FinancialReports = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Activity-Support Inflows</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Activity-Support Inflows</CardTitle>
               <Wallet className="h-4 w-4 text-primary/60" />
             </CardHeader>
             <CardContent>
