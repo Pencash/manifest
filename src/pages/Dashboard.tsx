@@ -186,16 +186,16 @@ const Dashboard = () => {
       <div className="space-y-8">
         {/* Welcome Section */}
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={0}>
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
             <div>
-              <h1 className="heading-display text-3xl sm:text-4xl text-foreground">
+              <h1 className="heading-display text-2xl sm:text-3xl md:text-4xl text-foreground">
                 Welcome back, <span className="text-accent">{firstName}</span>
               </h1>
-              <p className="text-muted-foreground mt-2 text-base font-sans">
-                Your dashboard for Manifest Malawi — here is what is happening.
+              <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base font-sans">
+                Your dashboard for Manifest Malawi
               </p>
             </div>
-            <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground self-start">
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
