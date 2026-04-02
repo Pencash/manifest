@@ -365,17 +365,17 @@ const Landing = () => {
               <div className="w-8 h-8 rounded-sm bg-accent/20 flex items-center justify-center">
                 <span className="text-accent font-bold text-sm font-display">M</span>
               </div>
-              <span className="text-primary-foreground/80 font-medium font-display">Manifest Malawi</span>
+              <span className="text-foreground/80 font-medium font-display">Manifest Malawi</span>
             </div>
             <div className="flex items-center gap-6">
               <button
                 onClick={() => navigate("/admin/auth")}
-                className="text-primary-foreground/40 hover:text-primary-foreground/70 text-sm font-sans transition-colors"
+                className="text-muted-foreground hover:text-foreground text-sm font-sans transition-colors"
               >
                 Admin Portal
               </button>
             </div>
-            <p className="text-primary-foreground/40 text-sm font-sans">
+            <p className="text-muted-foreground text-sm font-sans">
               Phaneroo Ministries International &mdash; Transforming nations with the Word of God.
             </p>
           </div>
