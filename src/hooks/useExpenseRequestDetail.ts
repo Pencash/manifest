@@ -208,6 +208,29 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }, []);
 
+  const deleteExpense = useCallback(async () => {
+    if (!expense) return;
+    const { error } = await supabase.from("expense_requests").delete().eq("id", expense.id);
+    if (error) throw error;
+    triggerNotificationRefresh();
+  }, [expense]);
+
+  const updateExpense = useCallback(async (updates: {
+    description?: string;
+    justification?: string;
+    amount?: number;
+    priority?: string;
+    category_id?: string;
+    service_id?: string | null;
+    due_date?: string | null;
+  }) => {
+    if (!expense) return;
+    const { error } = await supabase.from("expense_requests").update(updates).eq("id", expense.id);
+    if (error) throw error;
+    await loadExpenseDetail();
+    triggerNotificationRefresh();
+  }, [expense, loadExpenseDetail]);
+
   return {
     loading, refreshing, role, expense,
     requesterProfile, paidByProfile,
@@ -215,7 +238,9 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     postedTotal, requestedAmount, remainingBalance,
     paymentProgress, derivedPaymentStatus,
     latestPostedPayment, canManagePayments, canRecordPayment,
+    canEditOrDelete,
     checkAuthAndLoad, loadExpenseDetail,
     recordPayment, voidPayment, openReceipt,
+    deleteExpense, updateExpense,
   };
 }
