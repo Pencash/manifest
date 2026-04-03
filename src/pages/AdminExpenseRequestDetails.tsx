@@ -212,6 +212,36 @@ export default function AdminExpenseRequestDetails() {
               <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
               Refresh
             </Button>
+            {canEditOrDelete && (
+              <>
+                <Button variant="outline" onClick={() => navigate(`/admin/expenses/request?edit=${expense.id}`)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={deleting}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete expense request?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete request {expense.request_number || "this draft"}. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => void handleDeleteExpense()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
             {canRecordPayment && (
               <Button onClick={handleOpenRecordDialog}>
                 <Wallet className="mr-2 h-4 w-4" />
