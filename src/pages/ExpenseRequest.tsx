@@ -179,8 +179,8 @@ export default function ExpenseRequest() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">New Expense Request</h1>
-          <p className="text-muted-foreground">Submit an expense request for approval</p>
+          <h1 className="text-3xl font-bold text-foreground">{isEditMode ? "Edit Expense Request" : "New Expense Request"}</h1>
+          <p className="text-muted-foreground">{isEditMode ? "Update the expense request details" : "Submit an expense request for approval"}</p>
         </div>
 
         <FundingAvailability
