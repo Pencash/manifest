@@ -130,8 +130,7 @@ export default function ExpenseRequest() {
       const requestTimestamp = new Date(requestDate);
       requestTimestamp.setHours(12, 0, 0, 0);
 
-      const insertPayload: Record<string, unknown> = {
-        requester_id: user.id,
+      const payload: Record<string, unknown> = {
         category_id: formData.category_id,
         service_id: formData.service_id || null,
         amount: parseFloat(formData.amount),
@@ -142,16 +141,21 @@ export default function ExpenseRequest() {
         status: isDraft ? "draft" : "pending",
       };
 
-      if (currentRole === "finance") {
-        insertPayload.created_at = requestTimestamp.toISOString();
+      if (isEditMode && editId) {
+        const { error } = await supabase.from("expense_requests").update(payload as any).eq("id", editId);
+        if (error) throw error;
+        toast.success("Expense request updated successfully");
+        navigate(`/admin/expenses/${editId}`);
+      } else {
+        payload.requester_id = user.id;
+        if (currentRole === "finance") {
+          payload.created_at = requestTimestamp.toISOString();
+        }
+        const { error } = await supabase.from("expense_requests").insert(payload as any);
+        if (error) throw error;
+        toast.success(isDraft ? "Draft saved successfully" : "Expense request submitted for approval");
+        navigate("/admin/expenses/all");
       }
-
-      const { error } = await supabase.from("expense_requests").insert(insertPayload as any);
-
-      if (error) throw error;
-
-      toast.success(isDraft ? "Draft saved successfully" : "Expense request submitted for approval");
-      navigate("/admin/expenses/all");
     } catch (error: any) {
       toast.error(error.message || "Failed to submit request");
       console.error(error);
