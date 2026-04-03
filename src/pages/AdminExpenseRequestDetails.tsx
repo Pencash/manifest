@@ -62,9 +62,13 @@ export default function AdminExpenseRequestDetails() {
     postedTotal, requestedAmount, remainingBalance,
     paymentProgress, derivedPaymentStatus,
     latestPostedPayment, canManagePayments, canRecordPayment,
+    canEditOrDelete,
     checkAuthAndLoad, loadExpenseDetail,
     recordPayment, voidPayment, openReceipt,
+    deleteExpense,
   } = useExpenseRequestDetail(expenseId);
+
+  const [deleting, setDeleting] = useState(false);
 
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
