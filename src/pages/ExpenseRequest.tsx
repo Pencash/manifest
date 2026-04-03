@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import FundingAvailability from "@/components/FundingAvailability";
@@ -25,6 +25,10 @@ interface ExpenseCategory {
 
 export default function ExpenseRequest() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+  const isEditMode = Boolean(editId);
+
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -73,20 +77,37 @@ export default function ExpenseRequest() {
 
   const loadData = async () => {
     try {
-      const [categoriesRes, servicesRes] = await Promise.all([
+      const [categoriesRes] = await Promise.all([
         supabase.from("expense_categories").select("id, name, code").eq("is_active", true).order("name"),
-        supabase
-          .from("services")
-          .select("id, name, service_date")
-          .eq("is_published", true)
-          .order("service_date", { ascending: false })
-          .limit(20),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
-      if (servicesRes.error) throw servicesRes.error;
-
       setCategories(categoriesRes.data || []);
+
+      // Load existing expense data if in edit mode
+      if (editId) {
+        const { data: expenseData, error: expenseError } = await supabase
+          .from("expense_requests")
+          .select("*")
+          .eq("id", editId)
+          .single();
+
+        if (expenseError) throw expenseError;
+        if (expenseData) {
+          setFormData({
+            category_id: expenseData.category_id,
+            service_id: expenseData.service_id || "",
+            amount: String(expenseData.amount),
+            description: expenseData.description,
+            justification: expenseData.justification,
+            priority: expenseData.priority,
+          });
+          if (expenseData.due_date) {
+            setDueDate(new Date(expenseData.due_date));
+          }
+          setRequestDate(new Date(expenseData.created_at));
+        }
+      }
     } catch (error: any) {
       toast.error("Failed to load form data");
       console.error(error);
@@ -109,8 +130,7 @@ export default function ExpenseRequest() {
       const requestTimestamp = new Date(requestDate);
       requestTimestamp.setHours(12, 0, 0, 0);
 
-      const insertPayload: Record<string, unknown> = {
-        requester_id: user.id,
+      const payload: Record<string, unknown> = {
         category_id: formData.category_id,
         service_id: formData.service_id || null,
         amount: parseFloat(formData.amount),
@@ -121,16 +141,21 @@ export default function ExpenseRequest() {
         status: isDraft ? "draft" : "pending",
       };
 
-      if (currentRole === "finance") {
-        insertPayload.created_at = requestTimestamp.toISOString();
+      if (isEditMode && editId) {
+        const { error } = await supabase.from("expense_requests").update(payload as any).eq("id", editId);
+        if (error) throw error;
+        toast.success("Expense request updated successfully");
+        navigate(`/admin/expenses/${editId}`);
+      } else {
+        payload.requester_id = user.id;
+        if (currentRole === "finance") {
+          payload.created_at = requestTimestamp.toISOString();
+        }
+        const { error } = await supabase.from("expense_requests").insert(payload as any);
+        if (error) throw error;
+        toast.success(isDraft ? "Draft saved successfully" : "Expense request submitted for approval");
+        navigate("/admin/expenses/all");
       }
-
-      const { error } = await supabase.from("expense_requests").insert(insertPayload as any);
-
-      if (error) throw error;
-
-      toast.success(isDraft ? "Draft saved successfully" : "Expense request submitted for approval");
-      navigate("/admin/expenses/all");
     } catch (error: any) {
       toast.error(error.message || "Failed to submit request");
       console.error(error);
@@ -154,8 +179,8 @@ export default function ExpenseRequest() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">New Expense Request</h1>
-          <p className="text-muted-foreground">Submit an expense request for approval</p>
+          <h1 className="text-3xl font-bold text-foreground">{isEditMode ? "Edit Expense Request" : "New Expense Request"}</h1>
+          <p className="text-muted-foreground">{isEditMode ? "Update the expense request details" : "Submit an expense request for approval"}</p>
         </div>
 
         <FundingAvailability

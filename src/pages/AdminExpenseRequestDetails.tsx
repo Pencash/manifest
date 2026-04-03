@@ -3,11 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CalendarDays,
+  Edit,
   FileClock,
   FolderOpen,
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   Wallet,
 } from "lucide-react";
 
@@ -28,6 +30,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/expense/EmptyState";
@@ -49,9 +62,13 @@ export default function AdminExpenseRequestDetails() {
     postedTotal, requestedAmount, remainingBalance,
     paymentProgress, derivedPaymentStatus,
     latestPostedPayment, canManagePayments, canRecordPayment,
+    canEditOrDelete,
     checkAuthAndLoad, loadExpenseDetail,
     recordPayment, voidPayment, openReceipt,
+    deleteExpense,
   } = useExpenseRequestDetail(expenseId);
+
+  const [deleting, setDeleting] = useState(false);
 
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
@@ -126,6 +143,19 @@ export default function AdminExpenseRequestDetails() {
     }
   };
 
+  const handleDeleteExpense = async () => {
+    try {
+      setDeleting(true);
+      await deleteExpense();
+      toast.success("Expense request deleted successfully.");
+      navigate("/admin/expenses/all");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete expense request");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
@@ -182,6 +212,36 @@ export default function AdminExpenseRequestDetails() {
               <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
               Refresh
             </Button>
+            {canEditOrDelete && (
+              <>
+                <Button variant="outline" onClick={() => navigate(`/admin/expenses/request?edit=${expense.id}`)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" disabled={deleting}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {deleting ? "Deleting..." : "Delete"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete expense request?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete request {expense.request_number || "this draft"}. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => void handleDeleteExpense()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
             {canRecordPayment && (
               <Button onClick={handleOpenRecordDialog}>
                 <Wallet className="mr-2 h-4 w-4" />
