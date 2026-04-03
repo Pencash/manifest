@@ -61,6 +61,9 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
   );
   const canManagePayments = role === "admin" || role === "finance";
   const canRecordPayment = Boolean(expense && canManagePayments && ["approved", "partially_paid"].includes(expense.status));
+  const canEditOrDelete = Boolean(
+    expense && canManagePayments && !["approved", "partially_paid", "paid"].includes(expense.status),
+  );
 
   const loadExpenseDetail = useCallback(async () => {
     if (!expenseId) return;
