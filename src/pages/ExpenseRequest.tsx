@@ -77,20 +77,37 @@ export default function ExpenseRequest() {
 
   const loadData = async () => {
     try {
-      const [categoriesRes, servicesRes] = await Promise.all([
+      const [categoriesRes] = await Promise.all([
         supabase.from("expense_categories").select("id, name, code").eq("is_active", true).order("name"),
-        supabase
-          .from("services")
-          .select("id, name, service_date")
-          .eq("is_published", true)
-          .order("service_date", { ascending: false })
-          .limit(20),
       ]);
 
       if (categoriesRes.error) throw categoriesRes.error;
-      if (servicesRes.error) throw servicesRes.error;
-
       setCategories(categoriesRes.data || []);
+
+      // Load existing expense data if in edit mode
+      if (editId) {
+        const { data: expenseData, error: expenseError } = await supabase
+          .from("expense_requests")
+          .select("*")
+          .eq("id", editId)
+          .single();
+
+        if (expenseError) throw expenseError;
+        if (expenseData) {
+          setFormData({
+            category_id: expenseData.category_id,
+            service_id: expenseData.service_id || "",
+            amount: String(expenseData.amount),
+            description: expenseData.description,
+            justification: expenseData.justification,
+            priority: expenseData.priority,
+          });
+          if (expenseData.due_date) {
+            setDueDate(new Date(expenseData.due_date));
+          }
+          setRequestDate(new Date(expenseData.created_at));
+        }
+      }
     } catch (error: any) {
       toast.error("Failed to load form data");
       console.error(error);
