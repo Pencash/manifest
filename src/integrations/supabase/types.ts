@@ -352,6 +352,56 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          expense_request_id: string
+          id: string
+          notes: string | null
+          payee_name: string | null
+          payment_date: string
+          payment_method: string
+          payment_reference: string | null
+          recorded_by: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expense_request_id: string
+          id?: string
+          notes?: string | null
+          payee_name?: string | null
+          payment_date?: string
+          payment_method: string
+          payment_reference?: string | null
+          recorded_by: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expense_request_id?: string
+          id?: string
+          notes?: string | null
+          payee_name?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_reference?: string | null
+          recorded_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_payments_expense_request_id_fkey"
+            columns: ["expense_request_id"]
+            isOneToOne: false
+            referencedRelation: "expense_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_receipts: {
         Row: {
           expense_request_id: string
