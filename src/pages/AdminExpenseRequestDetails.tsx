@@ -143,6 +143,19 @@ export default function AdminExpenseRequestDetails() {
     }
   };
 
+  const handleDeleteExpense = async () => {
+    try {
+      setDeleting(true);
+      await deleteExpense();
+      toast.success("Expense request deleted successfully.");
+      navigate("/admin/expenses/all");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete expense request");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
