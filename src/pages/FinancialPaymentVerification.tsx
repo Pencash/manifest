@@ -135,7 +135,7 @@ export default function FinancialPaymentVerification() {
   };
 
   const exportToExcel = () => {
-    const exportData = givings.map((g) => ({
+    const exportData = filteredGivings.map((g) => ({
       Date: format(new Date(g.created_at), "yyyy-MM-dd HH:mm"),
       Giver: g.profiles.full_name,
       Type: g.giving_types.name,
