@@ -27,7 +27,28 @@ export default function FinancialPaymentVerification() {
   const { currentUserId, currentRole, loading: authLoading } = useGivingsAuth();
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState("all");
+  const [filterGivingType, setFilterGivingType] = useState("all");
+  const [searchGiver, setSearchGiver] = useState("");
   const { givings, loading, stats, loadGivings } = useGivingsList(filterStatus, filterPaymentMethod);
+
+  // Client-side filters for giving type and giver name
+  const filteredGivings = useMemo(() => {
+    let result = givings;
+    if (filterGivingType !== "all") {
+      result = result.filter((g) => g.giving_types.name.toLowerCase() === filterGivingType.toLowerCase());
+    }
+    if (searchGiver.trim()) {
+      const term = searchGiver.trim().toLowerCase();
+      result = result.filter((g) => g.profiles.full_name.toLowerCase().includes(term));
+    }
+    return result;
+  }, [givings, filterGivingType, searchGiver]);
+
+  // Unique giving type names for the dropdown
+  const givingTypeOptions = useMemo(() => {
+    const names = new Set(givings.map((g) => g.giving_types.name));
+    return Array.from(names).sort();
+  }, [givings]);
 
   const [selectedGivings, setSelectedGivings] = useState<string[]>([]);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
