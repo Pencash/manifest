@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { AlertCircle, Banknote, Check, Copy, Download, Pencil, Smartphone, Trash2, Wallet, X } from "lucide-react";
+import { AlertCircle, Banknote, Check, Copy, Download, Pencil, Search, Smartphone, Trash2, Wallet, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { formatAmount } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   type Giving,
@@ -26,7 +27,28 @@ export default function FinancialPaymentVerification() {
   const { currentUserId, currentRole, loading: authLoading } = useGivingsAuth();
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState("all");
+  const [filterGivingType, setFilterGivingType] = useState("all");
+  const [searchGiver, setSearchGiver] = useState("");
   const { givings, loading, stats, loadGivings } = useGivingsList(filterStatus, filterPaymentMethod);
+
+  // Client-side filters for giving type and giver name
+  const filteredGivings = useMemo(() => {
+    let result = givings;
+    if (filterGivingType !== "all") {
+      result = result.filter((g) => g.giving_types.name.toLowerCase() === filterGivingType.toLowerCase());
+    }
+    if (searchGiver.trim()) {
+      const term = searchGiver.trim().toLowerCase();
+      result = result.filter((g) => g.profiles.full_name.toLowerCase().includes(term));
+    }
+    return result;
+  }, [givings, filterGivingType, searchGiver]);
+
+  // Unique giving type names for the dropdown
+  const givingTypeOptions = useMemo(() => {
+    const names = new Set(givings.map((g) => g.giving_types.name));
+    return Array.from(names).sort();
+  }, [givings]);
 
   const [selectedGivings, setSelectedGivings] = useState<string[]>([]);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -48,7 +70,7 @@ export default function FinancialPaymentVerification() {
     giving.requires_admin_verification &&
     giving.status === "pending";
 
-  const verifiablePendingGivings = givings.filter(canVerifyPendingGiving);
+  const verifiablePendingGivings = filteredGivings.filter(canVerifyPendingGiving);
 
   const handleVerifyPayment = async (givingIds: string[]) => {
     const allowedIds = givingIds.filter((id) => {
@@ -113,7 +135,7 @@ export default function FinancialPaymentVerification() {
   };
 
   const exportToExcel = () => {
-    const exportData = givings.map((g) => ({
+    const exportData = filteredGivings.map((g) => ({
       Date: format(new Date(g.created_at), "yyyy-MM-dd HH:mm"),
       Giver: g.profiles.full_name,
       Type: g.giving_types.name,
@@ -155,9 +177,9 @@ export default function FinancialPaymentVerification() {
 
       <Card>
         <CardHeader>
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -166,7 +188,7 @@ export default function FinancialPaymentVerification() {
               </SelectContent>
             </Select>
             <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
-              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="mobile_money">Mobile Money</SelectItem>
@@ -174,6 +196,24 @@ export default function FinancialPaymentVerification() {
                 <SelectItem value="cash">Cash</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterGivingType} onValueChange={setFilterGivingType}>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {givingTypeOptions.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative w-full sm:w-48">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search giver..."
+                value={searchGiver}
+                onChange={(e) => setSearchGiver(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             {selectedGivings.length > 0 && (
               <Button onClick={() => handleVerifyPayment(selectedGivings)} className="bg-green-600"><Check className="mr-2 h-4 w-4" />Verify {selectedGivings.length}</Button>
             )}
@@ -195,7 +235,7 @@ export default function FinancialPaymentVerification() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {givings.map((giving) => {
+              {filteredGivings.map((giving) => {
                 const canVerify = canVerifyPendingGiving(giving);
                 const canManageOffline = canManagePendingFinanceOfflineGiving(giving);
                 return (
