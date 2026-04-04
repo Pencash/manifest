@@ -177,9 +177,9 @@ export default function FinancialPaymentVerification() {
 
       <Card>
         <CardHeader>
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -188,7 +188,7 @@ export default function FinancialPaymentVerification() {
               </SelectContent>
             </Select>
             <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
-              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="mobile_money">Mobile Money</SelectItem>
@@ -196,6 +196,24 @@ export default function FinancialPaymentVerification() {
                 <SelectItem value="cash">Cash</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterGivingType} onValueChange={setFilterGivingType}>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {givingTypeOptions.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative w-full sm:w-48">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search giver..."
+                value={searchGiver}
+                onChange={(e) => setSearchGiver(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             {selectedGivings.length > 0 && (
               <Button onClick={() => handleVerifyPayment(selectedGivings)} className="bg-green-600"><Check className="mr-2 h-4 w-4" />Verify {selectedGivings.length}</Button>
             )}
