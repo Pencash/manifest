@@ -70,7 +70,7 @@ export default function FinancialPaymentVerification() {
     giving.requires_admin_verification &&
     giving.status === "pending";
 
-  const verifiablePendingGivings = givings.filter(canVerifyPendingGiving);
+  const verifiablePendingGivings = filteredGivings.filter(canVerifyPendingGiving);
 
   const handleVerifyPayment = async (givingIds: string[]) => {
     const allowedIds = givingIds.filter((id) => {
