@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { AlertCircle, Banknote, Check, Copy, Download, Pencil, Smartphone, Trash2, Wallet, X } from "lucide-react";
+import { AlertCircle, Banknote, Check, Copy, Download, Pencil, Search, Smartphone, Trash2, Wallet, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { formatAmount } from "@/lib/utils";
