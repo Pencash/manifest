@@ -235,7 +235,7 @@ export default function FinancialPaymentVerification() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {givings.map((giving) => {
+              {filteredGivings.map((giving) => {
                 const canVerify = canVerifyPendingGiving(giving);
                 const canManageOffline = canManagePendingFinanceOfflineGiving(giving);
                 return (
