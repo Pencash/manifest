@@ -318,11 +318,11 @@ export default function ExpenseRequest() {
                           selected={requestDate}
                           onSelect={(date) => date && setRequestDate(date)}
                           disabled={(date) => date > new Date()}
-                          captionLayout="dropdown-buttons"
+                          captionLayout="dropdown"
                           fromYear={new Date().getFullYear() - 10}
                           toYear={new Date().getFullYear()}
                           initialFocus
-                          className="p-4 pointer-events-auto"
+                          className="p-3 pointer-events-auto"
                         />
                       </PopoverContent>
                     </Popover>
