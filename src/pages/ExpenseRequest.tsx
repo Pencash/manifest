@@ -24,7 +24,8 @@ interface ExpenseCategory {
   code: string;
 }
 
-const REQUEST_NARRATIVE_WORD_LIMIT = 10;
+const DESCRIPTION_WORD_LIMIT = 10;
+const JUSTIFICATION_CHAR_LIMIT = 2000;
 
 const countWords = (value: string) => {
   const trimmed = value.trim();
