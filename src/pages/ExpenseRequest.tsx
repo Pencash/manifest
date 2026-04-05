@@ -16,12 +16,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess, type AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useFundingAvailability } from "@/hooks/useFundingAvailability";
 
 interface ExpenseCategory {
   id: string;
   name: string;
   code: string;
 }
+
+const REQUEST_NARRATIVE_WORD_LIMIT = 10;
+const JUSTIFICATION_CHAR_LIMIT = 2000;
+
+const countWords = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+};
 
 export default function ExpenseRequest() {
   const navigate = useNavigate();
@@ -44,6 +54,17 @@ export default function ExpenseRequest() {
     justification: "",
     priority: "medium",
   });
+  const requestedAmount = Number.parseFloat(formData.amount) || 0;
+  const descriptionWordCount = countWords(formData.description);
+  const {
+    data: fundingData,
+    isLoading: isFundingLoading,
+  } = useFundingAvailability({
+    selectedCategoryId: formData.category_id || undefined,
+    selectedServiceId: formData.service_id || undefined,
+  });
+  const availableFunds = fundingData?.availableFunds ?? 0;
+  const hasSufficientFunding = requestedAmount <= 0 || availableFunds >= requestedAmount;
 
   useEffect(() => {
     checkAuth();
@@ -118,6 +139,26 @@ export default function ExpenseRequest() {
 
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean) => {
     e.preventDefault();
+
+    if (descriptionWordCount > REQUEST_NARRATIVE_WORD_LIMIT) {
+      toast.error(`Request narrative must not exceed ${REQUEST_NARRATIVE_WORD_LIMIT} words.`);
+      return;
+    }
+
+    if (!isDraft) {
+      if (isFundingLoading) {
+        toast.error("Funding availability is still loading. Please wait and try again.");
+        return;
+      }
+
+      if (!hasSufficientFunding) {
+        toast.error(
+          `Insufficient funds available for this request. Available: MWK ${availableFunds.toLocaleString()}.`
+        );
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -186,7 +227,7 @@ export default function ExpenseRequest() {
         <FundingAvailability
           selectedCategoryId={formData.category_id}
           selectedServiceId={formData.service_id}
-          requestedAmount={parseFloat(formData.amount) || 0}
+          requestedAmount={requestedAmount}
         />
 
         <Card>
@@ -313,13 +354,19 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 2000) })}
-                  placeholder="What is being purchased?"
-                  maxLength={2000}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    if (countWords(nextValue) <= REQUEST_NARRATIVE_WORD_LIMIT) {
+                      setFormData({ ...formData, description: nextValue });
+                    }
+                  }}
+                  placeholder="What is being purchased? (10 words max)"
                   rows={3}
                   required
                 />
-                <p className="text-xs text-muted-foreground text-right">{formData.description.length}/2000</p>
+                <p className="text-xs text-muted-foreground text-right">
+                  {descriptionWordCount}/{REQUEST_NARRATIVE_WORD_LIMIT} words
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -327,23 +374,34 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="justification"
                   value={formData.justification}
-                  onChange={(e) => setFormData({ ...formData, justification: e.target.value.slice(0, 2000) })}
+                  onChange={(e) => setFormData({ ...formData, justification: e.target.value.slice(0, JUSTIFICATION_CHAR_LIMIT) })}
                   placeholder="Why is this expense needed?"
-                  maxLength={2000}
+                  maxLength={JUSTIFICATION_CHAR_LIMIT}
                   rows={3}
                   required
                 />
-                <p className="text-xs text-muted-foreground text-right">{formData.justification.length}/2000</p>
+                <p className="text-xs text-muted-foreground text-right">
+                  {formData.justification.length}/{JUSTIFICATION_CHAR_LIMIT}
+                </p>
               </div>
 
               <div className="flex gap-4 pt-4">
                 <Button type="button" variant="outline" onClick={(e) => handleSubmit(e as any, true)} disabled={submitting}>
                   Save as Draft
                 </Button>
-                <Button type="submit" disabled={submitting} className="flex-1">
+                <Button
+                  type="submit"
+                  disabled={submitting || isFundingLoading || !hasSufficientFunding}
+                  className="flex-1"
+                >
                   {submitting ? "Submitting..." : "Submit for Approval"}
                 </Button>
               </div>
+              {!hasSufficientFunding && requestedAmount > 0 && (
+                <p className="text-sm text-destructive">
+                  This request cannot be raised because available funds are insufficient.
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
