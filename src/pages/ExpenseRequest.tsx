@@ -55,7 +55,7 @@ export default function ExpenseRequest() {
     priority: "medium",
   });
   const requestedAmount = Number.parseFloat(formData.amount) || 0;
-  const justificationWordCount = countWords(formData.justification);
+  const descriptionWordCount = countWords(formData.description);
   const {
     data: fundingData,
     isLoading: isFundingLoading,
