@@ -140,8 +140,8 @@ export default function ExpenseRequest() {
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean) => {
     e.preventDefault();
 
-    if (justificationWordCount > REQUEST_NARRATIVE_WORD_LIMIT) {
-      toast.error(`Request narrative must not exceed ${REQUEST_NARRATIVE_WORD_LIMIT} words.`);
+    if (descriptionWordCount > DESCRIPTION_WORD_LIMIT) {
+      toast.error(`Description must not exceed ${DESCRIPTION_WORD_LIMIT} words.`);
       return;
     }
 
@@ -354,13 +354,19 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value.slice(0, 2000) })}
-                  placeholder="What is being purchased?"
-                  maxLength={2000}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    if (countWords(nextValue) <= DESCRIPTION_WORD_LIMIT) {
+                      setFormData({ ...formData, description: nextValue });
+                    }
+                  }}
+                  placeholder="What is being purchased? (10 words max)"
                   rows={3}
                   required
                 />
-                <p className="text-xs text-muted-foreground text-right">{formData.description.length}/2000</p>
+                <p className="text-xs text-muted-foreground text-right">
+                  {descriptionWordCount}/{DESCRIPTION_WORD_LIMIT} words
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -368,18 +374,14 @@ export default function ExpenseRequest() {
                 <Textarea
                   id="justification"
                   value={formData.justification}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    if (countWords(nextValue) <= REQUEST_NARRATIVE_WORD_LIMIT) {
-                      setFormData({ ...formData, justification: nextValue });
-                    }
-                  }}
-                  placeholder="Why is this expense needed? (10 words max)"
+                  onChange={(e) => setFormData({ ...formData, justification: e.target.value.slice(0, JUSTIFICATION_CHAR_LIMIT) })}
+                  placeholder="Why is this expense needed?"
+                  maxLength={JUSTIFICATION_CHAR_LIMIT}
                   rows={3}
                   required
                 />
                 <p className="text-xs text-muted-foreground text-right">
-                  {justificationWordCount}/{REQUEST_NARRATIVE_WORD_LIMIT} words
+                  {formData.justification.length}/{JUSTIFICATION_CHAR_LIMIT}
                 </p>
               </div>
 
