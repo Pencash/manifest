@@ -156,4 +156,26 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Premium elevated card with layered shadows and hover lift */
+  .card-elevated {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 4px 8px rgb(0 0 0 / 0.06),
+      0 12px 24px rgb(0 0 0 / 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-elevated:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgb(0 0 0 / 0.04),
+      0 8px 16px rgb(0 0 0 / 0.08),
+      0 20px 40px rgb(0 0 0 / 0.08);
+  }
+
+  /* Glassy icon container */
+  .icon-container-glass {
+    backdrop-filter: blur(4px);
+    border: 1px solid rgb(255 255 255 / 0.15);
+  }
 }

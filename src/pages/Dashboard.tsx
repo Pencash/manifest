@@ -207,17 +207,18 @@ const Dashboard = () => {
           {stats.map((stat) => (
             <Card
               key={stat.label}
-              className="bg-card border-border hover:border-accent/20 transition-colors duration-300 cursor-pointer group"
+              className="bg-card border-none card-elevated cursor-pointer group"
               onClick={() => navigate(stat.path)}
             >
               <CardContent className="p-4 sm:p-5">
                 <div className="flex items-start justify-between mb-2 sm:mb-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl icon-container-glass flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
                     <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.color}`} />
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="stat-number text-lg sm:text-2xl text-foreground mb-0.5 sm:mb-1 truncate">{stat.value}</div>
+                <div className="stat-number text-xl sm:text-3xl text-foreground mb-0.5 sm:mb-1 truncate">{stat.value}</div>
+                <div className="w-8 h-0.5 rounded-full bg-accent/40 mb-1" />
                 <div className="text-muted-foreground text-xs sm:text-sm font-sans">{stat.label}</div>
               </CardContent>
             </Card>
@@ -256,12 +257,12 @@ const Dashboard = () => {
             ].map((action) => (
               <Card
                 key={action.title}
-                className="group bg-card border-border hover:border-accent/20 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300 cursor-pointer"
+                className="group bg-card border-none card-elevated cursor-pointer"
                 onClick={() => navigate(action.path)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <div className="w-12 h-12 rounded-xl icon-container-glass bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                       <action.icon className={`h-6 w-6 ${action.iconColor}`} />
                     </div>
                     <div className="flex-1">

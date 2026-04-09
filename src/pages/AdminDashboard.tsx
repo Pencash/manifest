@@ -299,11 +299,11 @@ const AdminDashboard = () => {
   const activityFundingUtilization = metrics.eligibleActivityGivings > 0 ? (metrics.fundedExpenses / metrics.eligibleActivityGivings) * 100 : 0;
 
   const statCards = [
-    { label: "Total Givings", value: formatAmount(metrics.totalGivings), sub: "vs previous period", icon: DollarSign, color: "hsl(var(--sage))", trend },
-    { label: "Active Members", value: metrics.activeMembers.toString(), sub: `${metrics.newMembers} new this period`, icon: Users, color: "hsl(var(--gold))" },
-    { label: "Pending Approvals", value: totalPending.toString(), sub: `${metrics.pendingGivings} givings, ${metrics.pendingExpenses} expenses`, icon: AlertCircle, color: "hsl(var(--terracotta))" },
-    { label: "Total Attendance", value: metrics.totalAttendance.toString(), sub: `Avg: ${metrics.avgAttendance}/service`, icon: Calendar, color: "hsl(var(--navy-light))" },
-    { label: "Engagement", value: (metrics.testimonies + metrics.prayers).toString(), sub: `${metrics.testimonies} testimonies, ${metrics.prayers} prayers`, icon: MessageSquare, color: "hsl(var(--gold-dark))" },
+    { label: "Total Givings", value: formatAmount(metrics.totalGivings), sub: "vs previous period", icon: DollarSign, color: "hsl(var(--sage))", trend, link: "/admin/reports/financial", linkLabel: "View reports ›" },
+    { label: "Active Members", value: metrics.activeMembers.toString(), sub: `${metrics.newMembers} new this period`, icon: Users, color: "hsl(var(--gold))", link: "/admin/users", linkLabel: "Manage members ›" },
+    { label: "Pending Approvals", value: totalPending.toString(), sub: `${metrics.pendingGivings} givings, ${metrics.pendingExpenses} expenses`, icon: AlertCircle, color: "hsl(var(--terracotta))", link: "/admin/expenses/pending", linkLabel: "Review now ›" },
+    { label: "Total Attendance", value: metrics.totalAttendance.toString(), sub: `Avg: ${metrics.avgAttendance}/service`, icon: Calendar, color: "hsl(var(--navy-light))", link: "/admin/reports/attendance", linkLabel: "View trends ›" },
+    { label: "Engagement", value: (metrics.testimonies + metrics.prayers).toString(), sub: `${metrics.testimonies} testimonies, ${metrics.prayers} prayers`, icon: MessageSquare, color: "hsl(var(--gold-dark))", link: "/admin/reports/financial", linkLabel: "View details ›" },
   ];
 
   const periodButtons: { label: string; value: TimePeriod }[] = [
@@ -378,12 +378,12 @@ const AdminDashboard = () => {
           const Icon = card.icon;
           return (
             <motion.div key={card.label} custom={i} variants={fadeUp} initial="hidden" animate="visible">
-              <Card className="relative overflow-hidden border-none shadow-md hover:shadow-lg transition-shadow bg-card">
-                <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: card.color }} />
+              <Card className="relative overflow-hidden border-none card-elevated bg-card cursor-pointer group" onClick={() => navigate(card.link)}>
+                <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: card.color }} />
                 <CardHeader className="pb-2 pl-5">
                   <div className="flex items-center justify-between">
-                    <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${card.color}15` }}>
-                      <Icon className="h-4 w-4" style={{ color: card.color }} />
+                    <div className="h-10 w-10 rounded-xl icon-container-glass flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${card.color}20, ${card.color}08)` }}>
+                      <Icon className="h-5 w-5" style={{ color: card.color }} />
                     </div>
                     {card.trend && card.trend.direction !== "neutral" && (
                       <span className={`flex items-center gap-0.5 text-xs font-semibold ${card.trend.direction === "up" ? "text-sage" : "text-destructive"}`}>
@@ -393,10 +393,11 @@ const AdminDashboard = () => {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pl-5">
+                <CardContent className="pl-5 pb-4">
                   <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
                   <p className="text-2xl font-mono font-bold text-foreground tracking-tight mt-0.5">{card.value}</p>
                   <p className="text-[0.65rem] text-muted-foreground mt-1">{card.sub}</p>
+                  <p className="text-xs font-medium mt-2 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: card.color }}>{card.linkLabel}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -414,19 +415,19 @@ const AdminDashboard = () => {
             <CardDescription>Funds available for Manifest activities are based on verified givings excluding first fruits, tithes, seed, and pledges.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="rounded-xl border bg-sage/5 p-4">
               <p className="text-xs text-muted-foreground">Eligible Givings</p>
-              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.eligibleActivityGivings)}</p>
+              <p className="text-xl font-mono font-bold mt-1 text-foreground">{formatAmount(metrics.eligibleActivityGivings)}</p>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="rounded-xl border bg-muted/40 p-4">
               <p className="text-xs text-muted-foreground">Restricted Givings (Excluded)</p>
-              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.restrictedGivings)}</p>
+              <p className="text-xl font-mono font-bold mt-1 text-muted-foreground">{formatAmount(metrics.restrictedGivings)}</p>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="rounded-xl border bg-accent/5 p-4">
               <p className="text-xs text-muted-foreground">Funded Expenses</p>
-              <p className="text-xl font-mono font-bold mt-1">{formatAmount(metrics.fundedExpenses)}</p>
+              <p className="text-xl font-mono font-bold mt-1 text-foreground">{formatAmount(metrics.fundedExpenses)}</p>
             </div>
-            <div className="rounded-lg border bg-primary/5 p-4">
+            <div className="rounded-xl border bg-primary/5 p-4 ring-1 ring-primary/10">
               <p className="text-xs text-muted-foreground">Funds Available for Activities</p>
               <p className={`text-xl font-mono font-bold mt-1 ${metrics.activitySupportFunds < 0 ? "text-destructive" : "text-primary"}`}>
                 {formatAmount(metrics.activitySupportFunds)}
