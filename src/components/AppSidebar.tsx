@@ -59,7 +59,7 @@ export function AppSidebar() {
       const { data: pendingServices } = await supabase.from("services").select("id").eq("approval_status", "pending_admin_approval");
 
       const updatedItems = adminNavItems.map(item => {
-        if (item.path === "/admin/givings") return { ...item, notificationCount: pendingGivingsCount || 0 };
+        if (item.path === "/admin/financial/verification") return { ...item, notificationCount: pendingGivingsCount || 0 };
         if (item.path === "/admin/expenses/pending") return { ...item, notificationCount: pendingExpensesCount || 0 };
         if (item.path === "/admin/pending-services") return { ...item, notificationCount: pendingServices?.length || 0 };
         return item;
