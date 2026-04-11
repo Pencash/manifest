@@ -20,11 +20,6 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
-        },
-      },
     );
 
     const { data: isAdmin, error: roleError } = await supabaseClient.rpc("has_role", {
