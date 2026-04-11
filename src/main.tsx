@@ -1,3 +1,8 @@
+// Auto-reload on stale chunk errors (after new deployments)
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
+});
+
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
