@@ -1,51 +1,33 @@
 
 
-## Plan: Elevate Dashboard UI to Premium Quality
+## Plan: Fix "Importing a module script failed" Error
 
-Inspired by the reference screenshot (PayMeGPT dashboard), the goal is to make cards feel more three-dimensional, metrics more scannable, and navigation links more actionable — while keeping the existing Devotional Modernism brand (navy, gold, ivory).
+### Root cause
+
+This is a **stale deployment chunk** issue. When Vite rebuilds the app, it generates new chunk filenames (e.g., `AdminGivings-abc123.js`). If a user's browser has the old `index.html` cached, clicking a lazy-loaded route tries to fetch a chunk filename that no longer exists on the server, causing "Importing a module script failed."
+
+This is especially common with `React.lazy()` routes — the user loads the app, a new deployment happens (or the browser has stale cache), and clicking a not-yet-loaded route fails.
 
 ### What changes
 
-**1. Card elevation and depth (both dashboards)**
-- Add subtle inner glow/gradient borders and stronger shadow layers to stat cards so they "pop" off the background
-- Use a faint colored top-border or left-border accent per card (already partially done on admin; refine with softer gradients)
-- Add a subtle background gradient on stat icon containers (instead of flat `bg-muted`) for a glassy, 3D feel
-- Slightly increase card border-radius for a more modern look
+1. **Add a global chunk load error handler** in `src/main.tsx` that detects module import failures and automatically reloads the page once (to fetch the new HTML with correct chunk references)
 
-**2. Admin Dashboard stat cards — add actionable links**
-- Each stat card gets a clickable link at the bottom (e.g., "Total Givings" → "View reports ›", "Active Members" → "Manage members ›", "Pending Approvals" → "Review now ›")
-- Matches the reference pattern where each metric card has a drill-down link
-
-**3. Member Dashboard stat cards — enhance visual weight**
-- Make the stat number larger and bolder with the mono font
-- Add a subtle colored underline or accent bar below the number
-- Ensure the icon container has a gradient background matching the card's accent color
-
-**4. Global card component upgrade**
-- Update `src/components/ui/card.tsx` default styles to include a slightly stronger shadow (`shadow-md` baseline) and smoother hover transitions
-- Add a new `.card-elevated` utility class in `index.css` for premium cards with layered box-shadows
-
-**5. Icon containers**
-- Replace flat `bg-muted` icon backgrounds with semi-transparent colored backgrounds matching each card's theme color (already done on admin, bring to member dashboard too)
-- Add a subtle border to icon containers for depth
-
-**6. Activity Support Funds section (admin)**
-- Add subtle background tinting to each sub-card (green for available, amber for funded, etc.) for faster visual scanning
-- Keep the mono font for numbers
+2. **Clean up stray file** — remove the root-level `AdminGivings.tsx` file that doesn't belong there (the real one is at `src/pages/AdminGivings.tsx`)
 
 ### Technical details
 
-**Files to modify:**
-- `src/index.css` — add `.card-elevated` utility with layered box-shadows and hover state
-- `src/components/ui/card.tsx` — upgrade default shadow from `shadow-sm` to `shadow-md`, add smooth hover transition
-- `src/pages/AdminDashboard.tsx` — add drill-down links to stat cards, refine icon container styling, add semantic background tints to the funds snapshot cards
-- `src/pages/Dashboard.tsx` — upgrade stat card styling with gradient icon backgrounds, larger numbers, and accent underlines
+**`src/main.tsx`** — Add a window error listener before `ReactDOM.createRoot`:
+```typescript
+window.addEventListener("vite:preloadError", () => {
+  window.location.reload();
+});
+```
 
-**No new dependencies.** All changes are CSS/Tailwind + minor JSX additions.
+Vite 5 emits a `vite:preloadError` event when a dynamic import fails due to missing chunks. Listening for this event and triggering a single reload fetches the updated HTML with correct chunk paths, resolving the error transparently.
 
-### What stays the same
-- Color palette (navy, gold, ivory, sage, terracotta)
-- Typography (DM Serif Display, Source Sans 3, JetBrains Mono)
-- Layout structure and data logic
-- Framer Motion animations
+**Root `AdminGivings.tsx`** — Delete this stray file (it's a duplicate of `src/pages/AdminGivings.tsx`).
+
+### Files to modify
+- `src/main.tsx` — add `vite:preloadError` handler
+- Delete `AdminGivings.tsx` (root level)
 
