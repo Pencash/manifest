@@ -66,9 +66,10 @@ const EventsManagement = () => {
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
   
-  // Delete confirmation state
+  // Delete/archive confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'archive' | 'permanent'>('archive');
   const [isDeleting, setIsDeleting] = useState(false);
   
   const navigate = useNavigate();
@@ -328,8 +329,15 @@ const EventsManagement = () => {
     setIsDialogOpen(true);
   };
 
-  const confirmDelete = (serviceId: string) => {
+  const confirmArchive = (serviceId: string) => {
     setDeletingServiceId(serviceId);
+    setDeleteMode('archive');
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmPermanentDelete = (serviceId: string) => {
+    setDeletingServiceId(serviceId);
+    setDeleteMode('permanent');
     setDeleteDialogOpen(true);
   };
 
@@ -338,25 +346,42 @@ const EventsManagement = () => {
 
     try {
       setIsDeleting(true);
-      // Soft delete: set deleted_at and is_archived instead of hard delete
-      const { error } = await supabase
-        .from("services")
-        .update({ 
-          deleted_at: new Date().toISOString(),
-          is_archived: true 
-        })
-        .eq('id', deletingServiceId);
 
-      if (error) throw error;
-      toast.success("Event archived successfully!");
-      await loadServices();
+      if (deleteMode === 'permanent') {
+        const { error } = await supabase
+          .from("services")
+          .delete()
+          .eq('id', deletingServiceId);
+
+        if (error) throw error;
+        toast.success("Event deleted permanently!");
+        await loadArchivedServices();
+      } else {
+        // Soft delete: set deleted_at and is_archived instead of hard delete
+        const { error } = await supabase
+          .from("services")
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            is_archived: true 
+          })
+          .eq('id', deletingServiceId);
+
+        if (error) throw error;
+        toast.success("Event archived successfully!");
+        await loadServices();
+      }
     } catch (error: any) {
-      console.error("Error archiving service:", error);
-      toast.error(error.message || "Failed to archive event");
+      console.error("Error deleting service:", error);
+      toast.error(
+        deleteMode === 'permanent'
+          ? error.message || "Failed to delete event. If it has linked attendance or giving records, archive it instead."
+          : error.message || "Failed to archive event"
+      );
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
       setDeletingServiceId(null);
+      setDeleteMode('archive');
     }
   };
 
@@ -649,63 +674,48 @@ const EventsManagement = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {getEventStatus(service.service_date) !== 'past' ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => navigate(`/admin/attendance/${service.id}`)}
-                          >
-                            <Users className="h-4 w-4 mr-1" />
-                            Log Attendance
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(service)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => confirmDelete(service.id)}
-                            disabled={isDeleting && deletingServiceId === service.id}
-                          >
-                            {isDeleting && deletingServiceId === service.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Archive className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => {
-                              setRescheduleServiceId(service.id);
-                              setRescheduleDate(new Date(service.service_date));
-                              setIsRescheduleDialogOpen(true);
-                            }}
-                          >
-                            <CalendarIcon className="h-4 w-4 mr-1" />
-                            Reschedule
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleArchive(service.id, true)}
-                          >
-                            <Archive className="h-4 w-4 mr-1" />
-                            Archive
-                          </Button>
-                        </>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 min-w-[9rem]"
+                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" />
+                        Log Attendance
+                      </Button>
+                      {getEventStatus(service.service_date) === 'past' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRescheduleServiceId(service.id);
+                            setRescheduleDate(new Date(service.service_date));
+                            setIsRescheduleDialogOpen(true);
+                          }}
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(service)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => confirmArchive(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
+                      >
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Archive className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -771,15 +781,41 @@ const EventsManagement = () => {
                         <span className="text-muted-foreground">attendees</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 min-w-[9rem]"
+                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" />
+                        Log Attendance
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(service)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleRestore(service.id)}
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Restore
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => confirmPermanentDelete(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
+                      >
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </CardContent>
@@ -993,13 +1029,15 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Archive Confirmation Dialog */}
+      {/* Archive/Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive Event</AlertDialogTitle>
+            <AlertDialogTitle>{deleteMode === 'permanent' ? 'Delete Event Permanently' : 'Archive Event'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive this event? The event and all attendance records will be preserved for historical reporting. You can restore it later from the Archived tab.
+              {deleteMode === 'permanent'
+                ? 'This will permanently remove the event. If it has linked attendance, giving, or mobilization records, deletion may fail; archive it instead when you need to preserve reporting history.'
+                : 'Are you sure you want to archive this event? The event and all attendance records will be preserved for historical reporting. You can restore it later from the Archived tab.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1011,7 +1049,12 @@ const EventsManagement = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Archiving...
+                  {deleteMode === 'permanent' ? 'Deleting...' : 'Archiving...'}
+                </>
+              ) : deleteMode === 'permanent' ? (
+                <>
+                  <Trash className="mr-2 h-4 w-4" />
+                  Delete Permanently
                 </>
               ) : (
                 <>

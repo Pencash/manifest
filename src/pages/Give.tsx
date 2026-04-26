@@ -180,7 +180,7 @@ const Give = () => {
           <CardHeader>
             <CardTitle className="text-2xl">Record a Giving</CardTitle>
             <CardDescription>
-              Record your tithes, offerings, and other contributions
+              Record your tithes, offerings, and other contributions, including giving linked to a past event
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -225,6 +225,9 @@ const Give = () => {
                       Selected: {selectedServiceName}
                     </p>
                   )}
+                  <p className="text-sm text-muted-foreground">
+                    You can select a past event or submit a missing event date for admin approval.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
