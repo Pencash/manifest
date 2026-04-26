@@ -674,63 +674,48 @@ const EventsManagement = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      {getEventStatus(service.service_date) !== 'past' ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => navigate(`/admin/attendance/${service.id}`)}
-                          >
-                            <Users className="h-4 w-4 mr-1" />
-                            Log Attendance
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(service)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => confirmDelete(service.id)}
-                            disabled={isDeleting && deletingServiceId === service.id}
-                          >
-                            {isDeleting && deletingServiceId === service.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Archive className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => {
-                              setRescheduleServiceId(service.id);
-                              setRescheduleDate(new Date(service.service_date));
-                              setIsRescheduleDialogOpen(true);
-                            }}
-                          >
-                            <CalendarIcon className="h-4 w-4 mr-1" />
-                            Reschedule
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleArchive(service.id, true)}
-                          >
-                            <Archive className="h-4 w-4 mr-1" />
-                            Archive
-                          </Button>
-                        </>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 min-w-[9rem]"
+                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" />
+                        Log Attendance
+                      </Button>
+                      {getEventStatus(service.service_date) === 'past' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRescheduleServiceId(service.id);
+                            setRescheduleDate(new Date(service.service_date));
+                            setIsRescheduleDialogOpen(true);
+                          }}
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(service)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => confirmArchive(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
+                      >
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Archive className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
