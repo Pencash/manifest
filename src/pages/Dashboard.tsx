@@ -275,33 +275,39 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={2}>
           <h3 className="heading-display text-xl text-foreground mb-4">Quick Actions</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                title: "Record a Giving",
-                description: "Submit your tithes and offerings",
-                icon: HandHeart,
-                buttonLabel: "Give Now",
-                iconColor: "text-accent",
-                path: "/give",
-              },
-              {
-                title: "Share a Testimony",
-                description: "Share your faith journey with the community",
-                icon: MessageSquare,
-                buttonLabel: "Share Now",
-                iconColor: "text-secondary-foreground",
-                path: "/testimony",
-              },
-              {
-                title: "Prayer Request",
-                description: "Submit your prayer needs",
-                icon: Heart,
-                buttonLabel: "Request Prayer",
-                iconColor: "text-destructive",
-                path: "/prayer",
-              },
-            ].map((action) => (
+          <Carousel opts={{ align: "start", loop: true }} className="lg:hidden" aria-label="Quick actions">
+            <CarouselContent className="-ml-3 py-2 pr-4">
+              {quickActions.map((action) => (
+                <CarouselItem key={action.title} className="basis-[86%] sm:basis-[48%] pl-3">
+                  <Card className="group bg-card border-none card-elevated cursor-pointer h-full" onClick={() => navigate(action.path)}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl icon-container-glass bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <action.icon className={`h-6 w-6 ${action.iconColor}`} />
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-lg text-foreground group-hover:text-accent transition-colors font-display">
+                            {action.title}
+                          </CardTitle>
+                          <p className="text-muted-foreground text-sm mt-1 font-sans">{action.description}</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                        {action.buttonLabel}
+                        <ArrowUpRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+            <CarouselNext className="right-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+          </Carousel>
+          <div className="hidden lg:grid lg:grid-cols-3 gap-4">
+            {quickActions.map((action) => (
               <Card
                 key={action.title}
                 className="group bg-card border-none card-elevated cursor-pointer"
