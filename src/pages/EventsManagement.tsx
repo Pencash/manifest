@@ -66,9 +66,10 @@ const EventsManagement = () => {
   const [rescheduleDate, setRescheduleDate] = useState<Date>(new Date());
   const [rescheduleServiceId, setRescheduleServiceId] = useState<string | null>(null);
   
-  // Delete confirmation state
+  // Delete/archive confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'archive' | 'permanent'>('archive');
   const [isDeleting, setIsDeleting] = useState(false);
   
   const navigate = useNavigate();
@@ -328,8 +329,15 @@ const EventsManagement = () => {
     setIsDialogOpen(true);
   };
 
-  const confirmDelete = (serviceId: string) => {
+  const confirmArchive = (serviceId: string) => {
     setDeletingServiceId(serviceId);
+    setDeleteMode('archive');
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmPermanentDelete = (serviceId: string) => {
+    setDeletingServiceId(serviceId);
+    setDeleteMode('permanent');
     setDeleteDialogOpen(true);
   };
 
@@ -338,25 +346,42 @@ const EventsManagement = () => {
 
     try {
       setIsDeleting(true);
-      // Soft delete: set deleted_at and is_archived instead of hard delete
-      const { error } = await supabase
-        .from("services")
-        .update({ 
-          deleted_at: new Date().toISOString(),
-          is_archived: true 
-        })
-        .eq('id', deletingServiceId);
 
-      if (error) throw error;
-      toast.success("Event archived successfully!");
-      await loadServices();
+      if (deleteMode === 'permanent') {
+        const { error } = await supabase
+          .from("services")
+          .delete()
+          .eq('id', deletingServiceId);
+
+        if (error) throw error;
+        toast.success("Event deleted permanently!");
+        await loadArchivedServices();
+      } else {
+        // Soft delete: set deleted_at and is_archived instead of hard delete
+        const { error } = await supabase
+          .from("services")
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            is_archived: true 
+          })
+          .eq('id', deletingServiceId);
+
+        if (error) throw error;
+        toast.success("Event archived successfully!");
+        await loadServices();
+      }
     } catch (error: any) {
-      console.error("Error archiving service:", error);
-      toast.error(error.message || "Failed to archive event");
+      console.error("Error deleting service:", error);
+      toast.error(
+        deleteMode === 'permanent'
+          ? error.message || "Failed to delete event. If it has linked attendance or giving records, archive it instead."
+          : error.message || "Failed to archive event"
+      );
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
       setDeletingServiceId(null);
+      setDeleteMode('archive');
     }
   };
 
