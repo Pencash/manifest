@@ -496,7 +496,47 @@ const AdminDashboard = () => {
         </Card>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Carousel opts={{ align: "start", loop: true }} className="md:hidden" aria-label="Activity snapshot cards">
+        <CarouselContent className="-ml-3 py-2 pr-4">
+          {activitySnapshotCards.map((snapshot, i) => {
+            const Icon = snapshot.icon;
+            return (
+              <CarouselItem key={snapshot.title} className="basis-[86%] pl-3">
+                <motion.button
+                  type="button"
+                  custom={i + 6}
+                  variants={fadeUp}
+                  initial="hidden"
+                  animate="visible"
+                  onClick={snapshot.action}
+                  className="text-left h-full w-full"
+                >
+                  <Card className="border-none shadow-md hover:shadow-lg transition-all h-full group">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <CardTitle className="font-display text-lg">{snapshot.title}</CardTitle>
+                      <CardDescription>{snapshot.helper}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-mono font-bold">{snapshot.value}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{snapshot.subtitle}</p>
+                    </CardContent>
+                  </Card>
+                </motion.button>
+              </CarouselItem>
+            );
+          })}
+        </CarouselContent>
+        <CarouselPrevious className="left-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+        <CarouselNext className="right-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+      </Carousel>
+
+      <div className="hidden md:grid md:grid-cols-3 gap-4">
         {activitySnapshotCards.map((snapshot, i) => {
           const Icon = snapshot.icon;
           return (
