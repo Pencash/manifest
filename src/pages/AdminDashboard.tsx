@@ -297,11 +297,21 @@ const AdminDashboard = () => {
   const trend = calculateTrend(metrics.totalGivings, metrics.previousGivings);
   const totalPending = metrics.pendingGivings + metrics.pendingExpenses + metrics.pendingServices;
   const activityFundingUtilization = metrics.eligibleActivityGivings > 0 ? (metrics.fundedExpenses / metrics.eligibleActivityGivings) * 100 : 0;
+  const pendingApprovalsLink = metrics.pendingGivings > 0
+    ? "/admin/financial/verification"
+    : metrics.pendingExpenses > 0
+      ? "/admin/expenses/pending"
+      : "/admin/pending-services";
+  const pendingApprovalsLabel = metrics.pendingGivings > 0
+    ? "Review givings ›"
+    : metrics.pendingExpenses > 0
+      ? "Review expenses ›"
+      : "Review services ›";
 
   const statCards = [
     { label: "Total Givings", value: formatAmount(metrics.totalGivings), sub: "vs previous period", icon: DollarSign, color: "hsl(var(--sage))", trend, link: "/admin/reports/financial", linkLabel: "View reports ›" },
     { label: "Active Members", value: metrics.activeMembers.toString(), sub: `${metrics.newMembers} new this period`, icon: Users, color: "hsl(var(--gold))", link: "/admin/users", linkLabel: "Manage members ›" },
-    { label: "Pending Approvals", value: totalPending.toString(), sub: `${metrics.pendingGivings} givings, ${metrics.pendingExpenses} expenses`, icon: AlertCircle, color: "hsl(var(--terracotta))", link: "/admin/expenses/pending", linkLabel: "Review now ›" },
+    { label: "Pending Approvals", value: totalPending.toString(), sub: `${metrics.pendingGivings} givings, ${metrics.pendingExpenses} expenses`, icon: AlertCircle, color: "hsl(var(--terracotta))", link: pendingApprovalsLink, linkLabel: pendingApprovalsLabel },
     { label: "Total Attendance", value: metrics.totalAttendance.toString(), sub: `Avg: ${metrics.avgAttendance}/service`, icon: Calendar, color: "hsl(var(--navy-light))", link: "/admin/reports/attendance", linkLabel: "View trends ›" },
     { label: "Engagement", value: (metrics.testimonies + metrics.prayers).toString(), sub: `${metrics.testimonies} testimonies, ${metrics.prayers} prayers`, icon: MessageSquare, color: "hsl(var(--gold-dark))", link: "/admin/reports/financial", linkLabel: "View details ›" },
   ];
