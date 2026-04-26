@@ -211,7 +211,7 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
       <div className="flex items-center justify-between">
         <div>
           <Label className="text-base font-semibold">{currentCategory?.label}</Label>
-          <p className="text-sm text-muted-foreground">Select a date with available events</p>
+          <p className="text-sm text-muted-foreground">Select a past or upcoming event date, or submit a missing event for approval</p>
         </div>
         <Button
           variant="outline"
@@ -232,7 +232,7 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
             <CalendarDays className="w-12 h-12 mx-auto text-muted-foreground" />
             <div>
               <p className="font-medium text-foreground mb-2">No scheduled events for this service</p>
-              <p className="text-sm text-muted-foreground">You may create a new one for admin approval</p>
+              <p className="text-sm text-muted-foreground">You may submit a missing past or upcoming event for admin approval</p>
             </div>
             <Button onClick={() => setShowCreateDialog(true)}>
               Create Service Event
@@ -326,12 +326,11 @@ export const ServiceSelector = ({ onServiceSelect, selectedServiceId }: ServiceS
             </div>
             <div className="space-y-2">
               <Label htmlFor="service-date">Date *</Label>
-              <Input
+                <Input
                 id="service-date"
                 type="date"
                 value={newService.service_date}
                 onChange={(e) => setNewService({ ...newService, service_date: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="space-y-2">
