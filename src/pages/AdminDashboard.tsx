@@ -15,6 +15,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAmount } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 type TimePeriod = "today" | "week" | "month" | "all";
 
@@ -383,7 +384,45 @@ const AdminDashboard = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <Carousel opts={{ align: "start", loop: true }} className="lg:hidden" aria-label="Admin dashboard summary cards">
+        <CarouselContent className="-ml-3 py-2 pr-4">
+          {statCards.map((card, i) => {
+            const Icon = card.icon;
+            return (
+              <CarouselItem key={card.label} className="basis-[86%] sm:basis-[48%] pl-3">
+                <motion.div custom={i} variants={fadeUp} initial="hidden" animate="visible" className="h-full">
+                  <Card className="relative overflow-hidden border-none card-elevated bg-card cursor-pointer group h-full" onClick={() => navigate(card.link)}>
+                    <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ backgroundColor: card.color }} />
+                    <CardHeader className="pb-2 pl-5">
+                      <div className="flex items-center justify-between">
+                        <div className="h-10 w-10 rounded-xl icon-container-glass flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${card.color}20, ${card.color}08)` }}>
+                          <Icon className="h-5 w-5" style={{ color: card.color }} />
+                        </div>
+                        {card.trend && card.trend.direction !== "neutral" && (
+                          <span className={`flex items-center gap-0.5 text-xs font-semibold ${card.trend.direction === "up" ? "text-sage" : "text-destructive"}`}>
+                            {card.trend.direction === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                            {card.trend.percent}%
+                          </span>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pl-5 pb-4">
+                      <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
+                      <p className="text-2xl font-mono font-bold text-foreground tracking-tight mt-0.5">{card.value}</p>
+                      <p className="text-[0.65rem] text-muted-foreground mt-1">{card.sub}</p>
+                      <p className="text-xs font-medium mt-2" style={{ color: card.color }}>{card.linkLabel}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </CarouselItem>
+            );
+          })}
+        </CarouselContent>
+        <CarouselPrevious className="left-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+        <CarouselNext className="right-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+      </Carousel>
+
+      <div className="hidden lg:grid lg:grid-cols-5 gap-4">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -457,7 +496,47 @@ const AdminDashboard = () => {
         </Card>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Carousel opts={{ align: "start", loop: true }} className="md:hidden" aria-label="Activity snapshot cards">
+        <CarouselContent className="-ml-3 py-2 pr-4">
+          {activitySnapshotCards.map((snapshot, i) => {
+            const Icon = snapshot.icon;
+            return (
+              <CarouselItem key={snapshot.title} className="basis-[86%] pl-3">
+                <motion.button
+                  type="button"
+                  custom={i + 6}
+                  variants={fadeUp}
+                  initial="hidden"
+                  animate="visible"
+                  onClick={snapshot.action}
+                  className="text-left h-full w-full"
+                >
+                  <Card className="border-none shadow-md hover:shadow-lg transition-all h-full group">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <CardTitle className="font-display text-lg">{snapshot.title}</CardTitle>
+                      <CardDescription>{snapshot.helper}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-mono font-bold">{snapshot.value}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{snapshot.subtitle}</p>
+                    </CardContent>
+                  </Card>
+                </motion.button>
+              </CarouselItem>
+            );
+          })}
+        </CarouselContent>
+        <CarouselPrevious className="left-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+        <CarouselNext className="right-1 top-1/2 h-9 w-9 border-border/70 bg-background/90 shadow-md" />
+      </Carousel>
+
+      <div className="hidden md:grid md:grid-cols-3 gap-4">
         {activitySnapshotCards.map((snapshot, i) => {
           const Icon = snapshot.icon;
           return (
