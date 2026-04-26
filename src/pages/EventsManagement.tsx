@@ -781,15 +781,41 @@ const EventsManagement = () => {
                         <span className="text-muted-foreground">attendees</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 min-w-[9rem]"
+                        onClick={() => navigate(`/admin/attendance/${service.id}`)}
+                      >
+                        <Users className="h-4 w-4 mr-1" />
+                        Log Attendance
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(service)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleRestore(service.id)}
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        Restore
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => confirmPermanentDelete(service.id)}
+                        disabled={isDeleting && deletingServiceId === service.id}
+                      >
+                        {isDeleting && deletingServiceId === service.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </CardContent>
