@@ -1029,13 +1029,15 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Archive Confirmation Dialog */}
+      {/* Archive/Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Archive Event</AlertDialogTitle>
+            <AlertDialogTitle>{deleteMode === 'permanent' ? 'Delete Event Permanently' : 'Archive Event'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive this event? The event and all attendance records will be preserved for historical reporting. You can restore it later from the Archived tab.
+              {deleteMode === 'permanent'
+                ? 'This will permanently remove the event. If it has linked attendance, giving, or mobilization records, deletion may fail; archive it instead when you need to preserve reporting history.'
+                : 'Are you sure you want to archive this event? The event and all attendance records will be preserved for historical reporting. You can restore it later from the Archived tab.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1047,7 +1049,12 @@ const EventsManagement = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Archiving...
+                  {deleteMode === 'permanent' ? 'Deleting...' : 'Archiving...'}
+                </>
+              ) : deleteMode === 'permanent' ? (
+                <>
+                  <Trash className="mr-2 h-4 w-4" />
+                  Delete Permanently
                 </>
               ) : (
                 <>
