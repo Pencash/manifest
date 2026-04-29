@@ -14,16 +14,16 @@ import * as XLSX from "xlsx";
 import { hasAdminAccess } from "@/lib/roles";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatAmount } from "@/lib/utils";
+import { buildRestrictedFundMonths, summarizeRestrictedFunds, RESTRICTED_GIVING_KEYWORDS } from "@/lib/restricted-funds";
 
 type DatePreset = "this_month" | "last_3_months" | "this_year" | "custom";
-
-const RESTRICTED_GIVING_KEYWORDS = ["tithe", "first fruit", "firstfruit", "seed", "pledge"];
 
 const FinancialReports = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [givings, setGivings] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [remittances, setRemittances] = useState<any[]>([]);
   const [givingTypes, setGivingTypes] = useState<any[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
   const [startDate, setStartDate] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -119,12 +119,21 @@ const FinancialReports = () => {
       if (endDate) expensesQuery = expensesQuery.lte("created_at", `${endDate}T23:59:59`);
       if (selectedExpenseCategory !== "all") expensesQuery = expensesQuery.eq("category_id", selectedExpenseCategory);
 
-      const [givingsRes, expensesRes] = await Promise.all([givingsQuery, expensesQuery]);
+      let remittancesQuery = (supabase as any)
+        .from("restricted_fund_remittances")
+        .select("*")
+        .order("remittance_month", { ascending: false });
+      if (startDate) remittancesQuery = remittancesQuery.gte("remitted_at", `${startDate}T00:00:00`);
+      if (endDate) remittancesQuery = remittancesQuery.lte("remitted_at", `${endDate}T23:59:59`);
+
+      const [givingsRes, expensesRes, remittancesRes] = await Promise.all([givingsQuery, expensesQuery, remittancesQuery]);
       if (givingsRes.error) throw givingsRes.error;
       if (expensesRes.error) throw expensesRes.error;
+      if (remittancesRes.error) throw remittancesRes.error;
 
       setGivings(givingsRes.data || []);
       setExpenses(expensesRes.data || []);
+      setRemittances(remittancesRes.data || []);
     } catch (error: any) {
       console.error("Error loading financial data:", error);
       toast.error("Failed to load financial data");
