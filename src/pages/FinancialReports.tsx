@@ -198,6 +198,8 @@ const FinancialReports = () => {
 
     const givingsByType = Array.from(givingsByTypeMap.entries()).map(([name, value]) => ({ name, value }));
     const expensesByCategory = Array.from(expenseByCategoryMap.entries()).map(([name, value]) => ({ name, value }));
+    const restrictedMonths = buildRestrictedFundMonths(verifiedGivings, remittances);
+    const restrictedSummary = summarizeRestrictedFunds(restrictedMonths);
 
     return {
       totalIncoming,
@@ -212,8 +214,12 @@ const FinancialReports = () => {
       givingsByType,
       expensesByCategory,
       monthlyMovement,
+      restrictedMonths,
+      restrictedRemitted: restrictedSummary.totalRemitted,
+      restrictedPending: restrictedSummary.totalPending,
+      restrictedPendingMonths: restrictedSummary.pendingMonthCount,
     };
-  }, [expenses, givings]);
+  }, [expenses, givings, remittances]);
 
   const exportSummaryToExcel = () => {
     const summaryRows = [
@@ -221,6 +227,8 @@ const FinancialReports = () => {
       { Metric: "Total Verified Incoming", Value: analytics.totalIncoming },
       { Metric: "Eligible Incoming (activity-supporting)", Value: analytics.eligibleIncoming },
       { Metric: "Restricted Incoming (excluded)", Value: analytics.restrictedIncoming },
+      { Metric: "Restricted Remitted", Value: analytics.restrictedRemitted },
+      { Metric: "Restricted Pending Remittance", Value: analytics.restrictedPending },
       { Metric: "Funded Expenses", Value: analytics.totalExpenses },
       { Metric: "Pending Expense Amount", Value: analytics.pendingExpenseAmount },
       { Metric: "Net Movement (Eligible Incoming - Funded Expenses)", Value: analytics.netMovement },
@@ -231,12 +239,14 @@ const FinancialReports = () => {
     const incomingBreakdownRows = analytics.givingsByType.map((item) => ({ Bucket: item.name, Amount: item.value }));
     const expenseBreakdownRows = analytics.expensesByCategory.map((item) => ({ Category: item.name, Amount: item.value }));
     const movementRows = analytics.monthlyMovement.map((item) => ({ Month: item.month, Incoming: item.incoming, Expenses: item.expenses, Net: item.net }));
+    const restrictedRows = analytics.restrictedMonths.map((item) => ({ Month: item.monthLabel, Collected: item.collected, Remitted: item.remitted, Pending: item.pending, Status: item.status }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomingBreakdownRows), "Incoming Breakdown");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseBreakdownRows), "Expense Breakdown");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movementRows), "Monthly Movement");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(restrictedRows), "Restricted Remittances");
 
     XLSX.writeFile(wb, `financial_summary_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
     toast.success("Financial summary exported successfully");
