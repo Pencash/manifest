@@ -14,16 +14,16 @@ import * as XLSX from "xlsx";
 import { hasAdminAccess } from "@/lib/roles";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatAmount } from "@/lib/utils";
+import { buildRestrictedFundMonths, summarizeRestrictedFunds, RESTRICTED_GIVING_KEYWORDS } from "@/lib/restricted-funds";
 
 type DatePreset = "this_month" | "last_3_months" | "this_year" | "custom";
-
-const RESTRICTED_GIVING_KEYWORDS = ["tithe", "first fruit", "firstfruit", "seed", "pledge"];
 
 const FinancialReports = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [givings, setGivings] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [remittances, setRemittances] = useState<any[]>([]);
   const [givingTypes, setGivingTypes] = useState<any[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
   const [startDate, setStartDate] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -119,12 +119,21 @@ const FinancialReports = () => {
       if (endDate) expensesQuery = expensesQuery.lte("created_at", `${endDate}T23:59:59`);
       if (selectedExpenseCategory !== "all") expensesQuery = expensesQuery.eq("category_id", selectedExpenseCategory);
 
-      const [givingsRes, expensesRes] = await Promise.all([givingsQuery, expensesQuery]);
+      let remittancesQuery = (supabase as any)
+        .from("restricted_fund_remittances")
+        .select("*")
+        .order("remittance_month", { ascending: false });
+      if (startDate) remittancesQuery = remittancesQuery.gte("remitted_at", `${startDate}T00:00:00`);
+      if (endDate) remittancesQuery = remittancesQuery.lte("remitted_at", `${endDate}T23:59:59`);
+
+      const [givingsRes, expensesRes, remittancesRes] = await Promise.all([givingsQuery, expensesQuery, remittancesQuery]);
       if (givingsRes.error) throw givingsRes.error;
       if (expensesRes.error) throw expensesRes.error;
+      if (remittancesRes.error) throw remittancesRes.error;
 
       setGivings(givingsRes.data || []);
       setExpenses(expensesRes.data || []);
+      setRemittances(remittancesRes.data || []);
     } catch (error: any) {
       console.error("Error loading financial data:", error);
       toast.error("Failed to load financial data");
@@ -189,6 +198,8 @@ const FinancialReports = () => {
 
     const givingsByType = Array.from(givingsByTypeMap.entries()).map(([name, value]) => ({ name, value }));
     const expensesByCategory = Array.from(expenseByCategoryMap.entries()).map(([name, value]) => ({ name, value }));
+    const restrictedMonths = buildRestrictedFundMonths(verifiedGivings, remittances);
+    const restrictedSummary = summarizeRestrictedFunds(restrictedMonths);
 
     return {
       totalIncoming,
@@ -203,8 +214,12 @@ const FinancialReports = () => {
       givingsByType,
       expensesByCategory,
       monthlyMovement,
+      restrictedMonths,
+      restrictedRemitted: restrictedSummary.totalRemitted,
+      restrictedPending: restrictedSummary.totalPending,
+      restrictedPendingMonths: restrictedSummary.pendingMonthCount,
     };
-  }, [expenses, givings]);
+  }, [expenses, givings, remittances]);
 
   const exportSummaryToExcel = () => {
     const summaryRows = [
@@ -212,6 +227,8 @@ const FinancialReports = () => {
       { Metric: "Total Verified Incoming", Value: analytics.totalIncoming },
       { Metric: "Eligible Incoming (activity-supporting)", Value: analytics.eligibleIncoming },
       { Metric: "Restricted Incoming (excluded)", Value: analytics.restrictedIncoming },
+      { Metric: "Restricted Remitted", Value: analytics.restrictedRemitted },
+      { Metric: "Restricted Pending Remittance", Value: analytics.restrictedPending },
       { Metric: "Funded Expenses", Value: analytics.totalExpenses },
       { Metric: "Pending Expense Amount", Value: analytics.pendingExpenseAmount },
       { Metric: "Net Movement (Eligible Incoming - Funded Expenses)", Value: analytics.netMovement },
@@ -222,12 +239,14 @@ const FinancialReports = () => {
     const incomingBreakdownRows = analytics.givingsByType.map((item) => ({ Bucket: item.name, Amount: item.value }));
     const expenseBreakdownRows = analytics.expensesByCategory.map((item) => ({ Category: item.name, Amount: item.value }));
     const movementRows = analytics.monthlyMovement.map((item) => ({ Month: item.month, Incoming: item.incoming, Expenses: item.expenses, Net: item.net }));
+    const restrictedRows = analytics.restrictedMonths.map((item) => ({ Month: item.monthLabel, Collected: item.collected, Remitted: item.remitted, Pending: item.pending, Status: item.status }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(incomingBreakdownRows), "Incoming Breakdown");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenseBreakdownRows), "Expense Breakdown");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movementRows), "Monthly Movement");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(restrictedRows), "Restricted Remittances");
 
     XLSX.writeFile(wb, `financial_summary_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
     toast.success("Financial summary exported successfully");
@@ -264,6 +283,10 @@ const FinancialReports = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/admin/expenses/all")} className="gap-1.5 text-xs sm:text-sm">
               Expense Ledger
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/financial/remittances")} className="gap-1.5 text-xs sm:text-sm">
+              Restricted Remittances
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
             <Button size="sm" onClick={exportSummaryToExcel} className="gap-1.5 text-xs sm:text-sm">
@@ -341,7 +364,7 @@ const FinancialReports = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Activity-Support Inflows</CardTitle>
@@ -372,6 +395,17 @@ const FinancialReports = () => {
             <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
               <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.netMovement >= 0 ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Inflows minus outflows</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Restricted Pending</CardTitle>
+              <CalendarRange className="h-4 w-4 text-primary/60" />
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.restrictedPending > 0 ? "text-destructive" : "text-primary"}`}>{formatAmount(analytics.restrictedPending)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{analytics.restrictedPendingMonths} month{analytics.restrictedPendingMonths === 1 ? "" : "s"} requiring remittance</p>
             </CardContent>
           </Card>
         </div>
@@ -456,6 +490,11 @@ const FinancialReports = () => {
                   <CalendarRange className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">This amount is tracked for accountability and is not available for activity spending.</p>
+                <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                  <div className="rounded-md bg-muted/50 p-2"><p className="text-xs text-muted-foreground">Remitted</p><p className="font-mono font-semibold">{formatAmount(analytics.restrictedRemitted)}</p></div>
+                  <div className="rounded-md bg-muted/50 p-2"><p className="text-xs text-muted-foreground">Pending</p><p className="font-mono font-semibold text-destructive">{formatAmount(analytics.restrictedPending)}</p></div>
+                </div>
+                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => navigate("/admin/financial/remittances")}>Open remittance ledger<ArrowRight className="h-4 w-4 ml-1" /></Button>
               </div>
 
               <div className="rounded-md border p-4">

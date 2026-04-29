@@ -1,4 +1,4 @@
-import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, Shield, FileCheck, Clock, Settings, Sparkles, Wallet } from "lucide-react";
+import { Home, DollarSign, MessageSquare, HandHeart, History, Users, Calendar, FileText, Receipt, UserCog, TrendingUp, FolderOpen, FileCheck, Clock, Settings, Sparkles, Wallet, Landmark } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -28,6 +28,7 @@ export const adminNavItems: NavItem[] = [
   // Financial Management
   { label: "Payment Verification", path: "/admin/financial/verification", icon: DollarSign },
   { label: "Record Offline Giving", path: "/admin/financial/offline-giving", icon: Wallet },
+  { label: "Restricted Remittances", path: "/admin/financial/remittances", icon: Landmark },
   { label: "Financial Reports", path: "/admin/reports/financial", icon: TrendingUp },
   
   // Expense Management
