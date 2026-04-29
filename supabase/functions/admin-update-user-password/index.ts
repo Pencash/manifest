@@ -22,12 +22,15 @@ serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const { data: isAdmin, error: roleError } = await supabaseClient.rpc("has_role", {
-      _user_id: user.id,
-      _role: "admin",
-    });
+    const { data: roles, error: roleError } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .limit(1);
 
     if (roleError) throw roleError;
+    const isAdmin = (roles || []).length > 0;
 
     if (!isAdmin) {
       return new Response(JSON.stringify({ message: "Forbidden" }), {

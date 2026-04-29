@@ -28,23 +28,6 @@ export const useUserRole = (userId: string | undefined) => {
 
     const fetchRole = async () => {
       try {
-        // Use the secure RPC function instead of direct table query
-        const { data, error } = await supabase.rpc("get_user_role", { 
-          _user_id: userId 
-        });
-
-        console.log("useUserRole fetch:", { userId, role: data, error });
-
-        if (error) throw error;
-
-        // get_user_role returns an app_role or null
-        const finalRole: AppRole = data ?? "member";
-        roleCache.set(userId, finalRole);
-        setRole(finalRole);
-      } catch (error) {
-        console.error("Error fetching user role (RPC):", error);
-        // Fallback to direct table query if RPC fails
-      try {
         const { data: fallbackData, error: tableError } = await supabase
           .from("user_roles")
           .select("role")
@@ -57,10 +40,9 @@ export const useUserRole = (userId: string | undefined) => {
           : "member";
         roleCache.set(userId, fallbackRole);
         setRole(fallbackRole);
-        } catch (fallbackError) {
-          console.error("Error fetching user role (fallback):", fallbackError);
-          setRole(null);
-        }
+      } catch (fallbackError) {
+        console.error("Error fetching user role:", fallbackError);
+        setRole(null);
       } finally {
         setLoading(false);
       }
