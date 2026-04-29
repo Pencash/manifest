@@ -50,6 +50,7 @@ const AdminExpenseRequestDetails = lazy(() => import("./pages/AdminExpenseReques
 const AdminGivings = lazy(() => import("./pages/AdminGivings"));
 const FinancialPaymentVerification = lazy(() => import("./pages/FinancialPaymentVerification"));
 const FinancialOfflineGiving = lazy(() => import("./pages/FinancialOfflineGiving"));
+const RestrictedRemittances = lazy(() => import("./pages/RestrictedRemittances"));
 const MobilizationReport = lazy(() => import("./pages/MobilizationReport"));
 const MemberInvitationsDetail = lazy(() => import("./pages/MemberInvitationsDetail"));
 const ServiceMobilizationDetail = lazy(() => import("./pages/ServiceMobilizationDetail"));
@@ -113,6 +114,7 @@ const App = () => {
                 <Route path="/admin/givings" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminGivings /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/financial/verification" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialPaymentVerification /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/financial/offline-giving" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><FinancialOfflineGiving /></AdminLayout></RoleRoute>} />
+                <Route path="/admin/financial/remittances" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><RestrictedRemittances /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/request" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><ExpenseRequest /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/all" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequests /></AdminLayout></RoleRoute>} />
                 <Route path="/admin/expenses/:expenseId" element={<RoleRoute allowedRoles={["admin", "finance", "pastor"]}><AdminLayout><AdminExpenseRequestDetails /></AdminLayout></RoleRoute>} />
