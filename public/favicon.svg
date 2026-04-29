@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Manifest Malawi favicon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#172440"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bg)"/>
+  <rect x="29" y="29" width="454" height="454" rx="107" fill="none" stroke="#d4af37" stroke-width="10"/>
+  <path d="M132 366V154l124 152 124-152v212" fill="none" stroke="#d4af37" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M164 340V235l92 109 92-109v105" fill="none" stroke="#fffaeb" stroke-opacity=".7" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M256 92l26 40-26 26-26-26z" fill="#d4af37"/>
+  <circle cx="256" cy="130" r="12" fill="#fffaeb"/>
+</svg>
