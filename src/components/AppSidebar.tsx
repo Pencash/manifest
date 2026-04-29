@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { adminNavItems } from "@/config/navigation";
 import { hasAdminAccess } from "@/lib/roles";
 import { subscribeToNotificationRefresh } from "@/lib/notification-events";
+import { buildRestrictedFundMonths, summarizeRestrictedFunds } from "@/lib/restricted-funds";
 import { toast } from "sonner";
 import {
   Sidebar,
@@ -57,9 +58,15 @@ export function AppSidebar() {
       const { count: pendingGivingsCount } = await supabase.from("givings").select("*", { count: 'exact', head: true }).eq("status", "pending");
       const { count: pendingExpensesCount } = await supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
       const { data: pendingServices } = await supabase.from("services").select("id").eq("approval_status", "pending_admin_approval");
+      const [{ data: restrictedGivings }, { data: restrictedRemittances }] = await Promise.all([
+        supabase.from("givings").select("amount, created_at, status, giving_types(name)").eq("status", "verified"),
+        (supabase as any).from("restricted_fund_remittances").select("*")
+      ]);
+      const remittanceSummary = summarizeRestrictedFunds(buildRestrictedFundMonths(restrictedGivings || [], restrictedRemittances || []));
 
       const updatedItems = adminNavItems.map(item => {
         if (item.path === "/admin/financial/verification") return { ...item, notificationCount: pendingGivingsCount || 0 };
+        if (item.path === "/admin/financial/remittances") return { ...item, notificationCount: remittanceSummary.pendingMonthCount || 0 };
         if (item.path === "/admin/expenses/pending") return { ...item, notificationCount: pendingExpensesCount || 0 };
         if (item.path === "/admin/pending-services") return { ...item, notificationCount: pendingServices?.length || 0 };
         return item;
@@ -82,8 +89,9 @@ export function AppSidebar() {
     const givingsChannel = supabase.channel('givings-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'givings' }, loadNotificationCounts).subscribe();
     const expensesChannel = supabase.channel('expenses-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'expense_requests' }, loadNotificationCounts).subscribe();
     const servicesChannel = supabase.channel('services-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, loadNotificationCounts).subscribe();
+    const remittancesChannel = supabase.channel('restricted-remittances-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'restricted_fund_remittances' }, loadNotificationCounts).subscribe();
     const unsubscribeFromEvents = subscribeToNotificationRefresh(loadNotificationCounts);
-    return () => { supabase.removeChannel(givingsChannel); supabase.removeChannel(expensesChannel); supabase.removeChannel(servicesChannel); unsubscribeFromEvents(); };
+    return () => { supabase.removeChannel(givingsChannel); supabase.removeChannel(expensesChannel); supabase.removeChannel(servicesChannel); supabase.removeChannel(remittancesChannel); unsubscribeFromEvents(); };
   }, [loadNotificationCounts]);
 
   const handleSignOut = async () => {
@@ -92,7 +100,7 @@ export function AppSidebar() {
     window.location.href = "/";
   };
 
-  const financialItems = navItems.filter(item => ["/admin/financial/verification", "/admin/financial/offline-giving", "/admin/reports/financial"].includes(item.path));
+  const financialItems = navItems.filter(item => ["/admin/financial/verification", "/admin/financial/offline-giving", "/admin/financial/remittances", "/admin/reports/financial"].includes(item.path));
   const expenseItems = navItems.filter(item => item.path.startsWith("/admin/expenses"));
   const eventsItems = navItems.filter(item => ["/admin/events", "/admin/pending-services", "/admin/reports/attendance"].includes(item.path));
   const adminItems = navItems.filter(item => ["/admin/users", "/admin/mobilization"].includes(item.path));
