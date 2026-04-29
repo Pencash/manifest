@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { format, startOfMonth } from "date-fns";
+import { format } from "date-fns";
 import { AlertTriangle, Ban, CheckCircle2, Landmark, Plus, ReceiptText, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
