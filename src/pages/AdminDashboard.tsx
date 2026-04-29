@@ -504,6 +504,25 @@ const AdminDashboard = () => {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
+            <div className={`md:col-span-4 rounded-xl border p-4 ${metrics.restrictedPendingRemittance > 0 ? "bg-destructive/5 border-destructive/30" : "bg-primary/5 border-primary/20"}`}>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Restricted Funds Remittance</p>
+                  <p className={`text-2xl font-mono font-bold mt-1 ${metrics.restrictedPendingRemittance > 0 ? "text-destructive" : "text-primary"}`}>
+                    {formatAmount(metrics.restrictedPendingRemittance)} pending
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {metrics.restrictedPendingRemittance > 0
+                      ? `${metrics.restrictedPendingMonths} month${metrics.restrictedPendingMonths === 1 ? "" : "s"} pending${metrics.oldestPendingRestrictedMonth ? ` · oldest: ${metrics.oldestPendingRestrictedMonth}` : ""}`
+                      : "All restricted funds have been remitted."}
+                  </p>
+                </div>
+                <Button variant={metrics.restrictedPendingRemittance > 0 ? "default" : "outline"} onClick={() => navigate("/admin/financial/remittances")}>
+                  Open remittance center
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
