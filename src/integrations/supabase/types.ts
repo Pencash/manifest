@@ -879,6 +879,60 @@ export type Database = {
           },
         ]
       }
+      restricted_fund_remittances: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          payment_method: string
+          payment_reference: string | null
+          recorded_by: string
+          remittance_month: string
+          remitted_at: string
+          status: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_method: string
+          payment_reference?: string | null
+          recorded_by: string
+          remittance_month: string
+          remitted_at?: string
+          status?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_reference?: string | null
+          recorded_by?: string
+          remittance_month?: string
+          remitted_at?: string
+          status?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           approval_status: string | null
