@@ -285,6 +285,10 @@ const FinancialReports = () => {
               Expense Ledger
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/financial/remittances")} className="gap-1.5 text-xs sm:text-sm">
+              Restricted Remittances
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
             <Button size="sm" onClick={exportSummaryToExcel} className="gap-1.5 text-xs sm:text-sm">
               <Download className="h-3.5 w-3.5" />
               Export
@@ -360,7 +364,7 @@ const FinancialReports = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Activity-Support Inflows</CardTitle>
@@ -391,6 +395,17 @@ const FinancialReports = () => {
             <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
               <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.netMovement >= 0 ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>{formatAmount(analytics.netMovement)}</div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Inflows minus outflows</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Restricted Pending</CardTitle>
+              <CalendarRange className="h-4 w-4 text-primary/60" />
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className={`text-xl sm:text-2xl font-bold truncate ${analytics.restrictedPending > 0 ? "text-destructive" : "text-primary"}`}>{formatAmount(analytics.restrictedPending)}</div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{analytics.restrictedPendingMonths} month{analytics.restrictedPendingMonths === 1 ? "" : "s"} requiring remittance</p>
             </CardContent>
           </Card>
         </div>
@@ -475,6 +490,11 @@ const FinancialReports = () => {
                   <CalendarRange className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">This amount is tracked for accountability and is not available for activity spending.</p>
+                <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                  <div className="rounded-md bg-muted/50 p-2"><p className="text-xs text-muted-foreground">Remitted</p><p className="font-mono font-semibold">{formatAmount(analytics.restrictedRemitted)}</p></div>
+                  <div className="rounded-md bg-muted/50 p-2"><p className="text-xs text-muted-foreground">Pending</p><p className="font-mono font-semibold text-destructive">{formatAmount(analytics.restrictedPending)}</p></div>
+                </div>
+                <Button variant="link" className="px-0 h-auto mt-2" onClick={() => navigate("/admin/financial/remittances")}>Open remittance ledger<ArrowRight className="h-4 w-4 ml-1" /></Button>
               </div>
 
               <div className="rounded-md border p-4">
