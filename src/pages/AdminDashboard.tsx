@@ -14,6 +14,7 @@ import { hasAdminAccess } from "@/lib/roles";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAmount } from "@/lib/utils";
+import { buildRestrictedFundMonths, summarizeRestrictedFunds } from "@/lib/restricted-funds";
 import { motion } from "framer-motion";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
@@ -44,6 +45,10 @@ interface Metrics {
   mobilizationInvites: number;
   mobilizationConfirmed: number;
   mobilizationAttended: number;
+  restrictedPendingRemittance: number;
+  restrictedPendingMonths: number;
+  restrictedOverdueMonths: number;
+  oldestPendingRestrictedMonth: string | null;
 }
 
 const fadeUp = {
@@ -136,7 +141,7 @@ const AdminDashboard = () => {
         mobilizationQuery = mobilizationQuery.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
       }
 
-      const [givingsRes, prevGivingsRes, activeMembersRes, newMembersRes, pendingGivingsRes, pendingExpensesRes, pendingServicesRes, attendanceCountRes, attendanceRes, testimoniesCountRes, prayersCountRes, recentGivingsRes, recentTestimoniesRes, recentPrayersRes, fundedExpensesRes, servicesUpcomingRes, servicesInPeriodRes, mobilizationRes] = await Promise.all([
+      const [givingsRes, prevGivingsRes, activeMembersRes, newMembersRes, pendingGivingsRes, pendingExpensesRes, pendingServicesRes, attendanceCountRes, attendanceRes, testimoniesCountRes, prayersCountRes, recentGivingsRes, recentTestimoniesRes, recentPrayersRes, fundedExpensesRes, servicesUpcomingRes, servicesInPeriodRes, mobilizationRes, allVerifiedGivingsRes, restrictedRemittancesRes] = await Promise.all([
         givingsQuery, prevGivingsQuery,
         supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
         start ? supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).gte("created_at", start.toISOString()) : Promise.resolve({ count: 0, error: null }),
@@ -154,6 +159,8 @@ const AdminDashboard = () => {
         supabase.from("services").select("id", { count: "exact", head: true }).gte("service_date", format(new Date(), "yyyy-MM-dd")).or("is_archived.is.null,is_archived.eq.false"),
         servicesInPeriodQuery,
         mobilizationQuery,
+        supabase.from("givings").select("amount, created_at, status, giving_types(name)").eq("status", "verified"),
+        (supabase as any).from("restricted_fund_remittances").select("*"),
       ]);
 
       const totalGivings = givingsRes.data?.reduce((sum, g) => sum + Number(g.amount), 0) || 0;
@@ -203,6 +210,7 @@ const AdminDashboard = () => {
       const mobilizationInvites = mobilizationRes.data?.length || 0;
       const mobilizationConfirmed = mobilizationRes.data?.filter((invite) => ["confirmed", "attended"].includes((invite.status || "").toLowerCase())).length || 0;
       const mobilizationAttended = mobilizationRes.data?.filter((invite) => (invite.status || "").toLowerCase() === "attended").length || 0;
+      const restrictedSummary = summarizeRestrictedFunds(buildRestrictedFundMonths(allVerifiedGivingsRes.data || [], restrictedRemittancesRes.data || []));
 
       setMetrics({
         totalGivings, previousGivings, activeMembers, newMembers,
@@ -223,6 +231,10 @@ const AdminDashboard = () => {
         mobilizationInvites,
         mobilizationConfirmed,
         mobilizationAttended,
+        restrictedPendingRemittance: restrictedSummary.totalPending,
+        restrictedPendingMonths: restrictedSummary.pendingMonthCount,
+        restrictedOverdueMonths: restrictedSummary.overdueMonthCount,
+        oldestPendingRestrictedMonth: restrictedSummary.oldestPending?.monthLabel || null,
       });
     } catch (error) { console.error("Error loading metrics:", error); toast.error("Failed to load dashboard metrics"); } finally { setLoading(false); }
   }, [timePeriod]);
