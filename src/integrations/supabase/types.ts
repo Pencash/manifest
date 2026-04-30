@@ -138,6 +138,57 @@ export type Database = {
         }
         Relationships: []
       }
+      basket_aggregates: {
+        Row: {
+          created_at: string
+          currency: string
+          giving_type_id: string
+          id: string
+          notes: string | null
+          recorded_at: string
+          recorded_by: string
+          service_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          giving_type_id: string
+          id?: string
+          notes?: string | null
+          recorded_at?: string
+          recorded_by: string
+          service_id: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          giving_type_id?: string
+          id?: string
+          notes?: string | null
+          recorded_at?: string
+          recorded_by?: string
+          service_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           allocated_amount: number
@@ -560,8 +611,10 @@ export type Database = {
       givings: {
         Row: {
           amount: number
+          confirmed_not_basket: boolean
           created_at: string
           currency: string
+          duplicate_of: string | null
           giving_type_id: string
           id: string
           is_anonymous: boolean
@@ -571,12 +624,15 @@ export type Database = {
           profile_id: string
           rejection_reason: string | null
           service_id: string | null
+          source: string
           status: string
         }
         Insert: {
           amount: number
+          confirmed_not_basket?: boolean
           created_at?: string
           currency?: string
+          duplicate_of?: string | null
           giving_type_id: string
           id?: string
           is_anonymous?: boolean
@@ -586,12 +642,15 @@ export type Database = {
           profile_id: string
           rejection_reason?: string | null
           service_id?: string | null
+          source?: string
           status?: string
         }
         Update: {
           amount?: number
+          confirmed_not_basket?: boolean
           created_at?: string
           currency?: string
+          duplicate_of?: string | null
           giving_type_id?: string
           id?: string
           is_anonymous?: boolean
@@ -601,6 +660,7 @@ export type Database = {
           profile_id?: string
           rejection_reason?: string | null
           service_id?: string | null
+          source?: string
           status?: string
         }
         Relationships: [
