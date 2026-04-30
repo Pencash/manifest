@@ -59,16 +59,11 @@ export default function FinancialPaymentVerification() {
   const canVerifyPendingGiving = (giving: Giving) => {
     if (giving.status !== "pending") return false;
     if (currentRole === "admin") return true;
-    if (currentRole === "finance") return !giving.requires_admin_verification;
+    if (currentRole === "finance") return true;
     return false;
   };
 
-  const canManagePendingFinanceOfflineGiving = (giving: Giving) =>
-    currentRole === "finance" &&
-    currentUserId === giving.recorded_by &&
-    giving.entry_source === "offline" &&
-    giving.requires_admin_verification &&
-    giving.status === "pending";
+  const canManagePendingFinanceOfflineGiving = (_giving: Giving) => false;
 
   const verifiablePendingGivings = filteredGivings.filter(canVerifyPendingGiving);
 
