@@ -16,6 +16,7 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Pencil, Shield, UserCog, UserPlus } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Database } from "@/integrations/supabase/types";
+import { getHighestRole } from "@/lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -35,6 +36,8 @@ const ROLE_OPTIONS: { value: AppRole; label: string }[] = [
   { value: "pastor", label: "Pastor" },
   { value: "admin", label: "Admin" },
 ];
+
+const resolveProfileRole = (roles: { role: AppRole }[] | undefined): AppRole => getHighestRole(roles?.map(({ role }) => role)) ?? "member";
 
 const getRoleBadgeVariant = (role: AppRole) => {
   switch (role) {
