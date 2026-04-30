@@ -112,7 +112,7 @@ const FinancialReports = () => {
 
       let expensesQuery = supabase
         .from("expense_requests")
-        .select("id, amount, status, created_at, category_id, expense_categories(name)")
+        .select("id, amount, status, created_at, category_id, expense_categories(name), expense_payments(amount, status, payment_date)")
         .order("created_at", { ascending: false });
 
       if (startDate) expensesQuery = expensesQuery.gte("created_at", `${startDate}T00:00:00`);
