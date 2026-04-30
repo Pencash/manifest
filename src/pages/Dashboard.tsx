@@ -178,7 +178,7 @@ const Dashboard = () => {
       value: upcomingEventsCount != null ? String(upcomingEventsCount) : "—",
       icon: Calendar,
       color: "text-foreground",
-      path: "/mobilization",
+      path: "/events/upcoming",
     },
   ];
 
