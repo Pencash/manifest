@@ -177,6 +177,7 @@ export default function FinancialPaymentVerification() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="pending_duplicate_review">Possible Duplicates</SelectItem>
                 <SelectItem value="verified">Verified</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
