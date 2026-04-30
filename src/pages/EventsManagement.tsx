@@ -411,7 +411,10 @@ const EventsManagement = () => {
       start_time: "",
       location: "",
       description: "",
+      flyer_url: "",
+      flyer_alt: "",
     });
+    setFlyerFile(null);
   };
 
   const getServiceTypeBadge = (type: string) => {
