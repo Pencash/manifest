@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { subscribeToNotificationRefresh } from "@/lib/notification-events";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
+import { hasAdminAccess } from "@/lib/roles";
 
 interface NavbarProps {
   items: NavItem[];
@@ -23,13 +25,9 @@ export const Navbar = ({ items, userName, userEmail }: NavbarProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
+      const { role } = await fetchCurrentUserAccess(user.id);
 
-      if (!roleData || !['admin', 'finance', 'pastor'].includes(roleData.role)) {
+      if (!hasAdminAccess(role)) {
         setNavItems(items);
         return;
       }
