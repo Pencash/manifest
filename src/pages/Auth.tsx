@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { z } from "zod";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -89,9 +89,7 @@ const Auth = () => {
           console.error("Error loading user roles:", rolesError);
         }
 
-        // Pick one role if available
-        const mainRole =
-          rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+        const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
         toast.success("Welcome back!");
 
@@ -137,7 +135,7 @@ const Auth = () => {
       setResetLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(validation, {
-        redirectTo: `${window.location.origin}/member/auth`,
+        redirectTo: `${window.location.origin}/reset-password?portal=member`,
       });
 
       if (error) throw error;
