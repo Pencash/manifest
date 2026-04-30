@@ -12,7 +12,7 @@ import { ArrowLeft, Download, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 interface AttendanceData {
   service_name: string;
@@ -97,7 +97,7 @@ const AttendanceReport = () => {
         .select("role")
         .eq("user_id", session.user.id);
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

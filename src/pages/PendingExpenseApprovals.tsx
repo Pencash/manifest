@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { triggerNotificationRefresh } from "@/lib/notification-events";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
@@ -64,7 +64,7 @@ export default function PendingExpenseApprovals() {
 
     const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
 
-    const mainRole = rolesData?.[0]?.role;
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
     if (!hasAdminAccess(mainRole)) {
       toast.error("Access denied. Admin privileges required.");

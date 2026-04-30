@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Search, Download, Users, CalendarIcon, MapPin, Clock, UserCheck, Send, CheckCircle, XCircle, Loader2, Target } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import * as XLSX from "xlsx";
 
 interface Service {
@@ -90,7 +90,7 @@ const ServiceMobilizationDetail = () => {
         .select("role")
         .eq("user_id", session.user.id);
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

@@ -11,7 +11,7 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Download, Wallet, TrendingUp, TrendingDown, CalendarRange, HandCoins, Receipt, ArrowRight, CircleAlert } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { formatAmount } from "@/lib/utils";
 import { buildRestrictedFundMonths, summarizeRestrictedFunds, RESTRICTED_GIVING_KEYWORDS } from "@/lib/restricted-funds";
@@ -74,7 +74,7 @@ const FinancialReports = () => {
       setUser(session.user);
 
       const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

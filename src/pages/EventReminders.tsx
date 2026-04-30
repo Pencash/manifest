@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from "sonner";
 import { ArrowLeft, Bell, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 interface Service {
   id: string;
@@ -64,7 +64,7 @@ const EventReminders = () => {
         console.error("Error loading roles:", rolesError);
       }
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

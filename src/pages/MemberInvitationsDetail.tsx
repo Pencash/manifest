@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ArrowLeft, Download, User, Phone, Mail, Calendar, Search, Users } from "lucide-react";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { format } from "date-fns";
 
 interface Invitation {
@@ -64,7 +64,7 @@ const MemberInvitationsDetail = () => {
       .select("role")
       .eq("user_id", session.user.id);
 
-    const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
     if (!hasAdminAccess(mainRole)) {
       toast.error("Access denied. Admin privileges required.");

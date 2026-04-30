@@ -14,7 +14,7 @@ import { User } from "@supabase/supabase-js";
 import { ArrowLeft, Save, Search, Users, CheckCircle, UserPlus, Upload } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -93,7 +93,7 @@ const AttendanceLog = () => {
         console.error("Error loading roles:", rolesError);
       }
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");
