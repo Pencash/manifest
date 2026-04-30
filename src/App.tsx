@@ -105,6 +105,8 @@ const App = () => {
                 <Route path="/testimony" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Testimony /></MemberLayout></ProtectedRoute>} />
                 <Route path="/prayer" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Prayer /></MemberLayout></ProtectedRoute>} />
                 <Route path="/mobilization" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><MemberMobilization /></MemberLayout></ProtectedRoute>} />
+                <Route path="/events/upcoming" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><UpcomingEvents /></MemberLayout></ProtectedRoute>} />
+                <Route path="/events/:id" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><MemberEventDetail /></MemberLayout></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Settings /></MemberLayout></ProtectedRoute>} />
 
                 {/* Admin Routes */}
