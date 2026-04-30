@@ -263,9 +263,10 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     postedTotal, requestedAmount, remainingBalance,
     paymentProgress, derivedPaymentStatus,
     latestPostedPayment, canManagePayments, canRecordPayment,
-    canEditOrDelete,
+    canEditOrDelete, canArchive, canRestore,
     checkAuthAndLoad, loadExpenseDetail,
     recordPayment, voidPayment, openReceipt,
     deleteExpense, updateExpense,
+    archiveExpense, restoreExpense,
   };
 }
