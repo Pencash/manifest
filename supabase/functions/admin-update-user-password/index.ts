@@ -60,7 +60,19 @@ serve(async (req: Request): Promise<Response> => {
       password: payload.newPassword,
     });
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      // Surface auth-specific errors (e.g. weak/pwned password) as a 200 with success:false
+      // so the client always receives the friendly message instead of a generic non-2xx error.
+      const code = (updateError as any)?.code;
+      let friendly = updateError.message || "Failed to update password";
+      if (code === "weak_password") {
+        friendly = "This password is too common or has appeared in a data breach. Please choose a stronger password.";
+      }
+      return new Response(JSON.stringify({ success: false, message: friendly, code }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
