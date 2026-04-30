@@ -57,7 +57,7 @@ export default function FinancialPaymentVerification() {
   const [customReason, setCustomReason] = useState("");
 
   const canVerifyPendingGiving = (giving: Giving) => {
-    if (giving.status !== "pending") return false;
+    if (giving.status !== "pending" && giving.status !== "pending_duplicate_review") return false;
     if (currentRole === "admin") return true;
     if (currentRole === "finance") return true;
     return false;
