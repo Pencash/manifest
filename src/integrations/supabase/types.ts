@@ -443,12 +443,16 @@ export type Database = {
       expense_requests: {
         Row: {
           amount: number
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           category_id: string
           created_at: string
           currency: string
           description: string
           due_date: string | null
           id: string
+          is_archived: boolean
           justification: string
           paid_at: string | null
           paid_by: string | null
@@ -464,12 +468,16 @@ export type Database = {
         }
         Insert: {
           amount: number
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           category_id: string
           created_at?: string
           currency?: string
           description: string
           due_date?: string | null
           id?: string
+          is_archived?: boolean
           justification: string
           paid_at?: string | null
           paid_by?: string | null
@@ -485,12 +493,16 @@ export type Database = {
         }
         Update: {
           amount?: number
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           category_id?: string
           created_at?: string
           currency?: string
           description?: string
           due_date?: string | null
           id?: string
+          is_archived?: boolean
           justification?: string
           paid_at?: string | null
           paid_by?: string | null
@@ -1170,6 +1182,40 @@ export type Database = {
       }
     }
     Functions: {
+      archive_expense_request: {
+        Args: { p_expense_request_id: string; p_reason?: string }
+        Returns: {
+          amount: number
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
+          category_id: string
+          created_at: string
+          currency: string
+          description: string
+          due_date: string | null
+          id: string
+          is_archived: boolean
+          justification: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          priority: string
+          rejection_reason: string | null
+          request_number: string | null
+          requester_id: string
+          service_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "expense_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       archive_old_services: { Args: { days_old?: number }; Returns: number }
       backfill_attendance_snapshots: { Args: never; Returns: number }
       is_rate_limited: {
@@ -1188,6 +1234,96 @@ export type Database = {
           p_table_name?: string
         }
         Returns: string
+      }
+      record_expense_payment: {
+        Args: {
+          p_amount: number
+          p_expense_request_id: string
+          p_notes?: string
+          p_payee_name?: string
+          p_payment_date?: string
+          p_payment_method: string
+          p_payment_reference?: string
+        }
+        Returns: {
+          amount: number
+          created_at: string
+          expense_request_id: string
+          id: string
+          notes: string | null
+          payee_name: string | null
+          payment_date: string
+          payment_method: string
+          payment_reference: string | null
+          recorded_by: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "expense_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      refresh_expense_request_payment_state: {
+        Args: { target_request_id: string }
+        Returns: undefined
+      }
+      restore_expense_request: {
+        Args: { p_expense_request_id: string }
+        Returns: {
+          amount: number
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
+          category_id: string
+          created_at: string
+          currency: string
+          description: string
+          due_date: string | null
+          id: string
+          is_archived: boolean
+          justification: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          priority: string
+          rejection_reason: string | null
+          request_number: string | null
+          requester_id: string
+          service_id: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "expense_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      void_expense_payment: {
+        Args: { p_payment_id: string; p_void_reason?: string }
+        Returns: {
+          amount: number
+          created_at: string
+          expense_request_id: string
+          id: string
+          notes: string | null
+          payee_name: string | null
+          payment_date: string
+          payment_method: string
+          payment_reference: string | null
+          recorded_by: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "expense_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
