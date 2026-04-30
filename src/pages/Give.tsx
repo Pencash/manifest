@@ -76,6 +76,19 @@ const Give = () => {
       .eq("is_active", true);
 
     if (typesRes) setGivingTypes(typesRes);
+
+    // Find any service that occurred in the last 48 hours
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const { data: recent } = await supabase
+      .from("services")
+      .select("name, service_date")
+      .gte("service_date", twoDaysAgo.toISOString().slice(0, 10))
+      .lte("service_date", new Date().toISOString().slice(0, 10))
+      .order("service_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recent) setRecentService(recent);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
