@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Heart } from "lucide-react";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -38,13 +39,12 @@ const MemberAuth = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setShowUpdatePassword(true);
-        setShowResetPassword(false);
+        navigate("/reset-password?portal=member", { replace: true });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,16 +82,16 @@ const MemberAuth = () => {
         await logLoginAttempt(validation.email, true);
         
         // Check user role and redirect accordingly using user_roles table
-        const { data: roleData } = await supabase
+        const { data: rolesData } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", data.user.id)
-          .single();
+          .eq("user_id", data.user.id);
+        const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
         
         toast.success("Welcome back!");
         
         // If accidentally an admin logs in here, redirect them properly
-        if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
+        if (hasAdminAccess(mainRole)) {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");
@@ -133,7 +133,7 @@ const MemberAuth = () => {
       setResetLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(validation, {
-        redirectTo: `${window.location.origin}/member/auth`,
+        redirectTo: `${window.location.origin}/reset-password?portal=member`,
       });
 
       if (error) throw error;
