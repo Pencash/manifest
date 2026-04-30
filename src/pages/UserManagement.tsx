@@ -151,7 +151,7 @@ const UserManagement = () => {
 
   // ===== OPEN EDIT DIALOG =====
   const openEditDialog = (profile: ProfileWithRole) => {
-    const userRole = profile.user_roles?.[0]?.role || "member";
+    const userRole = resolveProfileRole(profile.user_roles);
     setEditTarget(profile);
     setEditForm({
       fullName: profile.full_name,
@@ -185,7 +185,7 @@ const UserManagement = () => {
       if (profileError) throw profileError;
 
       // Update role if changed
-      const currentRole = editTarget.user_roles?.[0]?.role || "member";
+      const currentRole = resolveProfileRole(editTarget.user_roles);
       if (editForm.role !== currentRole) {
         await supabase.from("user_roles").delete().eq("user_id", editTarget.id);
         const { error: roleError } = await supabase.from("user_roles").insert({
@@ -270,7 +270,7 @@ const UserManagement = () => {
   const filteredProfiles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return profiles.filter((profile) => {
-      const userRole = profile.user_roles?.[0]?.role || "member";
+      const userRole = resolveProfileRole(profile.user_roles);
       const matchesRole = roleFilter === "all" || userRole === roleFilter;
       const matchesStatus =
         statusFilter === "all" ||
@@ -287,7 +287,7 @@ const UserManagement = () => {
   const rows: ResponsiveDataViewRow[] = useMemo(
     () =>
       filteredProfiles.map((profile) => {
-        const userRole = profile.user_roles?.[0]?.role || "member";
+        const userRole = resolveProfileRole(profile.user_roles);
         return {
           id: profile.id,
           title: profile.full_name,
