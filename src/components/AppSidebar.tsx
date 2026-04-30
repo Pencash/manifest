@@ -7,6 +7,7 @@ import { NotificationBadge } from "@/components/NotificationBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { adminNavItems } from "@/config/navigation";
 import { hasAdminAccess } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 import { subscribeToNotificationRefresh } from "@/lib/notification-events";
 import { buildRestrictedFundMonths, summarizeRestrictedFunds } from "@/lib/restricted-funds";
 import { toast } from "sonner";
@@ -43,8 +44,8 @@ export function AppSidebar() {
   const loadUserInfo = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    if (profileData) setUserName(profileData.full_name);
+    const { profile } = await fetchCurrentUserAccess(user.id);
+    if (profile) setUserName(profile.full_name);
     setUserEmail(user.email || "");
   }, []);
 
@@ -52,8 +53,8 @@ export function AppSidebar() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
-      if (!roleData || !hasAdminAccess(roleData.role)) { setNavItems(adminNavItems); return; }
+      const { role } = await fetchCurrentUserAccess(user.id);
+      if (!hasAdminAccess(role)) { setNavItems(adminNavItems); return; }
 
       const { count: pendingGivingsCount } = await supabase.from("givings").select("*", { count: 'exact', head: true }).eq("status", "pending");
       const { count: pendingExpensesCount } = await supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
