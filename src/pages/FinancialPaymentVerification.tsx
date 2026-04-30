@@ -245,7 +245,7 @@ export default function FinancialPaymentVerification() {
                     <TableCell>
                       <div className="flex items-center gap-2">{getPaymentMethodIcon(giving.payment_method)}<span className="capitalize">{giving.payment_method?.replace("_", " ")}</span></div>
                       {giving.payment_reference && <div className="flex items-center gap-1 mt-1"><code className="text-xs bg-muted px-1">{giving.payment_reference}</code><Button size="sm" variant="ghost" onClick={() => copyToClipboard(giving.payment_reference!)} className="h-5 w-5 p-0"><Copy className="h-3 w-3" /></Button></div>}
-                      {giving.entry_source === "offline" && <div className="text-xs text-muted-foreground mt-1">Offline record</div>}
+                      {giving.source && giving.source !== "self_recorded" && <div className="text-xs text-muted-foreground mt-1">{giving.source.replace("_", " ")}</div>}
                     </TableCell>
                     <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
                     <TableCell>{giving.profiles.full_name}</TableCell>
