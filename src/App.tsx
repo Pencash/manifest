@@ -30,6 +30,8 @@ const History = lazy(() => import("./pages/History"));
 const Testimony = lazy(() => import("./pages/Testimony"));
 const Prayer = lazy(() => import("./pages/Prayer"));
 const MemberMobilization = lazy(() => import("./pages/MemberMobilization"));
+const UpcomingEvents = lazy(() => import("./pages/UpcomingEvents"));
+const MemberEventDetail = lazy(() => import("./pages/MemberEventDetail"));
 const Settings = lazy(() => import("./pages/Settings"));
 
 // Lazy load admin pages
