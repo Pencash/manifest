@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2, Archive, RotateCcw } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2, Archive, RotateCcw, ImageIcon, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
