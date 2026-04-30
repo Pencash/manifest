@@ -401,6 +401,43 @@ const Give = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showCashConfirm} onOpenChange={(open) => { if (!open) { setShowCashConfirm(false); setCashAcknowledged(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Confirm this cash gift
+            </DialogTitle>
+            <DialogDescription>
+              Cash placed in the offering basket at a service is already recorded by the church
+              under the basket account. Recording it here would create a duplicate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 rounded-md border bg-muted/40 p-3">
+            <Checkbox
+              id="basket-ack"
+              checked={cashAcknowledged}
+              onCheckedChange={(c) => setCashAcknowledged(c === true)}
+            />
+            <Label htmlFor="basket-ack" className="cursor-pointer text-sm leading-relaxed">
+              I confirm this cash gift was <strong>not</strong> placed in the offering basket
+              (e.g. handed directly to a pastor or finance officer outside service).
+            </Label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCashConfirm(false); setCashAcknowledged(false); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!cashAcknowledged || loading}
+              onClick={async () => { setShowCashConfirm(false); await submitGiving(); }}
+            >
+              Confirm and submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
