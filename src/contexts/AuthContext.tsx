@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
-import { getHighestRole } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -37,17 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const initializedRef = useRef(false);
 
   const fetchUserData = async (userId: string) => {
-    // Fetch profile and role in parallel
-    const [profileResult, roleResult] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-    ]);
+    const access = await fetchCurrentUserAccess(userId);
 
-    if (profileResult.data) {
-      setProfile(profileResult.data);
-    }
-
-    setRole(getHighestRole(roleResult.data?.map(({ role }) => role)));
+    setProfile(access.profile);
+    setRole(access.role);
   };
 
   const refreshProfile = async () => {

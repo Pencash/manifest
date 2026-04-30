@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
-import { getHighestRole } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -29,14 +28,8 @@ export const useUserRole = (userId: string | undefined) => {
 
     const fetchRole = async () => {
       try {
-        const { data: fallbackData, error: tableError } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId);
-
-        if (tableError) throw tableError;
-        
-        const fallbackRole: AppRole = getHighestRole(fallbackData?.map(({ role }) => role)) ?? "member";
+        const { role } = await fetchCurrentUserAccess(userId);
+        const fallbackRole: AppRole = role ?? "member";
         roleCache.set(userId, fallbackRole);
         setRole(fallbackRole);
       } catch (fallbackError) {
