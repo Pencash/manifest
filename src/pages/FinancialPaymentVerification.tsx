@@ -124,6 +124,7 @@ export default function FinancialPaymentVerification() {
 
   const getRowClass = (status: string) => {
     if (status === "pending") return "bg-yellow-50 dark:bg-yellow-950/10";
+    if (status === "pending_duplicate_review") return "bg-amber-50 dark:bg-amber-950/20";
     if (status === "verified") return "bg-green-50 dark:bg-green-950/10";
     if (status === "rejected") return "bg-red-50 dark:bg-red-950/10";
     return "";
