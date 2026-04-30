@@ -18,6 +18,10 @@ export interface ExpenseRequestDetail {
   rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+  is_archived?: boolean;
+  archived_at?: string | null;
+  archived_by?: string | null;
+  archive_reason?: string | null;
   expense_categories: { name: string; code: string } | null;
   services: { name: string; service_date?: string | null } | null;
 }
