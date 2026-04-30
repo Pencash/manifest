@@ -93,7 +93,7 @@ const Give = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form data
     try {
       givingSchema.parse({
@@ -108,6 +108,18 @@ const Give = () => {
         return;
       }
     }
+
+    // Cash gifts require an explicit acknowledgment that the gift was NOT
+    // placed in the offering basket (those are recorded by the church).
+    if (formData.paymentMethod === "cash" && !cashAcknowledged) {
+      setShowCashConfirm(true);
+      return;
+    }
+
+    await submitGiving();
+  };
+
+  const submitGiving = async () => {
 
     try {
       setLoading(true);
