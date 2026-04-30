@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 import { hasAdminAccess } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -43,13 +44,8 @@ const ResetPassword = () => {
       return;
     }
 
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-
-    const isAdminUser = rolesData?.some(({ role }) => hasAdminAccess(role));
-    navigate(isAdminUser ? "/admin/dashboard" : "/dashboard", { replace: true });
+    const { role } = await fetchCurrentUserAccess(user.id);
+    navigate(hasAdminAccess(role) ? "/admin/dashboard" : "/dashboard", { replace: true });
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
