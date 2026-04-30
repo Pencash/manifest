@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess, type AppRole } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 import { triggerNotificationRefresh } from "@/lib/notification-events";
 import {
   calculatePostedPaymentsTotal,
