@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User } from "@supabase/supabase-js";
 import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight, Wallet, HandCoins, CalendarCheck2, Megaphone, ArrowRight } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { hasAdminAccess } from "@/lib/roles";
@@ -230,13 +229,18 @@ const AdminDashboard = () => {
   const formatServiceType = (type: string): string => type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 
   useEffect(() => {
-    checkUser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) navigate("/admin/auth");
-    });
-    return () => subscription.unsubscribe();
-  }, [checkUser, navigate]);
+    if (authLoading) return;
+    if (!user) {
+      navigate("/admin/auth");
+      return;
+    }
+    if (!hasAdminAccess(role)) {
+      toast.error("Access denied. Admin privileges required.");
+      navigate("/dashboard");
+      return;
+    }
+    setLoading(false);
+  }, [authLoading, navigate, role, user]);
 
   useEffect(() => { if (user) loadMetrics(); }, [loadMetrics, user]);
 
