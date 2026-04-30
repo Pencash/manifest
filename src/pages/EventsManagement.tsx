@@ -276,34 +276,50 @@ const EventsManagement = () => {
         formData.customName
       );
 
-      const serviceData = {
+      let flyerUrl: string | null = formData.flyer_url || null;
+
+      const baseData = {
         name: generatedName,
         service_type: formData.service_type as "gic" | "ltc" | "men_gather" | "mgp" | "nop" | "other" | "sunday_service" | "thursday_livestream" | "tuesday_fellowship",
         service_date: format(formData.service_date, 'yyyy-MM-dd'),
         start_time: formData.start_time || null,
         location: formData.location || null,
         description: formData.description || null,
+        flyer_alt: formData.flyer_alt || null,
       };
 
       if (editingService) {
+        if (flyerFile) {
+          setIsUploadingFlyer(true);
+          flyerUrl = await uploadFlyer(flyerFile, editingService.id);
+          setIsUploadingFlyer(false);
+        }
         const { error } = await supabase
           .from("services")
-          .update(serviceData)
+          .update({ ...baseData, flyer_url: flyerUrl })
           .eq('id', editingService.id);
 
         if (error) throw error;
         toast.success("Event updated successfully!");
       } else {
-        // Add created_by and approval_status for new events
-        const { error } = await supabase
+        const { data: created, error } = await supabase
           .from("services")
           .insert({
-            ...serviceData,
+            ...baseData,
+            flyer_url: null,
             created_by: user?.id,
             approval_status: 'approved',
-          });
+          })
+          .select('id')
+          .single();
 
         if (error) throw error;
+        if (flyerFile && created?.id) {
+          setIsUploadingFlyer(true);
+          const url = await uploadFlyer(flyerFile, created.id);
+          await supabase.from("services").update({ flyer_url: url }).eq('id', created.id);
+          setIsUploadingFlyer(false);
+        }
         toast.success("Event created successfully!");
       }
 
