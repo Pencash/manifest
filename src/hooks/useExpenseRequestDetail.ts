@@ -61,10 +61,19 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     [payments],
   );
   const canManagePayments = role === "admin" || role === "finance";
-  const canRecordPayment = Boolean(expense && canManagePayments && ["approved", "partially_paid"].includes(expense.status));
+  const canRecordPayment = Boolean(
+    expense
+      && canManagePayments
+      && ["approved", "partially_paid"].includes(expense.status)
+      && remainingBalance > 0.001,
+  );
   const canEditOrDelete = Boolean(
     expense && canManagePayments && !["approved", "partially_paid", "paid"].includes(expense.status),
   );
+  const canArchive = Boolean(
+    expense && canManagePayments && !expense.is_archived && ["paid", "rejected", "cancelled"].includes(expense.status),
+  );
+  const canRestore = Boolean(expense && canManagePayments && expense.is_archived);
 
   const loadExpenseDetail = useCallback(async () => {
     if (!expenseId) return;
