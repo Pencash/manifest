@@ -81,7 +81,22 @@ const EventsManagement = () => {
     start_time: "",
     location: "",
     description: "",
+    flyer_url: "" as string | null | "",
+    flyer_alt: "",
   });
+  const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [isUploadingFlyer, setIsUploadingFlyer] = useState(false);
+
+  const uploadFlyer = async (file: File, serviceId: string): Promise<string> => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${serviceId}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("event-flyers")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("event-flyers").getPublicUrl(path);
+    return data.publicUrl;
+  };
 
   // Auto-generate event name from service type and date
   const getServiceTypeLabel = (type: string) => 
