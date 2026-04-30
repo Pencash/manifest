@@ -143,13 +143,13 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/admin/auth"); return; }
 
-      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id).single();
-      if (!roleData || !hasAdminAccess(roleData.role)) {
+      const { role } = await fetchCurrentUserAccess(session.user.id);
+      if (!hasAdminAccess(role)) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
-      setRole(roleData.role as AppRole);
+      setRole(role as AppRole);
       await loadExpenseDetail();
     } catch (error: any) {
       toast.error(error.message || "Failed to load expense details");
