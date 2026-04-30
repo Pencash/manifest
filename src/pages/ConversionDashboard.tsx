@@ -7,7 +7,7 @@ import { ArrowLeft, TrendingUp, Users, Sparkles, Clock, Target, Download } from 
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAmount } from "@/lib/utils";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import {
@@ -83,7 +83,7 @@ const ConversionDashboard = () => {
       .select("role")
       .eq("user_id", session.user.id);
 
-    const userRole = roles?.[0]?.role;
+    const userRole = getHighestRole(roles?.map(({ role }) => role));
     if (!hasAdminAccess(userRole)) {
       toast.error("Access denied. Admin privileges required.");
       navigate("/dashboard");

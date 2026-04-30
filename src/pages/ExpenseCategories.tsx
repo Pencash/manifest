@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,7 @@ export default function ExpenseCategories() {
       .select("role")
       .eq("user_id", session.user.id);
 
-    const mainRole = rolesData?.[0]?.role;
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
     if (!hasAdminAccess(mainRole)) {
       toast.error("Access denied. Admin privileges required.");

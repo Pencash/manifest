@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminAccess, type AppRole } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 import { toast } from "sonner";
 
 export interface Giving {
@@ -80,19 +81,15 @@ export function useGivingsAuth() {
         navigate("/admin/auth");
         return;
       }
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single();
+      const { role } = await fetchCurrentUserAccess(session.user.id);
 
-      if (!roleData || !hasAdminAccess(roleData.role)) {
+      if (!hasAdminAccess(role)) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
       setCurrentUserId(session.user.id);
-      setCurrentRole(roleData.role as AppRole);
+      setCurrentRole(role as AppRole);
       setLoading(false);
     };
     check();

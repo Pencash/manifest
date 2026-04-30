@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { hasAdminAccess, type AppRole } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess, type AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useFundingAvailability } from "@/hooks/useFundingAvailability";
@@ -80,19 +80,20 @@ export default function ExpenseRequest() {
       return;
     }
 
-    const { data: roleData } = await supabase
+    const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", session.user.id)
-      .single();
+      .eq("user_id", session.user.id);
 
-    if (!roleData || !hasAdminAccess(roleData.role)) {
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
+
+    if (!hasAdminAccess(mainRole)) {
       toast.error("Access denied. Only administrators can create expense requests.");
       navigate("/dashboard");
       return;
     }
 
-    setCurrentRole(roleData.role as AppRole);
+    setCurrentRole(mainRole as AppRole);
     loadData();
   };
 

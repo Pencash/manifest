@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 
@@ -52,7 +52,7 @@ const BulkAttendanceImport = () => {
         console.error("Error loading roles:", rolesError);
       }
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

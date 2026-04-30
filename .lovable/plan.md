@@ -1,33 +1,34 @@
-I found the immediate cause: the app sends password reset links back to `/admin/auth`, but the admin login page only listens for normal login/reset-request actions. It does not reliably render the “set new password” form after the recovery link signs you in, so you land on the login screen instead.
+I found the likely root cause: your database role is correctly configured as `admin`, and the records still exist. The breakage is coming from the recent security hardening: execution access to the backend role helper (`has_role`) was revoked too broadly. Many RLS policies depend on that helper, so authenticated reads like profiles, givings, services, attendance, and admin-only pages can silently return no records or fail permission checks. Some frontend pages also still perform direct role reads and choose the first returned role instead of using the secure backend role resolver, which can misclassify users who have multiple roles.
 
-I also verified your admin record still exists: `pnderitu2@gmail.com` is active and still has the `admin` role. The backend security linter currently reports no issues.
+What I will fix:
 
-Plan to fix this safely:
+1. Repair backend role-helper permissions
+   - Add a migration to grant the minimum required execution permissions on safe role-check helper functions used by RLS (`has_role`, `get_user_role`) to authenticated users.
+   - Keep sensitive functions like login-attempt logging locked down unless they are only called by secure backend functions.
+   - Re-run the backend security linter after the migration.
 
-1. Add a dedicated password reset route
-   - Create a public `/reset-password` page whose only job is to handle recovery links and let the user enter a new password.
-   - It will validate that a recovery session exists before showing the form.
-   - After a successful password update, it will check the user’s role and redirect admins/finance/pastors to `/admin/dashboard`, otherwise to the member dashboard.
+2. Standardize role resolution across admin pages
+   - Replace remaining direct frontend `user_roles` checks with the existing secure `fetchCurrentUserAccess()` helper.
+   - Use `getHighestRole()` everywhere roles are evaluated so `admin` wins over `pastor`, `finance`, and `member`.
+   - Fix pages that currently use `.single()` or `rolesData[0]`, because that can incorrectly interpret an admin as another role.
 
-2. Update all forgot-password links to use the dedicated reset page
-   - Admin login reset email: redirect to `/reset-password?portal=admin`.
-   - Member login reset email: redirect to `/reset-password?portal=member`.
-   - Settings password reset: redirect to `/reset-password`.
-   - This avoids relying on the login pages to double as password update pages.
+3. Fix the dashboard-specific duplicate auth check
+   - `AdminDashboard` is already behind `RoleRoute`, but it still performs a second direct role/profile check that can fail independently and show “Failed to load admin profile.”
+   - Refactor it to use `useAuth()`/secure access data instead of querying `profiles` and `user_roles` directly.
 
-3. Harden the existing auth pages
-   - Remove or bypass the fragile inline recovery UI from `AdminAuth`, `Auth`, and `MemberAuth` once the dedicated reset page exists.
-   - Keep the “Forgot password?” request flow working from admin and member login.
-   - If someone lands on a login page with a recovery callback, forward them to `/reset-password` instead of showing a normal login form.
+4. Review related privilege flows
+   - Check the admin pages that showed similar direct role checks: givings, attendance, events, reports, expense approvals, mobilization, visitor follow-up, and user management.
+   - Keep actual data access protected by RLS; the frontend change is only to prevent false “access denied” decisions.
 
-4. Improve admin role loading resilience
-   - Make role checks handle multiple roles consistently, using the highest-privilege role rather than whichever row is returned first.
-   - This avoids access bugs for users with more than one role.
+5. Verify after implementation
+   - Confirm your account `pnderitu2@gmail.com` remains active and has `admin`.
+   - Confirm core record counts are visible again: profiles, givings, services, attendance, expense requests.
+   - Run the backend security linter and note any remaining unrelated warnings separately.
+   - Run the app tests available in the project.
+   - Test admin dashboard access and at least one secondary admin route for role recognition.
 
-5. Verify access recovery and restricted funds were not regressed
-   - Run the test suite, including the restricted funds tests.
-   - Re-run the backend security linter.
-   - Inspect auth logs after a reset attempt if needed.
-   - Confirm the reset page, admin login, and admin route access behave as expected.
-
-Important note: I can fix the reset flow, but I should not set or reveal your password. Once the route is fixed, request a fresh reset email and set a new password yourself. Your admin role is still present, so after the new password is saved you should regain access to the admin portal.
+Expected result:
+- You should remain logged in as admin.
+- The admin dashboard should show the existing database records again instead of all zeros.
+- The “access denied, admin privileges required” toast should stop appearing for your admin account.
+- Other users’ privileges should be interpreted consistently according to role priority: admin > pastor > finance > member.

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { triggerNotificationRefresh } from "@/lib/notification-events";
 import { format } from "date-fns";
 import { Calendar, Clock, MapPin, User, CheckCircle, XCircle, Edit } from "lucide-react";
@@ -64,13 +64,14 @@ export default function AdminPendingServices() {
       return;
     }
 
-    const { data: roleData } = await supabase
+    const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", user.id);
 
-    if (!roleData || !hasAdminAccess(roleData.role)) {
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
+
+    if (!hasAdminAccess(mainRole)) {
       navigate("/dashboard");
       return;
     }

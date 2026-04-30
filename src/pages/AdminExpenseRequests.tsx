@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { statusBadgeClasses } from "@/lib/expense-format";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { cn, formatAmount } from "@/lib/utils";
 
 interface ExpenseRequest {
@@ -54,7 +54,7 @@ export default function AdminExpenseRequests() {
 
     const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
 
-    const mainRole = rolesData?.[0]?.role;
+    const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
     if (!hasAdminAccess(mainRole)) {
       toast.error("Access denied. Admin privileges required.");
       navigate("/dashboard");

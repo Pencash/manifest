@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { ArrowLeft, UserPlus, CalendarIcon, Phone, Mail, CheckCircle, X, UserCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 import { BulkActionBar } from "@/components/BulkActionBar";
 
 interface Contact {
@@ -85,7 +85,7 @@ const VisitorFollowup = () => {
         console.error("Error loading roles:", rolesError);
       }
 
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
 
       if (!hasAdminAccess(mainRole)) {
         toast.error("Access denied. Admin privileges required.");

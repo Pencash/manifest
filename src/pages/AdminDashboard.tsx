@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User } from "@supabase/supabase-js";
 import { Download, DollarSign, Users, AlertCircle, TrendingUp, TrendingDown, Calendar, MessageSquare, ChevronRight, Wallet, HandCoins, CalendarCheck2, Megaphone, ArrowRight } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns";
 import { hasAdminAccess } from "@/lib/roles";
@@ -17,6 +16,7 @@ import { formatAmount } from "@/lib/utils";
 import { buildRestrictedFundMonths, summarizeRestrictedFunds } from "@/lib/restricted-funds";
 import { motion } from "framer-motion";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TimePeriod = "today" | "week" | "month" | "all";
 
@@ -60,8 +60,7 @@ const fadeUp = {
 };
 
 const AdminDashboard = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const { user, profile, role, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -70,24 +69,6 @@ const AdminDashboard = () => {
   const [exportEndDate, setExportEndDate] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
-
-  const checkUser = useCallback(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { navigate("/admin/auth"); return; }
-      setUser(session.user);
-      const { data: profileData, error: profileError } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
-      if (profileError) throw profileError;
-      setProfile(profileData);
-      const { data: rolesData, error: rolesError } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id);
-      if (rolesError) throw rolesError;
-      const mainRole = rolesData && rolesData.length > 0 ? rolesData[0].role : null;
-      if (!hasAdminAccess(mainRole)) { toast.error("Access denied. Admin privileges required."); navigate("/dashboard"); return; }
-    } catch (error: any) {
-      console.error("Error loading admin profile or role:", error);
-      toast.error("Failed to load admin profile");
-    } finally { setLoading(false); }
-  }, [navigate]);
 
   const getDateRange = (period: TimePeriod) => {
     const now = new Date();
@@ -248,13 +229,18 @@ const AdminDashboard = () => {
   const formatServiceType = (type: string): string => type.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 
   useEffect(() => {
-    checkUser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) navigate("/admin/auth");
-    });
-    return () => subscription.unsubscribe();
-  }, [checkUser, navigate]);
+    if (authLoading) return;
+    if (!user) {
+      navigate("/admin/auth");
+      return;
+    }
+    if (!hasAdminAccess(role)) {
+      toast.error("Access denied. Admin privileges required.");
+      navigate("/dashboard");
+      return;
+    }
+    setLoading(false);
+  }, [authLoading, navigate, role, user]);
 
   useEffect(() => { if (user) loadMetrics(); }, [loadMetrics, user]);
 
