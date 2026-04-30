@@ -216,6 +216,17 @@ const Give = () => {
           Back to Dashboard
         </Button>
 
+        {recentService && (
+          <Alert className="mb-6 border-amber-500/40 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle>Did you give in the basket on {format(new Date(recentService.service_date), "MMM d")}?</AlertTitle>
+            <AlertDescription>
+              Cash gifts placed in the offering basket at <strong>{recentService.name}</strong> are
+              already recorded by the church. You don't need to enter them here.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Record a Giving</CardTitle>
