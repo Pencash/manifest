@@ -137,9 +137,8 @@ export default function FinancialPaymentVerification() {
       Amount: g.amount,
       "Payment Method": g.payment_method?.replace("_", " "),
       "Transaction Code": g.payment_reference || "N/A",
-      Source: g.entry_source,
+      Source: g.source || "self_recorded",
       Status: g.status,
-      "Needs Admin Verification": g.requires_admin_verification ? "Yes" : "No",
       "Rejection Reason": g.rejection_reason || "N/A",
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
