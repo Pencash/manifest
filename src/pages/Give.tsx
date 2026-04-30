@@ -8,10 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { z } from "zod";
 import { ServiceSelector } from "@/components/ServiceSelector";
+import { format } from "date-fns";
 
 const givingSchema = z.object({
   givingTypeId: z.string().min(1, "Please select a giving type"),
@@ -39,6 +42,9 @@ const Give = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedServiceName, setSelectedServiceName] = useState("");
+  const [recentService, setRecentService] = useState<{ name: string; service_date: string } | null>(null);
+  const [showCashConfirm, setShowCashConfirm] = useState(false);
+  const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -70,11 +76,24 @@ const Give = () => {
       .eq("is_active", true);
 
     if (typesRes) setGivingTypes(typesRes);
+
+    // Find any service that occurred in the last 48 hours
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const { data: recent } = await supabase
+      .from("services")
+      .select("name, service_date")
+      .gte("service_date", twoDaysAgo.toISOString().slice(0, 10))
+      .lte("service_date", new Date().toISOString().slice(0, 10))
+      .order("service_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recent) setRecentService(recent);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form data
     try {
       givingSchema.parse({
@@ -89,6 +108,18 @@ const Give = () => {
         return;
       }
     }
+
+    // Cash gifts require an explicit acknowledgment that the gift was NOT
+    // placed in the offering basket (those are recorded by the church).
+    if (formData.paymentMethod === "cash" && !cashAcknowledged) {
+      setShowCashConfirm(true);
+      return;
+    }
+
+    await submitGiving();
+  };
+
+  const submitGiving = async () => {
 
     try {
       setLoading(true);
@@ -115,11 +146,15 @@ const Give = () => {
           payment_reference: formData.paymentReference || null,
           note: formData.note || null,
           is_anonymous: formData.isAnonymous,
+          source: "self_recorded",
+          confirmed_not_basket: formData.paymentMethod === "cash" ? cashAcknowledged : false,
         })
         .select()
         .single();
 
       if (givingError) throw givingError;
+
+      const wasFlaggedAsDuplicate = giving?.status === "pending_duplicate_review";
 
       if (receiptFile && giving) {
         const fileExt = receiptFile.name.split(".").pop();
@@ -142,8 +177,12 @@ const Give = () => {
         if (receiptError) throw receiptError;
       }
 
-      toast.success("Giving recorded successfully!");
-      
+      if (wasFlaggedAsDuplicate) {
+        toast.warning("Possible duplicate detected — finance will review your entry before it appears as verified.");
+      } else {
+        toast.success("Giving recorded successfully!");
+      }
+
       setFormData({
         givingTypeId: "",
         serviceId: "",
@@ -154,6 +193,7 @@ const Give = () => {
         isAnonymous: false,
       });
       setReceiptFile(null);
+      setCashAcknowledged(false);
 
       setTimeout(() => navigate("/history"), 1500);
     } catch (error: any) {
@@ -175,6 +215,17 @@ const Give = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
+
+        {recentService && (
+          <Alert className="mb-6 border-amber-500/40 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle>Did you give in the basket on {format(new Date(recentService.service_date), "MMM d")}?</AlertTitle>
+            <AlertDescription>
+              Cash gifts placed in the offering basket at <strong>{recentService.name}</strong> are
+              already recorded by the church. You don't need to enter them here.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardHeader>
@@ -350,6 +401,43 @@ const Give = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showCashConfirm} onOpenChange={(open) => { if (!open) { setShowCashConfirm(false); setCashAcknowledged(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Confirm this cash gift
+            </DialogTitle>
+            <DialogDescription>
+              Cash placed in the offering basket at a service is already recorded by the church
+              under the basket account. Recording it here would create a duplicate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 rounded-md border bg-muted/40 p-3">
+            <Checkbox
+              id="basket-ack"
+              checked={cashAcknowledged}
+              onCheckedChange={(c) => setCashAcknowledged(c === true)}
+            />
+            <Label htmlFor="basket-ack" className="cursor-pointer text-sm leading-relaxed">
+              I confirm this cash gift was <strong>not</strong> placed in the offering basket
+              (e.g. handed directly to a pastor or finance officer outside service).
+            </Label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCashConfirm(false); setCashAcknowledged(false); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!cashAcknowledged || loading}
+              onClick={async () => { setShowCashConfirm(false); await submitGiving(); }}
+            >
+              Confirm and submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

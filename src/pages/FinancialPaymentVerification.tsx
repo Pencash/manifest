@@ -57,18 +57,13 @@ export default function FinancialPaymentVerification() {
   const [customReason, setCustomReason] = useState("");
 
   const canVerifyPendingGiving = (giving: Giving) => {
-    if (giving.status !== "pending") return false;
+    if (giving.status !== "pending" && giving.status !== "pending_duplicate_review") return false;
     if (currentRole === "admin") return true;
-    if (currentRole === "finance") return !giving.requires_admin_verification;
+    if (currentRole === "finance") return true;
     return false;
   };
 
-  const canManagePendingFinanceOfflineGiving = (giving: Giving) =>
-    currentRole === "finance" &&
-    currentUserId === giving.recorded_by &&
-    giving.entry_source === "offline" &&
-    giving.requires_admin_verification &&
-    giving.status === "pending";
+  const canManagePendingFinanceOfflineGiving = (_giving: Giving) => false;
 
   const verifiablePendingGivings = filteredGivings.filter(canVerifyPendingGiving);
 
@@ -129,6 +124,7 @@ export default function FinancialPaymentVerification() {
 
   const getRowClass = (status: string) => {
     if (status === "pending") return "bg-yellow-50 dark:bg-yellow-950/10";
+    if (status === "pending_duplicate_review") return "bg-amber-50 dark:bg-amber-950/20";
     if (status === "verified") return "bg-green-50 dark:bg-green-950/10";
     if (status === "rejected") return "bg-red-50 dark:bg-red-950/10";
     return "";
@@ -142,9 +138,8 @@ export default function FinancialPaymentVerification() {
       Amount: g.amount,
       "Payment Method": g.payment_method?.replace("_", " "),
       "Transaction Code": g.payment_reference || "N/A",
-      Source: g.entry_source,
+      Source: g.source || "self_recorded",
       Status: g.status,
-      "Needs Admin Verification": g.requires_admin_verification ? "Yes" : "No",
       "Rejection Reason": g.rejection_reason || "N/A",
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -183,6 +178,7 @@ export default function FinancialPaymentVerification() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="pending_duplicate_review">Possible Duplicates</SelectItem>
                 <SelectItem value="verified">Verified</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
@@ -243,15 +239,15 @@ export default function FinancialPaymentVerification() {
                     <TableCell>{canVerify && <Checkbox checked={selectedGivings.includes(giving.id)} onCheckedChange={() => toggleSelectGiving(giving.id)} />}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[giving.status as keyof typeof statusColors]}>{giving.status}</Badge>
-                      {giving.requires_admin_verification && giving.status === "pending" && (
-                        <div className="mt-2"><Badge variant="outline" className="text-xs border-amber-500/30 text-amber-700 bg-amber-500/10">Awaiting admin verification</Badge></div>
+                      {giving.status === "pending_duplicate_review" && (
+                        <div className="mt-2"><Badge variant="outline" className="text-xs border-amber-500/30 text-amber-700 bg-amber-500/10">Possible duplicate</Badge></div>
                       )}
                       {giving.rejection_reason && <div className="flex items-center gap-1 mt-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{giving.rejection_reason}</div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">{getPaymentMethodIcon(giving.payment_method)}<span className="capitalize">{giving.payment_method?.replace("_", " ")}</span></div>
                       {giving.payment_reference && <div className="flex items-center gap-1 mt-1"><code className="text-xs bg-muted px-1">{giving.payment_reference}</code><Button size="sm" variant="ghost" onClick={() => copyToClipboard(giving.payment_reference!)} className="h-5 w-5 p-0"><Copy className="h-3 w-3" /></Button></div>}
-                      {giving.entry_source === "offline" && <div className="text-xs text-muted-foreground mt-1">Offline record</div>}
+                      {giving.source && giving.source !== "self_recorded" && <div className="text-xs text-muted-foreground mt-1">{giving.source.replace("_", " ")}</div>}
                     </TableCell>
                     <TableCell className="font-semibold">{formatAmount(Number(giving.amount), giving.currency)}</TableCell>
                     <TableCell>{giving.profiles.full_name}</TableCell>
