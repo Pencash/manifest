@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Heart } from "lucide-react";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
-import { getHighestRole, hasAdminAccess } from "@/lib/roles";
+import { hasAdminAccess } from "@/lib/roles";
+import { fetchCurrentUserAccess } from "@/lib/auth-access";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -81,12 +82,7 @@ const MemberAuth = () => {
         
         await logLoginAttempt(validation.email, true);
         
-        // Check user role and redirect accordingly using user_roles table
-        const { data: rolesData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id);
-        const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
+        const { role: mainRole } = await fetchCurrentUserAccess(data.user.id);
         
         toast.success("Welcome back!");
         
@@ -183,13 +179,9 @@ const MemberAuth = () => {
       // Check user role and redirect accordingly
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .single();
+        const { role: mainRole } = await fetchCurrentUserAccess(user.id);
         
-        if (roleData?.role === 'admin' || roleData?.role === 'finance' || roleData?.role === 'pastor') {
+        if (hasAdminAccess(mainRole)) {
           navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");
