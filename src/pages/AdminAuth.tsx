@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Shield } from "lucide-react";
 import { useRateLimiting } from "@/hooks/useRateLimiting";
-import { hasAdminAccess } from "@/lib/roles";
+import { getHighestRole, hasAdminAccess } from "@/lib/roles";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -63,9 +63,7 @@ const AdminAuth = () => {
         console.error("Error loading user roles:", rolesError);
       }
 
-      // Pick one role if available
-      const mainRole =
-        rolesData && rolesData.length > 0 ? rolesData[0].role : null;
+      const mainRole = getHighestRole(rolesData?.map(({ role }) => role));
       
       if (!hasAdminAccess(mainRole)) {
         await supabase.auth.signOut();
@@ -94,7 +92,7 @@ const AdminAuth = () => {
       setResetLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(validation, {
-        redirectTo: `${window.location.origin}/admin/auth`,
+        redirectTo: `${window.location.origin}/reset-password?portal=admin`,
       });
 
       if (error) throw error;
