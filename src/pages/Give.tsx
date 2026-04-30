@@ -43,6 +43,7 @@ const Give = () => {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedServiceName, setSelectedServiceName] = useState("");
   const [recentService, setRecentService] = useState<{ name: string; service_date: string } | null>(null);
+  const [lockedEvent, setLockedEvent] = useState<{ id: string; name: string; service_date: string; start_time?: string | null; location?: string | null; flyer_url?: string | null; flyer_alt?: string | null } | null>(null);
   const [showCashConfirm, setShowCashConfirm] = useState(false);
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const Give = () => {
     if (preselectedServiceId) {
       const { data: preselected } = await supabase
         .from("services")
-        .select("id, name, service_date")
+        .select("id, name, service_date, start_time, location, flyer_url, flyer_alt")
         .eq("id", preselectedServiceId)
         .maybeSingle();
       if (preselected) {
@@ -91,6 +92,7 @@ const Give = () => {
         setSelectedServiceName(preselected.name);
         setFormData((prev) => ({ ...prev, serviceId: preselected.id }));
         setRecentService({ name: preselected.name, service_date: preselected.service_date });
+        setLockedEvent(preselected);
         return;
       }
     }
@@ -281,22 +283,63 @@ const Give = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <ServiceSelector
-                    onServiceSelect={(serviceId, serviceName) => {
-                      setSelectedServiceId(serviceId);
-                      setSelectedServiceName(serviceName);
-                      setFormData({ ...formData, serviceId });
-                    }}
-                    selectedServiceId={selectedServiceId}
-                  />
-                  {selectedServiceName && (
-                    <p className="text-sm text-muted-foreground">
-                      Selected: {selectedServiceName}
-                    </p>
+                  {lockedEvent ? (
+                    <div className="space-y-2">
+                      <Label className="text-base font-semibold">Event</Label>
+                      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/30">
+                        <CardContent className="p-4 flex gap-3 items-start">
+                          {lockedEvent.flyer_url ? (
+                            <img
+                              src={lockedEvent.flyer_url}
+                              alt={lockedEvent.flyer_alt || lockedEvent.name}
+                              className="w-16 h-16 rounded-md object-cover border border-border flex-shrink-0"
+                            />
+                          ) : null}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-foreground truncate">{lockedEvent.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(lockedEvent.service_date), "EEEE, MMMM d, yyyy")}
+                              {lockedEvent.start_time ? ` · ${lockedEvent.start_time.slice(0, 5)}` : ""}
+                            </p>
+                            {lockedEvent.location ? (
+                              <p className="text-xs text-muted-foreground mt-1">📍 {lockedEvent.location}</p>
+                            ) : null}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLockedEvent(null);
+                          setSelectedServiceId("");
+                          setSelectedServiceName("");
+                          setFormData({ ...formData, serviceId: "" });
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground underline"
+                      >
+                        Change event
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <ServiceSelector
+                        onServiceSelect={(serviceId, serviceName) => {
+                          setSelectedServiceId(serviceId);
+                          setSelectedServiceName(serviceName);
+                          setFormData({ ...formData, serviceId });
+                        }}
+                        selectedServiceId={selectedServiceId}
+                      />
+                      {selectedServiceName && (
+                        <p className="text-sm text-muted-foreground">
+                          Selected: {selectedServiceName}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        You can select a past event or submit a missing event date for admin approval.
+                      </p>
+                    </>
                   )}
-                  <p className="text-sm text-muted-foreground">
-                    You can select a past event or submit a missing event date for admin approval.
-                  </p>
                 </div>
 
                 <div className="space-y-2">
