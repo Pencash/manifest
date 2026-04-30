@@ -61,10 +61,19 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     [payments],
   );
   const canManagePayments = role === "admin" || role === "finance";
-  const canRecordPayment = Boolean(expense && canManagePayments && ["approved", "partially_paid"].includes(expense.status));
+  const canRecordPayment = Boolean(
+    expense
+      && canManagePayments
+      && ["approved", "partially_paid"].includes(expense.status)
+      && remainingBalance > 0.001,
+  );
   const canEditOrDelete = Boolean(
     expense && canManagePayments && !["approved", "partially_paid", "paid"].includes(expense.status),
   );
+  const canArchive = Boolean(
+    expense && canManagePayments && !expense.is_archived && ["paid", "rejected", "cancelled"].includes(expense.status),
+  );
+  const canRestore = Boolean(expense && canManagePayments && expense.is_archived);
 
   const loadExpenseDetail = useCallback(async () => {
     if (!expenseId) return;
@@ -78,6 +87,7 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
           amount, currency, description, justification, priority, due_date,
           status, paid_at, paid_by, payment_method, payment_reference,
           rejection_reason, created_at, updated_at,
+          is_archived, archived_at, archived_by, archive_reason,
           expense_categories(name, code),
           services(name, service_date)
         `)
@@ -168,22 +178,19 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     notes: string;
   }) => {
     if (!expense) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
 
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Please enter a valid payment amount.");
     if (amount > remainingBalance + 0.001) throw new Error(`Payment amount exceeds the remaining balance of ${formatAmount(remainingBalance, currencySafe(expense.currency))}.`);
 
-    const { error } = await (supabase.from("expense_payments" as any) as any).insert({
-      expense_request_id: expense.id,
-      amount,
-      payment_date: new Date(form.payment_date).toISOString(),
-      payment_method: form.payment_method,
-      payment_reference: form.payment_reference.trim() || null,
-      payee_name: form.payee_name.trim() || null,
-      notes: form.notes.trim() || null,
-      recorded_by: user.id,
+    const { error } = await (supabase.rpc as any)("record_expense_payment", {
+      p_expense_request_id: expense.id,
+      p_amount: amount,
+      p_payment_method: form.payment_method,
+      p_payment_date: new Date(form.payment_date).toISOString(),
+      p_payment_reference: form.payment_reference.trim() || null,
+      p_payee_name: form.payee_name.trim() || null,
+      p_notes: form.notes.trim() || null,
     });
     if (error) throw error;
     await loadExpenseDetail();
@@ -191,17 +198,35 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
   }, [expense, remainingBalance, loadExpenseDetail]);
 
   const voidPayment = useCallback(async (payment: PaymentRecord, reason: string) => {
-    const nextNotes = [payment.notes, reason.trim() ? `VOID REASON: ${reason.trim()}` : "VOID REASON: Not provided"]
-      .filter(Boolean)
-      .join("\n\n");
-
-    const { error } = await (supabase.from("expense_payments" as any) as any)
-      .update({ status: "voided", notes: nextNotes })
-      .eq("id", payment.id);
+    const { error } = await (supabase.rpc as any)("void_expense_payment", {
+      p_payment_id: payment.id,
+      p_void_reason: reason.trim() || null,
+    });
     if (error) throw error;
     await loadExpenseDetail();
     triggerNotificationRefresh();
   }, [loadExpenseDetail]);
+
+  const archiveExpense = useCallback(async (reason?: string) => {
+    if (!expense) return;
+    const { error } = await (supabase.rpc as any)("archive_expense_request", {
+      p_expense_request_id: expense.id,
+      p_reason: reason?.trim() || null,
+    });
+    if (error) throw error;
+    await loadExpenseDetail();
+    triggerNotificationRefresh();
+  }, [expense, loadExpenseDetail]);
+
+  const restoreExpense = useCallback(async () => {
+    if (!expense) return;
+    const { error } = await (supabase.rpc as any)("restore_expense_request", {
+      p_expense_request_id: expense.id,
+    });
+    if (error) throw error;
+    await loadExpenseDetail();
+    triggerNotificationRefresh();
+  }, [expense, loadExpenseDetail]);
 
   const openReceipt = useCallback(async (receipt: ReceiptRecord) => {
     const { data, error } = await supabase.storage.from("expense-receipts").createSignedUrl(receipt.storage_path, 60);
@@ -239,9 +264,10 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     postedTotal, requestedAmount, remainingBalance,
     paymentProgress, derivedPaymentStatus,
     latestPostedPayment, canManagePayments, canRecordPayment,
-    canEditOrDelete,
+    canEditOrDelete, canArchive, canRestore,
     checkAuthAndLoad, loadExpenseDetail,
     recordPayment, voidPayment, openReceipt,
     deleteExpense, updateExpense,
+    archiveExpense, restoreExpense,
   };
 }
