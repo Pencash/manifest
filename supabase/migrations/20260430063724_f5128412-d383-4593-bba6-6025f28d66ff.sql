@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.log_login_attempt(text, boolean) FROM PUBLIC, anon, authenticated;

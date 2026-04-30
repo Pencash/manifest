@@ -1187,6 +1187,10 @@ export type Database = {
         Args: { check_email: string; check_ip: unknown }
         Returns: boolean
       }
+      log_login_attempt: {
+        Args: { p_email: string; p_success: boolean }
+        Returns: undefined
+      }
       log_security_event: {
         Args: {
           p_action: string
