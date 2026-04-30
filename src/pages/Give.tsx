@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,8 @@ const Give = () => {
   const [showCashConfirm, setShowCashConfirm] = useState(false);
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedServiceId = searchParams.get("service_id");
 
   const [formData, setFormData] = useState({
     givingTypeId: "",
@@ -76,6 +78,22 @@ const Give = () => {
       .eq("is_active", true);
 
     if (typesRes) setGivingTypes(typesRes);
+
+    // Preselect service from URL (e.g. coming from event detail page)
+    if (preselectedServiceId) {
+      const { data: preselected } = await supabase
+        .from("services")
+        .select("id, name, service_date")
+        .eq("id", preselectedServiceId)
+        .maybeSingle();
+      if (preselected) {
+        setSelectedServiceId(preselected.id);
+        setSelectedServiceName(preselected.name);
+        setFormData((prev) => ({ ...prev, serviceId: preselected.id }));
+        setRecentService({ name: preselected.name, service_date: preselected.service_date });
+        return;
+      }
+    }
 
     // Find any service that occurred in the last 48 hours
     const twoDaysAgo = new Date();

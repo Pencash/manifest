@@ -1012,6 +1012,8 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           description: string | null
+          flyer_alt: string | null
+          flyer_url: string | null
           id: string
           is_archived: boolean | null
           is_published: boolean | null
@@ -1028,6 +1030,8 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          flyer_alt?: string | null
+          flyer_url?: string | null
           id?: string
           is_archived?: boolean | null
           is_published?: boolean | null
@@ -1044,6 +1048,8 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           description?: string | null
+          flyer_alt?: string | null
+          flyer_url?: string | null
           id?: string
           is_archived?: boolean | null
           is_published?: boolean | null

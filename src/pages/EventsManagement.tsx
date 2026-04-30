@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2, Archive, RotateCcw } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Plus, Edit, Trash, Users, Loader2, Archive, RotateCcw, ImageIcon, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -81,7 +81,22 @@ const EventsManagement = () => {
     start_time: "",
     location: "",
     description: "",
+    flyer_url: "" as string | null | "",
+    flyer_alt: "",
   });
+  const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [isUploadingFlyer, setIsUploadingFlyer] = useState(false);
+
+  const uploadFlyer = async (file: File, serviceId: string): Promise<string> => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${serviceId}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("event-flyers")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("event-flyers").getPublicUrl(path);
+    return data.publicUrl;
+  };
 
   // Auto-generate event name from service type and date
   const getServiceTypeLabel = (type: string) => 
@@ -261,34 +276,50 @@ const EventsManagement = () => {
         formData.customName
       );
 
-      const serviceData = {
+      let flyerUrl: string | null = formData.flyer_url || null;
+
+      const baseData = {
         name: generatedName,
         service_type: formData.service_type as "gic" | "ltc" | "men_gather" | "mgp" | "nop" | "other" | "sunday_service" | "thursday_livestream" | "tuesday_fellowship",
         service_date: format(formData.service_date, 'yyyy-MM-dd'),
         start_time: formData.start_time || null,
         location: formData.location || null,
         description: formData.description || null,
+        flyer_alt: formData.flyer_alt || null,
       };
 
       if (editingService) {
+        if (flyerFile) {
+          setIsUploadingFlyer(true);
+          flyerUrl = await uploadFlyer(flyerFile, editingService.id);
+          setIsUploadingFlyer(false);
+        }
         const { error } = await supabase
           .from("services")
-          .update(serviceData)
+          .update({ ...baseData, flyer_url: flyerUrl })
           .eq('id', editingService.id);
 
         if (error) throw error;
         toast.success("Event updated successfully!");
       } else {
-        // Add created_by and approval_status for new events
-        const { error } = await supabase
+        const { data: created, error } = await supabase
           .from("services")
           .insert({
-            ...serviceData,
+            ...baseData,
+            flyer_url: null,
             created_by: user?.id,
             approval_status: 'approved',
-          });
+          })
+          .select('id')
+          .single();
 
         if (error) throw error;
+        if (flyerFile && created?.id) {
+          setIsUploadingFlyer(true);
+          const url = await uploadFlyer(flyerFile, created.id);
+          await supabase.from("services").update({ flyer_url: url }).eq('id', created.id);
+          setIsUploadingFlyer(false);
+        }
         toast.success("Event created successfully!");
       }
 
@@ -325,7 +356,10 @@ const EventsManagement = () => {
       start_time: service.start_time || "",
       location: service.location || "",
       description: service.description || "",
+      flyer_url: (service as any).flyer_url || "",
+      flyer_alt: (service as any).flyer_alt || "",
     });
+    setFlyerFile(null);
     setIsDialogOpen(true);
   };
 
@@ -393,7 +427,10 @@ const EventsManagement = () => {
       start_time: "",
       location: "",
       description: "",
+      flyer_url: "",
+      flyer_alt: "",
     });
+    setFlyerFile(null);
   };
 
   const getServiceTypeBadge = (type: string) => {
@@ -938,6 +975,57 @@ const EventsManagement = () => {
                 placeholder="e.g., Main Sanctuary, Online"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="flyer">Event Flyer (optional)</Label>
+              {(flyerFile || formData.flyer_url) && (
+                <div className="flex items-center gap-3 p-2 border rounded-md bg-muted/30">
+                  {flyerFile ? (
+                    <img src={URL.createObjectURL(flyerFile)} alt="" className="w-16 h-16 object-cover rounded" />
+                  ) : formData.flyer_url ? (
+                    <img src={formData.flyer_url} alt="" className="w-16 h-16 object-cover rounded" />
+                  ) : null}
+                  <div className="flex-1 text-xs text-muted-foreground truncate">
+                    {flyerFile ? flyerFile.name : "Current flyer"}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFlyerFile(null);
+                      setFormData({ ...formData, flyer_url: "" });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              <Input
+                id="flyer"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.size > 5 * 1024 * 1024) {
+                    toast.error("Flyer must be 5MB or smaller");
+                    return;
+                  }
+                  setFlyerFile(f);
+                }}
+              />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <ImageIcon className="h-3 w-3" />
+                PNG/JPG/WEBP, max 5MB. Recommended 1080×1350. Members can share it on WhatsApp.
+              </p>
+              <Input
+                placeholder="Flyer alt text (for accessibility)"
+                value={formData.flyer_alt}
+                onChange={(e) => setFormData({ ...formData, flyer_alt: e.target.value })}
+                maxLength={200}
               />
             </div>
 
