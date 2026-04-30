@@ -1172,17 +1172,6 @@ export type Database = {
     Functions: {
       archive_old_services: { Args: { days_old?: number }; Returns: number }
       backfill_attendance_snapshots: { Args: never; Returns: number }
-      get_user_role: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
       is_rate_limited: {
         Args: { check_email: string; check_ip: unknown }
         Returns: boolean
