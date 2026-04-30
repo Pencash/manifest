@@ -340,7 +340,10 @@ const EventsManagement = () => {
       start_time: service.start_time || "",
       location: service.location || "",
       description: service.description || "",
+      flyer_url: (service as any).flyer_url || "",
+      flyer_alt: (service as any).flyer_alt || "",
     });
+    setFlyerFile(null);
     setIsDialogOpen(true);
   };
 
