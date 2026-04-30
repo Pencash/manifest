@@ -177,8 +177,12 @@ const Give = () => {
         if (receiptError) throw receiptError;
       }
 
-      toast.success("Giving recorded successfully!");
-      
+      if (wasFlaggedAsDuplicate) {
+        toast.warning("Possible duplicate detected — finance will review your entry before it appears as verified.");
+      } else {
+        toast.success("Giving recorded successfully!");
+      }
+
       setFormData({
         givingTypeId: "",
         serviceId: "",
@@ -189,6 +193,7 @@ const Give = () => {
         isAnonymous: false,
       });
       setReceiptFile(null);
+      setCashAcknowledged(false);
 
       setTimeout(() => navigate("/history"), 1500);
     } catch (error: any) {
