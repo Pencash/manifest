@@ -979,6 +979,57 @@ const EventsManagement = () => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="flyer">Event Flyer (optional)</Label>
+              {(flyerFile || formData.flyer_url) && (
+                <div className="flex items-center gap-3 p-2 border rounded-md bg-muted/30">
+                  {flyerFile ? (
+                    <img src={URL.createObjectURL(flyerFile)} alt="" className="w-16 h-16 object-cover rounded" />
+                  ) : formData.flyer_url ? (
+                    <img src={formData.flyer_url} alt="" className="w-16 h-16 object-cover rounded" />
+                  ) : null}
+                  <div className="flex-1 text-xs text-muted-foreground truncate">
+                    {flyerFile ? flyerFile.name : "Current flyer"}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFlyerFile(null);
+                      setFormData({ ...formData, flyer_url: "" });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              <Input
+                id="flyer"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  if (f.size > 5 * 1024 * 1024) {
+                    toast.error("Flyer must be 5MB or smaller");
+                    return;
+                  }
+                  setFlyerFile(f);
+                }}
+              />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <ImageIcon className="h-3 w-3" />
+                PNG/JPG/WEBP, max 5MB. Recommended 1080×1350. Members can share it on WhatsApp.
+              </p>
+              <Input
+                placeholder="Flyer alt text (for accessibility)"
+                value={formData.flyer_alt}
+                onChange={(e) => setFormData({ ...formData, flyer_alt: e.target.value })}
+                maxLength={200}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
