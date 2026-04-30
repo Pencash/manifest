@@ -177,22 +177,19 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
     notes: string;
   }) => {
     if (!expense) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
 
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Please enter a valid payment amount.");
     if (amount > remainingBalance + 0.001) throw new Error(`Payment amount exceeds the remaining balance of ${formatAmount(remainingBalance, currencySafe(expense.currency))}.`);
 
-    const { error } = await (supabase.from("expense_payments" as any) as any).insert({
-      expense_request_id: expense.id,
-      amount,
-      payment_date: new Date(form.payment_date).toISOString(),
-      payment_method: form.payment_method,
-      payment_reference: form.payment_reference.trim() || null,
-      payee_name: form.payee_name.trim() || null,
-      notes: form.notes.trim() || null,
-      recorded_by: user.id,
+    const { error } = await (supabase.rpc as any)("record_expense_payment", {
+      p_expense_request_id: expense.id,
+      p_amount: amount,
+      p_payment_method: form.payment_method,
+      p_payment_date: new Date(form.payment_date).toISOString(),
+      p_payment_reference: form.payment_reference.trim() || null,
+      p_payee_name: form.payee_name.trim() || null,
+      p_notes: form.notes.trim() || null,
     });
     if (error) throw error;
     await loadExpenseDetail();
@@ -200,17 +197,35 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
   }, [expense, remainingBalance, loadExpenseDetail]);
 
   const voidPayment = useCallback(async (payment: PaymentRecord, reason: string) => {
-    const nextNotes = [payment.notes, reason.trim() ? `VOID REASON: ${reason.trim()}` : "VOID REASON: Not provided"]
-      .filter(Boolean)
-      .join("\n\n");
-
-    const { error } = await (supabase.from("expense_payments" as any) as any)
-      .update({ status: "voided", notes: nextNotes })
-      .eq("id", payment.id);
+    const { error } = await (supabase.rpc as any)("void_expense_payment", {
+      p_payment_id: payment.id,
+      p_void_reason: reason.trim() || null,
+    });
     if (error) throw error;
     await loadExpenseDetail();
     triggerNotificationRefresh();
   }, [loadExpenseDetail]);
+
+  const archiveExpense = useCallback(async (reason?: string) => {
+    if (!expense) return;
+    const { error } = await (supabase.rpc as any)("archive_expense_request", {
+      p_expense_request_id: expense.id,
+      p_reason: reason?.trim() || null,
+    });
+    if (error) throw error;
+    await loadExpenseDetail();
+    triggerNotificationRefresh();
+  }, [expense, loadExpenseDetail]);
+
+  const restoreExpense = useCallback(async () => {
+    if (!expense) return;
+    const { error } = await (supabase.rpc as any)("restore_expense_request", {
+      p_expense_request_id: expense.id,
+    });
+    if (error) throw error;
+    await loadExpenseDetail();
+    triggerNotificationRefresh();
+  }, [expense, loadExpenseDetail]);
 
   const openReceipt = useCallback(async (receipt: ReceiptRecord) => {
     const { data, error } = await supabase.storage.from("expense-receipts").createSignedUrl(receipt.storage_path, 60);
