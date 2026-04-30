@@ -127,6 +127,16 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
           </DialogDescription>
         </DialogHeader>
 
+        {event.flyer_url ? (
+          <div className="-mt-2 rounded-md overflow-hidden border border-border">
+            <img
+              src={event.flyer_url}
+              alt={event.flyer_alt || event.name}
+              className="w-full h-32 object-cover"
+            />
+          </div>
+        ) : null}
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="invitee_name">Friend's name *</Label>
