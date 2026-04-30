@@ -87,6 +87,7 @@ export function useExpenseRequestDetail(expenseId: string | undefined) {
           amount, currency, description, justification, priority, due_date,
           status, paid_at, paid_by, payment_method, payment_reference,
           rejection_reason, created_at, updated_at,
+          is_archived, archived_at, archived_by, archive_reason,
           expense_categories(name, code),
           services(name, service_date)
         `)
