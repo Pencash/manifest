@@ -42,6 +42,9 @@ const Give = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedServiceName, setSelectedServiceName] = useState("");
+  const [recentService, setRecentService] = useState<{ name: string; service_date: string } | null>(null);
+  const [showCashConfirm, setShowCashConfirm] = useState(false);
+  const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
