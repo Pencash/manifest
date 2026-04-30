@@ -11,7 +11,6 @@ export interface ShareableEvent {
   flyer_alt?: string | null;
 }
 
-const SITE_URL = "https://manifestmalawi.com";
 const MAX_DESCRIPTION_CHARS = 140;
 const MAX_CAPTION_CHARS = 1000;
 
@@ -40,7 +39,7 @@ export const buildEventCaption = (event: ShareableEvent, friendName: string) => 
     dateLine,
     locationLine,
     desc ? `\n${desc}` : "",
-    `\nJoin us 👉 ${SITE_URL}`,
+    `\nHope to see you there! 🙌`,
   ].filter(Boolean);
 
   return lines.join("\n").slice(0, MAX_CAPTION_CHARS);
