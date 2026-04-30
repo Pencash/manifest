@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { getHighestRole } from "@/lib/roles";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
-// In-memory cache to avoid redundant RPC calls
+// In-memory cache to avoid redundant role queries
 const roleCache = new Map<string, AppRole>();
 
 export const useUserRole = (userId: string | undefined) => {
@@ -35,9 +36,7 @@ export const useUserRole = (userId: string | undefined) => {
 
         if (tableError) throw tableError;
         
-        const fallbackRole: AppRole = fallbackData && fallbackData.length > 0 
-          ? fallbackData[0].role 
-          : "member";
+        const fallbackRole: AppRole = getHighestRole(fallbackData?.map(({ role }) => role)) ?? "member";
         roleCache.set(userId, fallbackRole);
         setRole(fallbackRole);
       } catch (fallbackError) {
