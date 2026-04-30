@@ -79,6 +79,22 @@ const Give = () => {
 
     if (typesRes) setGivingTypes(typesRes);
 
+    // Preselect service from URL (e.g. coming from event detail page)
+    if (preselectedServiceId) {
+      const { data: preselected } = await supabase
+        .from("services")
+        .select("id, name, service_date")
+        .eq("id", preselectedServiceId)
+        .maybeSingle();
+      if (preselected) {
+        setSelectedServiceId(preselected.id);
+        setSelectedServiceName(preselected.name);
+        setFormData((prev) => ({ ...prev, serviceId: preselected.id }));
+        setRecentService({ name: preselected.name, service_date: preselected.service_date });
+        return;
+      }
+    }
+
     // Find any service that occurred in the last 48 hours
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
