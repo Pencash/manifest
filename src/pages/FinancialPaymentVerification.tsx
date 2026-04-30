@@ -237,8 +237,8 @@ export default function FinancialPaymentVerification() {
                     <TableCell>{canVerify && <Checkbox checked={selectedGivings.includes(giving.id)} onCheckedChange={() => toggleSelectGiving(giving.id)} />}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[giving.status as keyof typeof statusColors]}>{giving.status}</Badge>
-                      {giving.requires_admin_verification && giving.status === "pending" && (
-                        <div className="mt-2"><Badge variant="outline" className="text-xs border-amber-500/30 text-amber-700 bg-amber-500/10">Awaiting admin verification</Badge></div>
+                      {giving.status === "pending_duplicate_review" && (
+                        <div className="mt-2"><Badge variant="outline" className="text-xs border-amber-500/30 text-amber-700 bg-amber-500/10">Possible duplicate</Badge></div>
                       )}
                       {giving.rejection_reason && <div className="flex items-center gap-1 mt-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />{giving.rejection_reason}</div>}
                     </TableCell>
