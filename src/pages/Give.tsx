@@ -46,6 +46,8 @@ const Give = () => {
   const [showCashConfirm, setShowCashConfirm] = useState(false);
   const [cashAcknowledged, setCashAcknowledged] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedServiceId = searchParams.get("service_id");
 
   const [formData, setFormData] = useState({
     givingTypeId: "",
