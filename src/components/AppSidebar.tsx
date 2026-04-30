@@ -56,7 +56,7 @@ export function AppSidebar() {
       const { role } = await fetchCurrentUserAccess(user.id);
       if (!hasAdminAccess(role)) { setNavItems(adminNavItems); return; }
 
-      const { count: pendingGivingsCount } = await supabase.from("givings").select("*", { count: 'exact', head: true }).eq("status", "pending");
+      const { count: pendingGivingsCount } = await supabase.from("givings").select("*", { count: 'exact', head: true }).in("status", ["pending", "pending_duplicate_review"]);
       const { count: pendingExpensesCount } = await supabase.from("expense_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
       const { data: pendingServices } = await supabase.from("services").select("id").eq("approval_status", "pending_admin_approval");
       const [{ data: restrictedGivings }, { data: restrictedRemittances }] = await Promise.all([
