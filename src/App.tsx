@@ -21,6 +21,7 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const AdminAuth = lazy(() => import("./pages/AdminAuth"));
 const MemberAuth = lazy(() => import("./pages/MemberAuth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 // Lazy load member pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -93,6 +94,7 @@ const App = () => {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/admin/auth" element={<AdminAuth />} />
                 <Route path="/member/auth" element={<MemberAuth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* Member Routes */}
                 <Route path="/dashboard" element={<ProtectedRoute redirectTo="/member/auth"><MemberLayout><Dashboard /></MemberLayout></ProtectedRoute>} />
