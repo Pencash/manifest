@@ -146,11 +146,15 @@ const Give = () => {
           payment_reference: formData.paymentReference || null,
           note: formData.note || null,
           is_anonymous: formData.isAnonymous,
+          source: "self_recorded",
+          confirmed_not_basket: formData.paymentMethod === "cash" ? cashAcknowledged : false,
         })
         .select()
         .single();
 
       if (givingError) throw givingError;
+
+      const wasFlaggedAsDuplicate = giving?.status === "pending_duplicate_review";
 
       if (receiptFile && giving) {
         const fileExt = receiptFile.name.split(".").pop();
