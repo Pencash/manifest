@@ -56,28 +56,35 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
     setErrors({});
   };
 
-  const shareMutation = useMutation({
-    mutationFn: async () => {
-      if (!user?.id) throw new Error("You must be signed in to invite friends.");
+  const handleShare = async () => {
+    if (!user?.id) {
+      toast.error("You must be signed in to invite friends.");
+      return;
+    }
 
-      const parsed = inviteSchema.safeParse({
-        invitee_name: name,
-        invitee_phone: phone || undefined,
-      });
-      if (!parsed.success) {
-        const fieldErrors: { name?: string; phone?: string } = {};
-        for (const issue of parsed.error.issues) {
-          if (issue.path[0] === "invitee_name") fieldErrors.name = issue.message;
-          if (issue.path[0] === "invitee_phone") fieldErrors.phone = issue.message;
-        }
-        setErrors(fieldErrors);
-        throw new Error("Please fix the highlighted fields.");
+    const parsed = inviteSchema.safeParse({
+      invitee_name: name,
+      invitee_phone: phone || undefined,
+    });
+    if (!parsed.success) {
+      const fieldErrors: { name?: string; phone?: string } = {};
+      for (const issue of parsed.error.issues) {
+        if (issue.path[0] === "invitee_name") fieldErrors.name = issue.message;
+        if (issue.path[0] === "invitee_phone") fieldErrors.phone = issue.message;
       }
-      setErrors({});
+      setErrors(fieldErrors);
+      toast.error("Please fix the highlighted fields.");
+      return;
+    }
+    setErrors({});
 
-      const cleanPhone = parsed.data.invitee_phone?.trim() || null;
+    const cleanPhone = parsed.data.invitee_phone?.trim() || null;
 
-      // 1. Insert invitation row first so it counts even if share is cancelled
+    // 1. Open WhatsApp synchronously (must be inside the user gesture to avoid popup blockers)
+    shareEventToWhatsApp(event, parsed.data.invitee_name, cleanPhone);
+
+    // 2. Log the invitation in the background
+    try {
       const { error: insertError } = await supabase.from("member_invitations").insert({
         member_id: user.id,
         invitee_name: parsed.data.invitee_name,
@@ -89,25 +96,15 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
       });
       if (insertError) throw insertError;
 
-      // 2. Trigger WhatsApp share
-      const outcome = await shareEventToWhatsApp(event, parsed.data.invitee_name, cleanPhone);
-      return outcome;
-    },
-    onSuccess: (outcome) => {
       queryClient.invalidateQueries({ queryKey: ["event-invitation-stats", event.id] });
       queryClient.invalidateQueries({ queryKey: ["member-invitations"] });
-      if (outcome === "cancelled") {
-        toast.info("Share cancelled. Invitation was still logged — you can share again anytime.");
-      } else {
-        toast.success("Invitation logged. Thank you for mobilizing!");
-      }
+      toast.success("Invitation logged. WhatsApp is opening — send the message to complete the invite.");
       reset();
       onOpenChange(false);
-    },
-    onError: (err: any) => {
-      toast.error(err?.message || "Could not send invitation");
-    },
-  });
+    } catch (err: any) {
+      toast.error(err?.message || "Could not log invitation");
+    }
+  };
 
   const previewCaption = buildEventCaption(event, name || "friend");
 
