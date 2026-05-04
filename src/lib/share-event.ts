@@ -89,19 +89,31 @@ export const shareEventToWhatsApp = async (
   const caption = buildEventCaption(event, friendName);
   const phoneDigits = sanitizePhone(friendPhone);
 
-  // Try Web Share API with file (mobile native share sheet)
-  if (event.flyer_url && typeof navigator !== "undefined" && "share" in navigator) {
+  // Detect mobile — Web Share API on desktop typically opens an OS share sheet
+  // that does NOT route to WhatsApp directly, so we skip it there and use wa.me.
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+  // Try Web Share API with file (mobile native share sheet) — mobile only
+  if (isMobile && event.flyer_url && typeof navigator !== "undefined" && "share" in navigator) {
     const file = await fetchFlyerAsFile(event.flyer_url);
     if (file && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], text: caption, title: event.name });
         return "shared";
       } catch (err: any) {
-        if (err?.name === "AbortError") return "cancelled";
-        // Fall through to wa.me fallback
+        // If user aborted or share failed, fall through to wa.me so WhatsApp still opens
+        if (err?.name !== "AbortError") {
+          console.warn("navigator.share failed, falling back to wa.me:", err);
+        }
       }
     }
-    // Fallback: download the flyer so the user can attach it manually
+    // Fallback: download the flyer so the user can attach it manually in WhatsApp
+    if (file) downloadBlob(file);
+  } else if (event.flyer_url) {
+    // Desktop with flyer: download it so user can drag into WhatsApp Web
+    const file = await fetchFlyerAsFile(event.flyer_url);
     if (file) downloadBlob(file);
   }
 
