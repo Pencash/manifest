@@ -16,6 +16,7 @@ const MAX_CAPTION_CHARS = 1000;
 
 const formatTime = (time?: string | null) => {
   if (!time) return "";
+  // time is "HH:MM" or "HH:MM:SS"
   const [hStr, mStr] = time.split(":");
   const h = parseInt(hStr, 10);
   const m = parseInt(mStr ?? "0", 10);
@@ -32,11 +33,9 @@ export const buildEventCaption = (event: ShareableEvent, friendName: string) => 
   const locationLine = event.location ? `📍 ${event.location}` : "";
   const desc = (event.description || "").trim().slice(0, MAX_DESCRIPTION_CHARS);
   const cleanFriend = friendName.trim().slice(0, 80) || "friend";
-  const flyerLine = event.flyer_url ? `\n${event.flyer_url}` : "";
 
   const lines = [
     `Hi ${cleanFriend}, you're invited to ${event.name}`,
-    flyerLine,
     dateLine,
     locationLine,
     desc ? `\n${desc}` : "",
@@ -48,37 +47,80 @@ export const buildEventCaption = (event: ShareableEvent, friendName: string) => 
 
 const sanitizePhone = (phone?: string | null) => {
   if (!phone) return "";
-  return phone.replace(/[^\d]/g, "");
+  return phone.replace(/[^\d]/g, ""); // strip all non-digits for wa.me
 };
 
-export type ShareOutcome = "opened";
+const fetchFlyerAsFile = async (url: string): Promise<File | null> => {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const ext = blob.type.split("/")[1] || "jpg";
+    return new File([blob], `event-flyer.${ext}`, { type: blob.type });
+  } catch (err) {
+    console.warn("Could not fetch flyer for sharing:", err);
+    return null;
+  }
+};
+
+const downloadBlob = (file: File) => {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+};
+
+export type ShareOutcome = "shared" | "fallback_wa" | "cancelled";
 
 /**
- * Build a wa.me URL for the given event/friend. Pure — safe to call synchronously.
+ * Share an event to WhatsApp.
+ * - If flyer + Web Share API with files supported → native share sheet (image + caption)
+ * - Otherwise → opens wa.me with caption (and optional phone), downloads flyer first if present
  */
-export const buildWhatsAppUrl = (
+export const shareEventToWhatsApp = async (
   event: ShareableEvent,
   friendName: string,
   friendPhone?: string | null,
-): string => {
+): Promise<ShareOutcome> => {
   const caption = buildEventCaption(event, friendName);
   const phoneDigits = sanitizePhone(friendPhone);
-  return phoneDigits
+
+  // Detect mobile — Web Share API on desktop typically opens an OS share sheet
+  // that does NOT route to WhatsApp directly, so we skip it there and use wa.me.
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+  // Try Web Share API with file (mobile native share sheet) — mobile only
+  if (isMobile && event.flyer_url && typeof navigator !== "undefined" && "share" in navigator) {
+    const file = await fetchFlyerAsFile(event.flyer_url);
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text: caption, title: event.name });
+        return "shared";
+      } catch (err: any) {
+        // If user aborted or share failed, fall through to wa.me so WhatsApp still opens
+        if (err?.name !== "AbortError") {
+          console.warn("navigator.share failed, falling back to wa.me:", err);
+        }
+      }
+    }
+    // Fallback: download the flyer so the user can attach it manually in WhatsApp
+    if (file) downloadBlob(file);
+  } else if (event.flyer_url) {
+    // Desktop with flyer: download it so user can drag into WhatsApp Web
+    const file = await fetchFlyerAsFile(event.flyer_url);
+    if (file) downloadBlob(file);
+  }
+
+  const waUrl = phoneDigits
     ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(caption)}`
     : `https://wa.me/?text=${encodeURIComponent(caption)}`;
-};
 
-/**
- * Open WhatsApp (app on mobile, WhatsApp Web on desktop) with the message
- * pre-filled. Flyer (if any) is included as a URL so WhatsApp renders a link
- * preview with the image. MUST be called synchronously from a user gesture.
- */
-export const shareEventToWhatsApp = (
-  event: ShareableEvent,
-  friendName: string,
-  friendPhone?: string | null,
-): ShareOutcome => {
-  const url = buildWhatsAppUrl(event, friendName, friendPhone);
-  window.open(url, "_blank", "noopener,noreferrer");
-  return "opened";
+  window.open(waUrl, "_blank", "noopener,noreferrer");
+  return "fallback_wa";
 };
