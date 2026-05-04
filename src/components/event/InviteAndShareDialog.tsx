@@ -150,7 +150,7 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. James Banda"
               maxLength={80}
-              disabled={shareMutation.isPending}
+              disabled={submitting}
             />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
@@ -163,7 +163,7 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+265 999 000 111"
               maxLength={20}
-              disabled={shareMutation.isPending}
+              disabled={submitting}
             />
             <p className="text-xs text-muted-foreground">
               If provided, WhatsApp opens that chat directly.
@@ -174,7 +174,7 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
           {event.flyer_url ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground rounded-md border bg-muted/30 px-3 py-2">
               <ImageIcon className="h-4 w-4 text-accent" />
-              Event flyer will be attached to your share.
+              Flyer link is included — WhatsApp will show a preview.
             </div>
           ) : null}
 
@@ -190,15 +190,15 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={shareMutation.isPending}
+            disabled={submitting}
           >
             Cancel
           </Button>
           <Button
-            onClick={() => shareMutation.mutate()}
-            disabled={shareMutation.isPending || !name.trim()}
+            onClick={() => handleShare()}
+            disabled={submitting || !name.trim()}
           >
-            {shareMutation.isPending ? (
+            {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Sharing…
