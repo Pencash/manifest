@@ -56,7 +56,11 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
     setErrors({});
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleShare = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     if (!user?.id) {
       toast.error("You must be signed in to invite friends.");
       return;
