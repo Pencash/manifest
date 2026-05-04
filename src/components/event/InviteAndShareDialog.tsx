@@ -60,7 +60,7 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
 
   const handleShare = async () => {
     if (submitting) return;
-    setSubmitting(true);
+
     if (!user?.id) {
       toast.error("You must be signed in to invite friends.");
       return;
@@ -87,6 +87,7 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
     // 1. Open WhatsApp synchronously (must be inside the user gesture to avoid popup blockers)
     shareEventToWhatsApp(event, parsed.data.invitee_name, cleanPhone);
 
+    setSubmitting(true);
     // 2. Log the invitation in the background
     try {
       const { error: insertError } = await supabase.from("member_invitations").insert({
@@ -107,6 +108,8 @@ export const InviteAndShareDialog = ({ open, onOpenChange, event }: InviteAndSha
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err?.message || "Could not log invitation");
+    } finally {
+      setSubmitting(false);
     }
   };
 
