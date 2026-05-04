@@ -229,7 +229,7 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: HandHeart, title: "Record Giving", description: "Submit tithes, offerings, and pledges with a simple, guided process. Track every contribution.", color: "text-accent", bg: "bg-accent/10" },
+              { icon: HandHeart, title: "Partner with the Mission", description: "Join us in advancing God's work. Give your tithes, offerings, and pledges to support the mission and be part of what God is doing across the nations.", color: "text-accent", bg: "bg-accent/10" },
               { icon: Heart, title: "Prayer Requests", description: "Share your prayer needs with the community. Stand together in faith and intercession.", color: "text-destructive", bg: "bg-destructive/10" },
               { icon: MessageSquare, title: "Share Testimonies", description: "Celebrate what God is doing in your life. Inspire others with your faith journey.", color: "text-secondary-foreground", bg: "bg-secondary/50" },
               { icon: Users, title: "Mobilization", description: "Get involved in service opportunities. Sign up for events and volunteer teams.", color: "text-foreground", bg: "bg-muted" },
