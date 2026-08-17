@@ -7,14 +7,11 @@ export const useRateLimiting = () => {
         body: { email, mode: 'check' },
       });
 
-      if (error) {
-        console.error('Rate limit check error:', error);
-        return false;
-      }
+      // Fail open — never block sign-in because the check is unavailable.
+      if (error) return false;
 
       return Boolean(data?.limited);
-    } catch (error) {
-      console.error('Rate limit check failed:', error);
+    } catch {
       return false;
     }
   };
@@ -24,8 +21,8 @@ export const useRateLimiting = () => {
       await supabase.functions.invoke('log-login-attempt', {
         body: { email, success, mode: 'log' },
       });
-    } catch (error) {
-      console.error('Failed to log login attempt:', error);
+    } catch {
+      // Non-critical telemetry — ignore failures.
     }
   };
 
