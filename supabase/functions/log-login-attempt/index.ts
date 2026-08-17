@@ -58,9 +58,11 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ limited: (count || 0) >= 5 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ message: error.message || "Unable to process request" }), {
-      status: 500,
+  } catch (error) {
+    // Fail open: rate-limit bookkeeping must never block or break sign-in.
+    console.error("log-login-attempt failed:", error instanceof Error ? error.message : error);
+    return new Response(JSON.stringify({ ok: false, limited: false, degraded: true }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
