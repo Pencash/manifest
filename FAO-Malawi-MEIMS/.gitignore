@@ -1,0 +1,7 @@
+# Local development
+node_modules/
+.env
+.DS_Store
+.vscode/
+# Runtime/local browser exports
+*.local.json
