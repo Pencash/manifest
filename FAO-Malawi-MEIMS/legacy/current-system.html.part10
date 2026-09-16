@@ -1,0 +1,49 @@
+custom"};let ps=$("ap");if(ps)ps.onchange=()=>{let p=db.projects.find(z=>z.code===ps.value)||{};$("atfb").innerHTML=`<option>${esc(p.fourBetter||"")}</option>`;$("atct").innerHTML=`<option>${esc(p.cpfThematic||"")}</option>`;$("atco").innerHTML=`<option>${esc(p.cpfOutput||"")}</option>`}}
+function saveActivity(id){
+  let pc=$("ap").value,pr=db.projects.find(p=>p.code===pc)||{};
+  let status=($("ast").value==="__custom"?$("asc").value.trim():$("ast").value);
+  let progress;
+  if(status==="Completed") progress=100;
+  else if(status==="Not Started"||status==="Cancelled") progress=0;
+  else progress=Math.max(0,Math.min(100,+$("ag").value||0));
+  let x={id:id||"A"+Date.now(),projectCode:pc,projectTitle:pr.title||"",
+    fourBetter:pr.fourBetter||"",cpfThematic:pr.cpfThematic||"",cpfOutput:pr.cpfOutput||"",
+    activity:$("aa").value,projectOutput:$("ao").value,startDate:$("as").value,endDate:$("ae").value,
+    status:status,priority:$("apr").value,progress:progress,mode:$("am").value,districts:$("ad").value,
+    budget:+$("ab").value||0,meFocal:$("af").value,update:$("au").value,lastUpdated:new Date().toISOString().slice(0,10)};
+  if(!x.activity.trim())return alert("Activity name is required.");
+  let i=db.activities.findIndex(a=>a.id===id);i>=0?db.activities[i]=x:db.activities.unshift(x);closeModal();save();
+}
+function delActivity(id){if(confirm("Delete this activity?")){db.activities=db.activities.filter(a=>a.id!==id);save()}}
+function renderProjects(){let q=($("pq")?.value||"").toLowerCase();$("ptable").innerHTML=db.projects.filter(p=>[p.code,p.title,p.fourBetter,p.cpfThematic,p.cpfOutput,p.manager,p.meFocal].join(" ").toLowerCase().includes(q)).map(p=>`<tr><td><b>${esc(p.code)}</b></td><td>${esc(p.title)}</td><td>${esc(p.fourBetter)}</td><td>${esc(p.cpfThematic)}</td><td>${esc(p.cpfOutput)}</td><td>${esc(p.manager)}</td><td>${esc(p.meFocal)}</td><td>${db.activities.filter(a=>a.projectCode===p.code).length}</td><td><button onclick="openProject('${esc(p.code)}')">Edit</button> <button class="danger" onclick="delProject('${esc(p.code)}')">Delete</button></td></tr>`).join("")}
+function openProject(id=""){let x=id?db.projects.find(p=>p.code===id):{code:"",title:"",fourBetter:"",cpfThematic:"",cpfOutput:"",manager:"",meFocal:"",startDate:"",endDate:"",status:"Active"};$("modalbox").innerHTML=`<h2>${id?"Edit Project":"New Project"}</h2><div class="form">
+<label><span>Project Code *</span><input id="pc" value="${esc(x.code)}" ${id?"readonly":""}></label>
+<label><span>Project Title *</span><input id="pt" value="${esc(x.title)}"></label>
+<label><span>A — FOUR BETTER</span><select id="pfb"><option value="">Select FOUR BETTER</option>${FOUR_BETTERS.map(v=>`<option value="${esc(v)}" ${v===x.fourBetter?"selected":""}>${esc(v)}</option>`).join("")}</select></label>
+<label><span>B — NEW CPF THEMATIC AREA</span><select id="pct"><option value="">Select CPF Thematic Area</option>${THEMATIC_AREAS.map(v=>`<option value="${esc(v)}" ${v===x.cpfThematic?"selected":""}>${esc(v)}</option>`).join("")}</select></label>
+<label class="full"><span>C — NEW CPF OUTPUT</span><select id="pco"><option value="">Select CPF Output</option></select></label>
+<label><span>Project Manager</span><input id="pm" value="${esc(x.manager)}"></label>
+<label><span>M&E Focal Point</span><input id="pme" value="${esc(x.meFocal)}"></label>
+<label><span>Project Start</span><input id="ps" type="date" value="${esc(x.startDate)}"></label>
+<label><span>Project End</span><input id="pe" type="date" value="${esc(x.endDate)}"></label>
+<label><span>Activity Status</span><select id="pst"><option>Active</option><option>Closed</option><option>Pipeline</option></select></label>
+</div><div class="actions"><button onclick="closeModal()">Cancel</button><button class="primary" onclick="saveProject('${esc(id)}')">Save Project</button></div>`;$("modal").classList.add("show");
+let ptm=$("pct"), pco=$("pco");
+function refreshCPFOutputs(){let key=ptm.value;let arr=CPF_OUTPUTS[key]||[];pco.innerHTML='<option value="">Select CPF Output</option>'+arr.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");if(x.cpfOutput&&arr.includes(x.cpfOutput))pco.value=x.cpfOutput;}
+if(ptm){ptm.onchange=refreshCPFOutputs;refreshCPFOutputs();} }function saveProject(id){let code=$("pc").value.trim(),title=$("pt").value.trim();if(!code||!title)return alert("Project code and title are required.");if(!id&&db.projects.some(p=>p.code===code))return alert("Project code already exists.");
+let x={code,title,fourBetter:$("pfb").value,cpfThematic:$("pct").value,cpfOutput:$("pco").value,manager:$("pm").value,meFocal:$("pme").value,startDate:$("ps").value,endDate:$("pe").value,status:$("pst").value};
+if(id){let p=db.projects.find(p=>p.code===id);Object.assign(p,x);db.activities.filter(a=>a.projectCode===code).forEach(a=>{a.projectTitle=title;a.fourBetter=x.fourBetter;a.cpfThematic=x.cpfThematic;a.cpfOutput=x.cpfOutput;a.manager=x.manager;a.meFocal=x.meFocal})}
+else db.projects.push(x);closeModal();save()}function delProject(code){let n=db.activities.filter(a=>a.projectCode===code).length;if(confirm(`Delete ${code}? ${n} linked activities will also be deleted.`)){db.projects=db.projects.filter(p=>p.code!==code);db.activities=db.activities.filter(a=>a.projectCode!==code);save()}}
+function openSession(id=""){let x=id?db.sessions.find(s=>s.id===id):{date:new Date().toISOString().slice(0,10),type:"Monthly Review",chair:"",summary:"",decisions:"",actions:""};$("modalbox").innerHTML=`<h2>${id?"Edit":"New"} Review Session</h2><div class="form"><label><span>Date</span><input id="sd" type="date" value="${esc(x.date)}"></label><label><span>Type</span><select id="st">${["Monthly Review","Quarterly Review","Project Review","Ad-hoc"].map(s=>`<option ${s===x.type?"selected":""}>${s}</option>`).join("")}</select></label><label><span>Chair / Lead</span><input id="sc" value="${esc(x.chair)}"></label><label class="full"><span>Summary</span><textarea id="ss" rows="3">${esc(x.summary)}</textarea></label><label class="full"><span>Decisions</span><textarea id="sx" rows="3">${esc(x.decisions)}</textarea></label><label class="full"><span>Actions / Follow-up</span><textarea id="sa" rows="4">${esc(x.actions)}</textarea></label></div><div class="actions"><button onclick="closeModal()">Cancel</button><button class="primary" onclick="saveSession('${id}')">Save Session</button></div>`;$("modal").classList.add("show")}
+function saveSession(id){let x={id:id||"S"+Date.now(),date:$("sd").value,type:$("st").value,chair:$("sc").value,summary:$("ss").value,decisions:$("sx").value,actions:$("sa").value};let i=db.sessions.findIndex(s=>s.id===id);i>=0?db.sessions[i]=x:db.sessions.unshift(x);closeModal();save()}
+function renderSessions(){$("sessionsList").innerHTML=db.sessions.map(s=>`<div class="panel"><b>${esc(s.type)}</b> — ${esc(s.date)} <button onclick="openSession('${s.id}')">Edit</button> <button class="danger" onclick="delSession('${s.id}')">Delete</button><p><b>Summary:</b> ${esc(s.summary)||"—"}</p><p><b>Decisions:</b> ${esc(s.decisions)||"—"}</p><p><b>Actions:</b> ${esc(s.actions)||"—"}</p></div>`).join("")||'<div class="panel muted">No review sessions recorded.</div>'}
+function delSession(id){if(confirm("Delete this session?")){db.sessions=db.sessions.filter(s=>s.id!==id);save()}}
+function closeModal(){$("modal").classList.remove("show")}
+function download(n,d,t){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([d],{type:t}));a.download=n;a.click()}
+function exportJSON(){download("meims-backup.json",JSON.stringify(db,null,2),"application/json")}
+function exportCSV(){let c=["id","projectCode","projectTitle","projectOutput","activity","startDate","endDate","status","progress","priority","manager","meFocal","districts","budget","update"];download("meims-activities.csv",[c.join(","),...db.activities.map(x=>c.map(k=>`"${String(x[k]??"").replaceAll('"','""')}"`).join(","))].join("\n"),"text/csv")}
+function importJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.projects||!x.activities)throw 1;db=x;save();alert("Backup imported.")}catch(e){alert("Invalid backup.")}};r.readAsText(f)}
+function resetData(){if(confirm("Reset all local changes?")){db={...SEED,sessions:[]};save()}}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(b.dataset.page).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("nav-active",x===b))});
+render();
+</script></body></html>
